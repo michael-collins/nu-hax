@@ -1,0 +1,16 @@
+{
+  "name": "nu-hax",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@haxtheweb/create": "^26.8.1",
+    "gray-matter": "^4.0.3"
+  }
+}
