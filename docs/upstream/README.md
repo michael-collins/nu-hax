@@ -36,6 +36,19 @@ Checked and not filed:
 
 To apply a patch to a fork: `git am docs/upstream/patches/<file>.patch`.
 
+## Our theme against upstream `main` (checked 2026-10-01)
+
+Main (haxcms-nodejs e41c859, with its own front-end build) served a copy of the site on another port, and was compared with the 26.8.1 release.
+
+- **Same on both:**
+  - every editor method, element id and store field our layer calls;
+  - the editor skins' selectors;
+  - the theme, nav, pathway, collection and footer rendering;
+  - outline saves with our metadata, clearing fields, creating pages with metadata, uploads, and an editor save of a page with our blocks.
+- **Changed but fine:** `simple-icon-lite` now draws with an SVG colour filter instead of a CSS mask. Our Lucide icons still resolve, and they paint in the theme colour (checked by rendering them).
+- **New in main:** theme preload hints 404 for custom themes ([draft 06](06-custom-theme-preload.md), not filed).
+- **Our bug, found and fixed:** Page details sent `setDescription` with the description nested under `details`. Both the release and main read it at the top level, so description edits never saved. Fixed in learning-materials f28fd14, and checked on both.
+
 ## Next rounds
 
 1. **Hooks** that make custom themes less fragile:
