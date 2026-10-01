@@ -39,17 +39,40 @@ const MAPPED = new Set(["title", "tags", "published"]);
 
 // md-to-html escapes raw HTML, so MDC components are swapped for placeholder
 // paragraphs before conversion and restored as web components afterwards.
+// Each Decap component maps to the site block that ports it.
+const MDC_BLOCKS = {
+  "rubric-component": { tag: "oer-rubric", attrs: { id: "rubric-id" } },
+  "iframe-component": { tag: "oer-iframe" },
+  "video-component": { tag: "oer-video" },
+  "google-slides-component": { tag: "oer-google-slides", attrs: { id: "slides" } },
+  "sketchfab-component": { tag: "oer-sketchfab" },
+  "threed-viewer-component": { tag: "oer-3d-viewer" },
+};
+const kebab = (k) => k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+const escapeAttr = (v) => String(v).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+function mdcToElement(name, attrText) {
+  const map = MDC_BLOCKS[name];
+  if (!map) return null;
+  const attrs = [];
+  // key="value", key='value', :key="value" (bound) or bare boolean keys
+  for (const m of attrText.matchAll(/:?([A-Za-z][\w-]*)(?:=(?:"([^"]*)"|'([^']*)'))?/g)) {
+    const key = m[1];
+    const value = m[2] ?? m[3];
+    const attr = map.attrs?.[key] || kebab(key);
+    if (value === undefined || value === "true") attrs.push(attr);
+    else attrs.push(`${attr}="${escapeAttr(value)}"`);
+  }
+  return `<${map.tag}${attrs.length ? ` ${attrs.join(" ")}` : ""}></${map.tag}>`;
+}
+
 function extractMdc(md) {
   const blocks = [];
   const stash = (tag) => `\n\nHAXBLOCK${blocks.push(tag) - 1}\n\n`;
-  const out = md
-    .replace(/::rubric-component\{id="([^"]+)"\}\s*\n::/g, (_, id) =>
-      stash(`<oer-rubric rubric-id="${id}"></oer-rubric>`),
-    )
-    .replace(
-      /::iframe-component\{src="([^"]+)"(?:\s+title="([^"]*)")?\}\s*\n::/g,
-      (_, src, title = "") => stash(`<video-player source="${src}" title="${title}"></video-player>`),
-    );
+  const out = md.replace(/::([a-z][a-z0-9-]*)\{([^}]*)\}\s*\n::/g, (whole, name, attrText) => {
+    const el = mdcToElement(name, attrText);
+    return el ? stash(el) : whole;
+  });
   return { md: out, blocks };
 }
 function restoreMdc(html, blocks) {
