@@ -4,10 +4,12 @@
 //   (or pass the path to cms/config.yml as the first argument)
 //
 // Field mapping: string→text, text→longtext, select→select, list→list,
-// datetime→date, boolean→boolean, image→image. Fields HAX already models
-// per page (title, description, tags, published), the page body (markdown)
-// and Decap-internal fields (slug, hidden, version, outline, items) are
-// left out; relations wait for the books/versioning work.
+// datetime→date, boolean→boolean, image→image. Typed lists of relations
+// (prerequisites…) become "relation" fields limited to those types, and
+// lists with a file widget (attachments) become "files" fields. Fields HAX
+// already models per page (title, description, tags, published), the page
+// body (markdown) and Decap-internal fields (slug, hidden, version, outline,
+// items) are left out.
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -52,9 +54,30 @@ const META = {
 const options = (f) =>
   (f.options || []).map((o) => (typeof o === "object" ? { value: String(o.value), label: String(o.label ?? o.value) } : { value: String(o), label: String(o) }));
 
+// a typed list whose variants each hold a relation: the linkable type ids
+const relationTypes = (f) =>
+  (f.types || [])
+    .map((t) => (t.fields || []).find((x) => x.widget === "relation")?.collection)
+    .map((c) => META[c]?.id)
+    .filter(Boolean);
+
 function field(f) {
+  if (SKIP.has(f.name)) return null;
+  if (f.widget === "list" && Array.isArray(f.types)) {
+    const types = relationTypes(f);
+    if (!types.length) return null;
+    const out = { name: f.name, label: f.label || f.name, kind: "relation", types };
+    if (f.hint) out.help = String(f.hint);
+    if (HEADER.has(f.name)) out.header = true;
+    return out;
+  }
+  if (f.widget === "list" && (f.fields || []).some((x) => x.widget === "file")) {
+    const out = { name: f.name, label: f.label || f.name, kind: "files", header: true };
+    if (f.hint) out.help = String(f.hint);
+    return out;
+  }
   const kind = KIND[f.widget || "string"];
-  if (!kind || SKIP.has(f.name)) return null;
+  if (!kind) return null;
   // lists of objects (attachments, criteria…) have no flat form yet
   if (kind === "list" && Array.isArray(f.fields) && f.fields.length > 1) return null;
   const out = { name: f.name, label: f.label || f.name, kind };
