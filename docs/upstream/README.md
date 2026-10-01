@@ -53,6 +53,8 @@ Main (haxcms-nodejs e41c859, with its own front-end build) served a copy of the 
 - **New in main:** theme preload hints 404 for custom themes ([draft 06](06-custom-theme-preload.md), not filed).
 - **Our bug, found and fixed:** Page details sent `setDescription` with the description nested under `details`. Both the release and main read it at the top level, so description edits never saved. Fixed in learning-materials f28fd14, and checked on both.
 
+- [07: style revision and data conformance](07-style-and-data-conformance.md): btopro's concerns, theme test results, conformance table and draft reply.
+
 ## Next rounds
 
 1. **Hooks** that make custom themes less fragile:
