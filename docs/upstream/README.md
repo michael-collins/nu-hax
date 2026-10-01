@@ -23,10 +23,10 @@ Verified against current `main`: haxcms-nodejs e41c859 and webcomponents e51c522
 
 | # | Repo | Problem | Draft | Patch | Filed |
 |---|---|---|---|---|---|
-| 1 | haxcms-nodejs | `pageBreakParser` misses a trailing bare `published` and corrupts titles that contain "published " or "locked " | [01](01-page-break-attributes.md) | `haxcms-nodejs--page-break-boolean-attributes.patch` | [#3096](https://github.com/haxtheweb/issues/issues/3096) · PR [#44](https://github.com/haxtheweb/haxcms-nodejs/pull/44) |
-| 2 | haxcms-nodejs | Content save without a `<page-break>` writes nothing but returns 200 | [02](02-content-save-without-page-break.md) | `haxcms-nodejs--content-save-without-page-break.patch` | [#3097](https://github.com/haxtheweb/issues/issues/3097) · PR [#45](https://github.com/haxtheweb/haxcms-nodejs/pull/45) |
-| 3 | haxcms-nodejs | Outline saves drop item descriptions | [03](03-outline-descriptions-and-id-map.md) | `haxcms-nodejs--outline-descriptions-and-id-map.patch` | [#3098](https://github.com/haxtheweb/issues/issues/3098) · PR [#46](https://github.com/haxtheweb/haxcms-nodejs/pull/46) |
-| 4 | haxcms-nodejs | Outline saves don't say which ids new items got | [03](03-outline-descriptions-and-id-map.md) | (same patch) | [#3099](https://github.com/haxtheweb/issues/issues/3099) · PR [#46](https://github.com/haxtheweb/haxcms-nodejs/pull/46) |
+| 1 | haxcms-nodejs | `pageBreakParser` misses a trailing bare `published` and corrupts titles that contain "published " or "locked " | [01](01-page-break-attributes.md) | `haxcms-nodejs--page-break-boolean-attributes.patch` | [#3096](https://github.com/haxtheweb/issues/issues/3096) · PR [#44](https://github.com/haxtheweb/haxcms-nodejs/pull/44) ✅ merged |
+| 2 | haxcms-nodejs | Content save without a `<page-break>` writes nothing but returns 200 | [02](02-content-save-without-page-break.md) | `haxcms-nodejs--content-save-without-page-break.patch` | [#3097](https://github.com/haxtheweb/issues/issues/3097) · PR [#45](https://github.com/haxtheweb/haxcms-nodejs/pull/45) ✅ merged |
+| 3 | haxcms-nodejs | Outline saves drop item descriptions | [03](03-outline-descriptions-and-id-map.md) | `haxcms-nodejs--outline-descriptions-and-id-map.patch` | [#3098](https://github.com/haxtheweb/issues/issues/3098) · PR [#46](https://github.com/haxtheweb/haxcms-nodejs/pull/46) ✅ merged |
+| 4 | haxcms-nodejs | Outline saves don't say which ids new items got | [03](03-outline-descriptions-and-id-map.md) | (same patch) | [#3099](https://github.com/haxtheweb/issues/issues/3099) · PR [#46](https://github.com/haxtheweb/haxcms-nodejs/pull/46) ✅ merged |
 | 5 | webcomponents | HAX writes Lit `state: true` properties into saved HTML | [05](05-hax-lit-state-properties.md) | `webcomponents--hax-skip-lit-state-properties.patch` | [#3100](https://github.com/haxtheweb/issues/issues/3100) · PR [#830](https://github.com/haxtheweb/webcomponents/pull/830) ✅ merged by btopro 2026-10-01 |
 
 Checked and not filed:
@@ -34,7 +34,7 @@ Checked and not filed:
 - **Clearing metadata in outline saves:** sending `null` already stores `null`, so a delete operation isn't needed.
 - **Dev-server reload loop:** it was caused by our own icon generator writing into `src/`, and we fixed it on our side.
 
-**Review status (2026-10-01):** #830 was approved and merged by btopro. On #44, #45 and #46 the automated Copilot reviewer suggested one change each (whitespace around `=`, an accurate error message, a prototype-free id map). All three were fixed with tests and answered in their threads. No human review yet.
+**Review status (2026-10-01):** all four round-1 PRs are merged: #830, then #44, #45 and #46 after the Copilot review fixes. #830 was approved and merged by btopro. On #44, #45 and #46 the automated Copilot reviewer suggested one change each (whitespace around `=`, an accurate error message, a prototype-free id map). All three were fixed with tests and answered in their threads. No human review yet.
 
 **Upstream moved (2026-10-01, haxcms-nodejs 295e645, QA for 26.9.0):** the new commits don't touch the files our PRs change. #44, #45 and #46 merge cleanly onto it, with the full suite unchanged (the same 7 failures already on main; our 8 tests pass). Our theme was checked against the new editor build: same internals, blocks register, pathway, collection, Page details and editor saves all work. The custom-theme preload 404 (draft 06) is still there.
 
