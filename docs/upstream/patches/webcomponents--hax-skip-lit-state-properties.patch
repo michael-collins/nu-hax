@@ -1,0 +1,36 @@
+From 9758b7356f17771e04f0e337f06d1f499c2c58bf Mon Sep 17 00:00:00 2001
+From: Michael Collins <michael-collins@users.noreply.github.com>
+Date: Thu, 1 Oct 2026 09:25:10 -0400
+Subject: [PATCH] [hax-body] Don't write Lit state properties into saved
+ content
+
+nodeToContent records every declared property that differs from its
+default. Lit properties declared with state: true are internal reactive
+state and have no attribute, but were written into the page HTML (e.g.
+<my-el _open _rows="[...]">), and read back as stray attributes.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ elements/hax-body/lib/hax-store.js | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/elements/hax-body/lib/hax-store.js b/elements/hax-body/lib/hax-store.js
+index 2e3bd4c..5379751 100644
+--- a/elements/hax-body/lib/hax-store.js
++++ b/elements/hax-body/lib/hax-store.js
+@@ -5931,10 +5931,12 @@ Window size: ${globalThis.innerWidth}x${globalThis.innerHeight}
+         // never allow read only things to recorded as they
+         // are run-time creation 99% of the time
+         // this is very polymer specific but it allows readOnly and computed props
++        // Lit's `state: true` marks internal reactive state, never an attribute
+         // also __ is a popular convention for private values so let's skip them
+         if (
+           !tmpProps[j].readOnly &&
+           !tmpProps[j].computed &&
++          !tmpProps[j].state &&
+           value !== tmpProps[j].value &&
+           !nodeName.startsWith("__")
+         ) {
+-- 
+2.43.0
+

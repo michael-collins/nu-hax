@@ -1,0 +1,180 @@
+From 7eb543a16ee7ac8d81a89fff14897fff68626e88 Mon Sep 17 00:00:00 2001
+From: Michael Collins <michael-collins@users.noreply.github.com>
+Date: Thu, 1 Oct 2026 09:24:30 -0400
+Subject: [PATCH] Outline saves: keep item descriptions, return the id map for
+ new items
+
+- description sent with an outline item is saved (stripped of tags, as the
+  setDescription node operation does); it was dropped before
+- the response includes idMap (client id -> server id) for new items, so a
+  client can update its own references to pages it just created
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/openapi/site-spec.yaml              |   5 ++
+ src/siteRoutes/v1/routes/saveOutline.js |  10 ++-
+ test/unit/save-outline-items.test.cjs   | 101 ++++++++++++++++++++++++
+ 3 files changed, 115 insertions(+), 1 deletion(-)
+ create mode 100644 test/unit/save-outline-items.test.cjs
+
+diff --git a/src/openapi/site-spec.yaml b/src/openapi/site-spec.yaml
+index b845627..b4caf71 100644
+--- a/src/openapi/site-spec.yaml
++++ b/src/openapi/site-spec.yaml
+@@ -450,6 +450,11 @@ paths:
+                             type: array
+                             items:
+                               $ref: "#/components/schemas/ItemRecord"
++                          idMap:
++                            type: object
++                            description: Ids the client sent for new items, mapped to the ids the server gave them
++                            additionalProperties:
++                              type: string
+         "400":
+           $ref: "#/components/responses/BadRequest"
+         "401":
+diff --git a/src/siteRoutes/v1/routes/saveOutline.js b/src/siteRoutes/v1/routes/saveOutline.js
+index 8b0975d..bc9f44a 100644
+--- a/src/siteRoutes/v1/routes/saveOutline.js
++++ b/src/siteRoutes/v1/routes/saveOutline.js
+@@ -6,6 +6,7 @@ const { sanitizeHTMLForStorage } = require('../../../lib/sanitizeContent.js');
+ const { isPathautoEnabled } = require('../../../lib/nodeDetailOperations.js');
+ const { getRequestHeaderValue, assertSiteFeature } = require('../siteRouteUtils.js');
+ const FileContentScanner = require('../../../lib/FileContentScanner.js');
++const strip_tags = require('locutus/php/strings/strip_tags').strip_tags;
+ /**
+    * @OA\Post(
+    *    path="/saveOutline",
+@@ -62,6 +63,11 @@ const FileContentScanner = require('../../../lib/FileContentScanner.js');
+         if (item.title != '' && item.title) {
+           page.title = item.title;
+         }
++        // description belongs to the JSON Outline Schema item; same handling
++        // as the setDescription node operation
++        if (typeof item.description === 'string') {
++          page.description = item.description === '' ? '' : strip_tags(item.description);
++        }
+         cleanTitle = HAXCMS.cleanTitle(page.title);
+         if (item.parent == null) {
+           page.parent = null;
+@@ -318,7 +324,9 @@ const FileContentScanner = require('../../../lib/FileContentScanner.js');
+       // update alt formats like rss as we did massive changes
+       await site.updateAlternateFormats();
+       await site.gitCommit('Outline updated in bulk');
+-      res.json({ status: 200, data: { items: site.manifest.items } });
++      // new items get server ids; idMap (client id -> server id) lets
++      // clients update their own references to the pages they created
++      res.json({ status: 200, data: { items: site.manifest.items, idMap: itemMap } });
+     } else {
+       res.status(403).json({ status: 403, data: { message: 'Authentication required' } });
+     }
+diff --git a/test/unit/save-outline-items.test.cjs b/test/unit/save-outline-items.test.cjs
+new file mode 100644
+index 0000000..70ac06c
+--- /dev/null
++++ b/test/unit/save-outline-items.test.cjs
+@@ -0,0 +1,101 @@
++'use strict'
++
++// saveOutline: descriptions sent with outline items are saved, and the
++// response maps the ids the client gave new items to the ids the server
++// assigned (the server never trusts a front-end id for a new item).
++
++const test = require('node:test')
++const assert = require('node:assert/strict')
++const fs = require('fs-extra')
++const os = require('os')
++const path = require('path')
++
++const { HAXCMS } = require('../../src/lib/HAXCMS.js')
++const saveOutline = require('../../src/siteRoutes/v1/routes/saveOutline.js')
++
++function stubRes() {
++  return {
++    statusCode: 200,
++    body: null,
++    status(code) {
++      this.statusCode = code
++      return this
++    },
++    json(obj) {
++      this.body = obj
++      return this
++    },
++  }
++}
++
++function fakeSite(dir, items) {
++  return {
++    name: 'demo',
++    siteDirectory: dir,
++    manifest: {
++      items,
++      metadata: { site: {} },
++      addItem(page) {
++        items.push(page)
++      },
++      save: async () => {},
++    },
++    loadNode(id) {
++      return items.find((i) => i.id === id) || null
++    },
++    updateNode: async (page) => {
++      const index = items.findIndex((i) => i.id === page.id)
++      if (index !== -1) items[index] = page
++    },
++    getUniqueSlugName: (slug) => slug,
++    getPageContent: async () => '',
++    deleteNode: async () => {},
++    gitCommit: async () => {},
++    rebuildManagedFiles: async () => {},
++    updateAlternateFormats: async () => {},
++    writePageAlternateFormats: async () => {},
++  }
++}
++
++test('outline items keep their descriptions and new ids are reported', async (t) => {
++  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'haxcms-outline-'))
++  t.after(() => fs.removeSync(dir))
++  fs.outputFileSync(path.join(dir, 'pages/item-a/index.html'), '<p>A</p>')
++  const items = [
++    {
++      id: 'item-a',
++      title: 'A',
++      description: 'Old',
++      location: 'pages/item-a/index.html',
++      slug: 'a',
++      parent: null,
++      indent: 0,
++      order: 0,
++      metadata: { created: 1 },
++    },
++  ]
++  const site = fakeSite(dir, items)
++  t.mock.method(HAXCMS, 'validateRequestToken', () => true)
++  t.mock.method(HAXCMS, 'getActiveUserName', () => 'tester')
++  t.mock.method(HAXCMS, 'loadSite', async () => site)
++  const req = {
++    headers: { 'x-haxcms-site-token': 'token' },
++    body: {
++      site: { name: 'demo' },
++      items: [
++        { id: 'item-a', title: 'A', description: 'New <b>text</b>', parent: null, indent: 0, order: 0, metadata: {} },
++        { id: 'client-1', title: 'B', description: 'Child', parent: 'item-a', indent: 1, order: 0, metadata: {}, new: true },
++      ],
++    },
++  }
++  const res = stubRes()
++  await saveOutline(req, res)
++  assert.equal(res.statusCode, 200, JSON.stringify(res.body))
++  assert.equal(items.find((i) => i.id === 'item-a').description, 'New text')
++  const idMap = res.body.data.idMap
++  assert.ok(idMap && typeof idMap['client-1'] === 'string')
++  const created = items.find((i) => i.id === idMap['client-1'])
++  assert.ok(created, 'new item is saved under the mapped id')
++  assert.equal(created.description, 'Child')
++  assert.equal(created.parent, 'item-a')
++})
+-- 
+2.43.0
+

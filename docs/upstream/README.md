@@ -1,0 +1,49 @@
+# Upstream contributions to HAX
+
+This folder holds the issues and pull requests we propose to HAX: drafts first, then links once they're filed. Our own features stay in `learning-materials/custom`. Only fixes and general-purpose pieces go upstream.
+
+## How HAX takes contributions
+
+From [CONTRIBUTING](https://github.com/haxtheweb/issues/blob/master/CONTRIBUTING.md) and [GOVERNANCE](https://github.com/haxtheweb/issues/blob/master/GOVERNANCE.md) in haxtheweb/issues:
+
+- **Issue first.** Every issue goes in the unified queue, [haxtheweb/issues](https://github.com/haxtheweb/issues/issues), using the bug or feature form. Pick the Project, then fill in "What happened?", "How to reproduce" and "Additional details".
+- **PRs come from forks.** The PR body references the issue (`Closes haxtheweb/issues#N`) and follows the repo's PR template: changes, why, type, and testing checklist. Keep `@mentions` and `fixes` keywords out of commit messages.
+- **CLA.** On your first PR to each repo, comment `I have read the CLA Document and I hereby sign the CLA`.
+- **Bigger efforts** get a written plan posted as an issue comment, labelled `Plan Created`, before the code.
+- **Maintainers:** @btopro (Bryan Ollendyke, Penn State) is the primary maintainer and merges. Maintainership of an area is earned through merged, well-reviewed PRs. You can ask to own an area.
+- **Code:**
+  - JavaScript, `globalThis`, no optional chaining in tests.
+  - Each repo's Prettier config wins. The source uses double or single quotes and semicolons as the surrounding file does; tests use `'use strict'`, single quotes and no semicolons.
+  - New elements come from `hax webcomponent <name>`, follow DDD and pass `hax audit`.
+- **Community:** Discord (linked from the issue form).
+
+## Round 1: bug fixes with tests
+
+Verified against current `main`: haxcms-nodejs e41c859 and webcomponents e51c522, both 2026-09-30. Each item has an issue draft and a ready patch in `patches/`. In the haxcms-nodejs patches, the new tests fail without the fix and pass with it. The full suite shows the same results before and after (7 failures already on `main`, in export, actions and config discovery, which depend on the environment). The webcomponents patch has no automated test yet; its issue includes a browser reproduction.
+
+| # | Repo | Problem | Draft | Patch | Filed |
+|---|---|---|---|---|---|
+| 1 | haxcms-nodejs | `pageBreakParser` misses a trailing bare `published` and corrupts titles that contain "published " or "locked " | [01](01-page-break-attributes.md) | `haxcms-nodejs--page-break-boolean-attributes.patch` | – |
+| 2 | haxcms-nodejs | Content save without a `<page-break>` writes nothing but returns 200 | [02](02-content-save-without-page-break.md) | `haxcms-nodejs--content-save-without-page-break.patch` | – |
+| 3 | haxcms-nodejs | Outline saves drop item descriptions | [03](03-outline-descriptions-and-id-map.md) | `haxcms-nodejs--outline-descriptions-and-id-map.patch` | – |
+| 4 | haxcms-nodejs | Outline saves don't say which ids new items got | [03](03-outline-descriptions-and-id-map.md) | (same patch) | – |
+| 5 | webcomponents | HAX writes Lit `state: true` properties into saved HTML | [05](05-hax-lit-state-properties.md) | `webcomponents--hax-skip-lit-state-properties.patch` | – |
+
+Checked and not filed:
+- **`theme.variables.hexCode` crash:** already guarded on `main`; released 26.8.1 still has it. Upgrading will fix it.
+- **Clearing metadata in outline saves:** sending `null` already stores `null`, so a delete operation isn't needed.
+- **Dev-server reload loop:** it was caused by our own icon generator writing into `src/`, and we fixed it on our side.
+
+To apply a patch to a fork: `git am docs/upstream/patches/<file>.patch`.
+
+## Next rounds
+
+1. **Hooks** that make custom themes less fragile:
+   - `::part()` names on editor chrome;
+   - a public editor API (`editPage`, `save`, `cancel`, `openSettings`);
+   - block registration from custom bundles.
+2. **Blocks** rebuilt as DDD components through the CLI: callout, embeds, page collection, pathway. Our shadcn look stays in our theme by mapping DDD variables (`tokens/ddd-bridge.js`).
+3. **Improvements to existing elements** rather than parallel ones: oer-schema, license, citation, outline designer.
+4. **Plans** (`Plan Created`) for content types with fields, relations, versioning, books and pathways, pitched as OER needs.
+
+See [regression-protection.md](../regression-protection.md) for why the hooks matter to us.

@@ -1,0 +1,99 @@
+From 2cb6177d3364a3aafae6237029ebcff601c7ae00 Mon Sep 17 00:00:00 2001
+From: Michael Collins <michael-collins@users.noreply.github.com>
+Date: Thu, 1 Oct 2026 09:24:30 -0400
+Subject: [PATCH] Refuse content saves that have no page-break instead of
+ answering 200
+
+saveNode only writes content that follows a <page-break>; a body without
+one wrote nothing but still returned 200 with the page.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/siteRoutes/v1/routes/saveNode.js    |  9 +++++
+ test/unit/save-node-page-break.test.cjs | 54 +++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+)
+ create mode 100644 test/unit/save-node-page-break.test.cjs
+
+diff --git a/src/siteRoutes/v1/routes/saveNode.js b/src/siteRoutes/v1/routes/saveNode.js
+index c1814ad..69d138f 100644
+--- a/src/siteRoutes/v1/routes/saveNode.js
++++ b/src/siteRoutes/v1/routes/saveNode.js
+@@ -78,6 +78,15 @@ const FileContentScanner = require('../../../lib/FileContentScanner.js');
+           let bytes = 0;
+           // see if we have multiple pages / this page has been told to split into multiple
+           let pageData = HAXCMS.pageBreakParser(body);
++          // content is only written after a <page-break> (it carries the
++          // page's attributes); without one nothing would be saved, so say so
++          // instead of answering 200
++          if (pageData.length === 0) {
++            return res.status(400).json({
++              status: 400,
++              data: { message: 'body must start with a <page-break> element carrying the page attributes' },
++            });
++          }
+           for (var i in pageData) {
+             let data = pageData[i];
+             // trap to ensure if front-end didnt send a UUID for id then we make it
+diff --git a/test/unit/save-node-page-break.test.cjs b/test/unit/save-node-page-break.test.cjs
+new file mode 100644
+index 0000000..ec15cea
+--- /dev/null
++++ b/test/unit/save-node-page-break.test.cjs
+@@ -0,0 +1,54 @@
++'use strict'
++
++// saveNode only writes content that follows a <page-break>. A body without
++// one must be refused rather than answered with 200 and silently dropped.
++
++const test = require('node:test')
++const assert = require('node:assert/strict')
++
++const { HAXCMS } = require('../../src/lib/HAXCMS.js')
++const saveNode = require('../../src/siteRoutes/v1/routes/saveNode.js')
++
++function stubRes() {
++  return {
++    statusCode: 200,
++    body: null,
++    status(code) {
++      this.statusCode = code
++      return this
++    },
++    json(obj) {
++      this.body = obj
++      return this
++    },
++    send(obj) {
++      this.body = obj
++      return this
++    },
++  }
++}
++
++test('a body without a <page-break> is refused with 400 and nothing is written', async (t) => {
++  let writes = 0
++  const page = {
++    id: 'item-1',
++    title: 'Page',
++    metadata: {},
++    writeLocation: async () => {
++      writes++
++      return 1
++    },
++  }
++  const site = { loadNode: () => page, manifest: { metadata: { site: {} } } }
++  t.mock.method(HAXCMS, 'validateRequestToken', () => true)
++  t.mock.method(HAXCMS, 'getActiveUserName', () => 'tester')
++  t.mock.method(HAXCMS, 'loadSite', async () => site)
++  const req = {
++    headers: { 'x-haxcms-site-token': 'token' },
++    body: { site: { name: 'demo' }, node: { id: 'item-1', body: '<p>Hello</p>' } },
++  }
++  const res = stubRes()
++  await saveNode(req, res)
++  assert.equal(res.statusCode, 400)
++  assert.equal(writes, 0)
++})
+-- 
+2.43.0
+
