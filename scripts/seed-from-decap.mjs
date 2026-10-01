@@ -19,13 +19,13 @@ const SECTIONS = [
   {
     title: "Lessons",
     intro: "<p>Lessons group lectures, tutorials and exercises around a set of learning objectives.</p>",
-    pageType: "lesson",
+    pageType: "oer:lesson",
     files: ["lessons/animation-principles/index.md"],
   },
   {
     title: "Exercises",
     intro: "<p>Formative practice focused on a narrow set of competencies.</p>",
-    pageType: "exercise",
+    pageType: "oer:exercise",
     files: [
       "exercises/animating-a-bouncing-ball/index.md",
       "exercises/animated-textures/index.md",
@@ -62,7 +62,7 @@ async function createPage({ title, html, pageType, tags, parent }) {
 }
 
 // start clean: remove anything a previous run created
-const SEEDED_TYPES = new Set(["section", ...SECTIONS.map((s) => s.pageType)]);
+const SEEDED_TYPES = new Set(["oer:section", ...SECTIONS.map((s) => s.pageType)]);
 const existing = await api.listItems("?page.limit=200");
 for (const item of existing.json?.data?.items ?? []) {
   if (SEEDED_TYPES.has(item.metadata?.pageType)) await api.deleteItem(item.id);
@@ -81,7 +81,7 @@ for (const section of SECTIONS) {
   const parentId = await createPage({
     title: section.title,
     html: section.intro,
-    pageType: "section",
+    pageType: "oer:section",
   });
   console.log(`+ ${section.title} (${parentId})`);
   for (const rel of section.files) {

@@ -1,7 +1,7 @@
 // Import learning-materials-decapcms' pathways into the HAXcms site:
 //   node --env-file=.env.local scripts/import-pathways.mjs [--dry-run]
 //
-// - Each published pathway becomes a page of type "pathway" under the
+// - Each published pathway becomes a page of type "oer:pathway" under the
 //   site's "Pathways" page, with its fields (courses, levels, target role,
 //   objectives, test-out criteria, prerequisites…) and an <oer-pathway>
 //   block in the layout its `template` names (matrix by default).
@@ -33,12 +33,12 @@ const IMPORT_MARK = "decap-pathways";
 
 // Decap collection → HAX type id and library section
 const COLLECTIONS = {
-  lessons: { type: "lesson", section: "Lessons", intro: "Lessons group lectures, tutorials and exercises around a set of learning objectives." },
-  exercises: { type: "exercise", section: "Exercises", intro: "Formative practice focused on a narrow set of competencies." },
-  projects: { type: "project", section: "Projects", intro: "Larger pieces of work that bring several skills together." },
-  lectures: { type: "lecture", section: "Lectures", intro: "Presentations that introduce the ideas behind a topic." },
-  tutorials: { type: "tutorial", section: "Tutorials", intro: "Step-by-step walkthroughs of a technique or tool." },
-  pathways: { type: "pathway" },
+  lessons: { type: "oer:lesson", section: "Lessons", intro: "Lessons group lectures, tutorials and exercises around a set of learning objectives." },
+  exercises: { type: "oer:exercise", section: "Exercises", intro: "Formative practice focused on a narrow set of competencies." },
+  projects: { type: "oer:project", section: "Projects", intro: "Larger pieces of work that bring several skills together." },
+  lectures: { type: "oer:lecture", section: "Lectures", intro: "Presentations that introduce the ideas behind a topic." },
+  tutorials: { type: "oer:tutorial", section: "Tutorials", intro: "Step-by-step walkthroughs of a technique or tool." },
+  pathways: { type: "oer:pathway" },
 };
 
 // What Decap's pathway pages say about every pathway's length (Facts.vue)
@@ -151,7 +151,7 @@ async function mapFields(typeId, fm, label) {
       if (rows.length) out[f.name] = rows;
       continue;
     }
-    if (f.name === "estimatedDuration" && typeId === "pathway" && !v && toList(fm.courses).length) v = DEFAULT_LENGTH;
+    if (f.name === "estimatedDuration" && typeId === "oer:pathway" && !v && toList(fm.courses).length) v = DEFAULT_LENGTH;
     if (v === undefined || v === null || v === "") continue;
     if (f.kind === "list") v = toList(v);
     else if (f.kind === "select" && f.multiple) v = toList(v);
@@ -199,13 +199,13 @@ const sections = new Map();
 function section(collection) {
   const c = COLLECTIONS[collection];
   if (sections.has(collection)) return sections.get(collection);
-  const found = live.find((i) => !i.parent && i.title === c.section && i.metadata?.pageType === "section");
+  const found = live.find((i) => !i.parent && i.title === c.section && i.metadata?.pageType === "oer:section");
   const id =
     found?.id ||
     addPage({
       title: c.section,
       parent: null,
-      metadata: { pageType: "section" },
+      metadata: { pageType: "oer:section" },
       contents: `<p>${c.intro}</p>\n<oer-collection types="${c.type}" scope="site" view="table" sort="title" per-page="20" controls="full"></oer-collection>`,
     });
   sections.set(collection, id);
@@ -272,11 +272,11 @@ for (const p of sorted) {
     parent: pathwayPage.id,
     description: fm.description || "",
     metadata: {
-      pageType: "pathway",
+      pageType: "oer:pathway",
       oerImport: IMPORT_MARK,
       oerSource: `pathways/${p.slug}`,
       ...(fm.tags ? { tags: toList(fm.tags).join(",") } : {}),
-      oerFields: await mapFields("pathway", fm, `pathways/${p.slug}`),
+      oerFields: await mapFields("oer:pathway", fm, `pathways/${p.slug}`),
     },
     contents: `<oer-pathway layout="${layout}"></oer-pathway>\n${body}`,
   });
@@ -305,7 +305,7 @@ for (const p of sorted) {
     const nodeId = addPage({
       title: n.title,
       parent,
-      metadata: kids.length || depth === 0 ? { ...meta, pageType: "section" } : { ...meta, hideInMenu: true },
+      metadata: kids.length || depth === 0 ? { ...meta, pageType: "oer:section" } : { ...meta, hideInMenu: true },
     });
     kids.forEach((c) => node(c, nodeId, depth + 1));
     return nodeId;
@@ -382,7 +382,7 @@ if (DRY) {
   await relink();
   await describe();
   // the Pathways page lists them, as Decap's /pathways does
-  const index = `<p>${PATHWAYS_INTRO}</p>\n<oer-collection types="pathway" scope="children" view="pathways" sort="title" controls="none"></oer-collection>`;
+  const index = `<p>${PATHWAYS_INTRO}</p>\n<oer-collection types="oer:pathway" scope="children" view="pathways" sort="title" controls="none"></oer-collection>`;
   const saved = await api.saveContent(pathwayPage.id, index, { title: pathwayPage.title });
   if (!saved.ok) throw new Error(`Pathways page save failed (${saved.status})`);
 }

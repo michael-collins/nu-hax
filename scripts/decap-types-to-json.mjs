@@ -38,17 +38,17 @@ const HEADER = new Set([
 ]);
 
 const META = {
-  lessons: { id: "lesson", label: "Lesson", icon: "hax:lesson", children: ["section", "article", "tutorial", "lecture", "exercise", "project"] },
-  articles: { id: "article", label: "Article", icon: "hax:newspaper", children: [] },
-  tutorials: { id: "tutorial", label: "Tutorial", icon: "courseicons:strategy", children: [] },
-  exercises: { id: "exercise", label: "Exercise", icon: "hax:task", children: [] },
-  projects: { id: "project", label: "Project", icon: "hax:bulletin-board", children: [] },
-  lectures: { id: "lecture", label: "Lecture", icon: "image:slideshow", children: [] },
-  specializations: { id: "specialization", label: "Specialization", icon: "lrn:teacher", children: ["lesson"] },
-  pathways: { id: "pathway", label: "Pathway", icon: "hax:unit", children: ["section", "specialization", "lesson"] },
-  books: { id: "book", label: "Book", icon: "lrn:book", children: ["section", "lesson", "article", "tutorial", "lecture", "exercise", "project"] },
-  rubrics: { id: "rubric", label: "Assessment rubric", icon: "lrn:assessment", children: [] },
-  resources: { id: "resource", label: "Resource", icon: "editor:attach-file", children: [] },
+  lessons: { id: "oer:lesson", label: "Lesson", icon: "hax:lesson", children: ["oer:section", "oer:article", "oer:tutorial", "oer:lecture", "oer:exercise", "oer:project"] },
+  articles: { id: "oer:article", label: "Article", icon: "hax:newspaper", children: [] },
+  tutorials: { id: "oer:tutorial", label: "Tutorial", icon: "courseicons:strategy", children: [] },
+  exercises: { id: "oer:exercise", label: "Exercise", icon: "hax:task", children: [] },
+  projects: { id: "oer:project", label: "Project", icon: "hax:bulletin-board", children: [] },
+  lectures: { id: "oer:lecture", label: "Lecture", icon: "image:slideshow", children: [] },
+  specializations: { id: "oer:specialization", label: "Specialization", icon: "lrn:teacher", children: ["oer:lesson"] },
+  pathways: { id: "oer:pathway", label: "Pathway", icon: "hax:unit", children: ["oer:section", "oer:specialization", "oer:lesson"] },
+  books: { id: "oer:book", label: "Book", icon: "lrn:book", children: ["oer:section", "oer:lesson", "oer:article", "oer:tutorial", "oer:lecture", "oer:exercise", "oer:project"] },
+  rubrics: { id: "oer:rubric", label: "Assessment rubric", icon: "lrn:assessment", children: [] },
+  resources: { id: "oer:resource", label: "Resource", icon: "editor:attach-file", children: [] },
 };
 
 const options = (f) =>
@@ -91,7 +91,7 @@ function field(f) {
 
 const types = [
   {
-    id: "section",
+    id: "oer:section",
     label: "Section",
     icon: "icons:folder",
     description: "A heading that groups other pages (e.g. Topics, Readings).",
