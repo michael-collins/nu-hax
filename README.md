@@ -12,6 +12,7 @@ This repository holds the tooling and documentation. The HAXcms site, with the c
 | `scripts/api-smoke-test.mjs` | Exercises the API end to end against a running site |
 | `scripts/seed-from-decap.mjs` | Imports a slice of learning-materials-decapcms content (markdown and MDC components) through the API |
 | `scripts/decap-types-to-json.mjs` | Converts Decap `cms/config.yml` collections into the site's content-type definitions |
+| `scripts/import-pathways.mjs` | Imports the Decap pathways (outlines with levels and planned items, prerequisites) and the lessons, exercises, projects, lectures and tutorials they link to; re-runnable |
 | `scripts/contrast-audit.mjs` | WCAG AA contrast check of the theme's colour tokens |
 | `docs/regression-protection.md` | Proposal for keeping the UI layer safe from upstream HAX changes |
 

@@ -84,6 +84,7 @@ function field(f) {
   if (f.hint) out.help = String(f.hint);
   if (f.required === true) out.required = true;
   if (kind === "select") out.options = options(f);
+  if (kind === "select" && f.multiple) out.multiple = true;
   if (HEADER.has(f.name)) out.header = true;
   return out;
 }

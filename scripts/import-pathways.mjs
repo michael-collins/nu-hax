@@ -17,7 +17,7 @@
 //   through the site's files API.
 // Re-running replaces the pathway pages from the last import and reuses the
 // imported content. Everything is written in one outline save.
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import matter from "gray-matter";
@@ -86,9 +86,10 @@ async function upload(src) {
   if (!existsSync(path.join(SITE_DIR, "files", name))) {
     const file = path.join(DECAP, "public", src);
     if (!existsSync(file)) {
-      report.dropped.push(`missing upload ${src}`);
-      uploads.set(src, "");
-      return "";
+      // broken in Decap too: keep the link as it was
+      report.dropped.push(`missing upload ${src} (link kept as is)`);
+      uploads.set(src, src);
+      return src;
     }
     if (!DRY) {
       const form = new FormData();
@@ -125,6 +126,7 @@ function decapRefs(list) {
   });
 }
 
+const describeLater = []; // [oerSource, description] for pages that already exist
 const pageIds = new Map(); // "lessons/slug" | "pathways/slug" -> HAX item id
 
 async function mapFields(typeId, fm, label) {
@@ -225,6 +227,8 @@ for (const ref of refs) {
   const existing = live.find((i) => i.metadata?.oerSource === ref) || byTitle(entry.data.title || slug, type);
   if (existing) {
     pageIds.set(ref, existing.id);
+    // an earlier import's page that has no description yet
+    if (existing.metadata?.oerSource === ref && !existing.description && entry.data.description) describeLater.push([ref, entry.data.description]);
     report.reused.push(`${ref} → ${existing.title}`);
   } else {
     const id = newId();
@@ -311,6 +315,60 @@ for (const p of sorted) {
 
 /* ---------- write ---------- */
 
+// HAXcms gives new pages ids of its own (it remaps `parent`, nothing else),
+// so links to new pages — oerRef, relation fields and <oer-include page> —
+// are pointed at the real ids afterwards, found by metadata.oerSource
+async function relink() {
+  const after = JSON.parse(readFileSync(path.join(SITE_DIR, "site.json"), "utf8")).items;
+  const bySource = new Map(after.filter((i) => i.metadata?.oerSource).map((i) => [i.metadata.oerSource, i.id]));
+  const remap = new Map();
+  for (const n of newItems) {
+    const real = n.metadata.oerSource && bySource.get(n.metadata.oerSource);
+    if (real && real !== n.id) remap.set(n.id, real);
+  }
+  if (!remap.size) return;
+  const changed = new Map();
+  for (const i of after) {
+    const m = { ...i.metadata };
+    let touched = false;
+    if (m.oerRef?.page && remap.has(m.oerRef.page)) {
+      const old = m.oerRef.page;
+      m.oerRef = { ...m.oerRef, page: remap.get(old) };
+      touched = true;
+      const file = path.join(SITE_DIR, i.location || "");
+      if (i.location && existsSync(file)) writeFileSync(file, readFileSync(file, "utf8").split(old).join(m.oerRef.page));
+    }
+    for (const [k, v] of Object.entries(m.oerFields || {})) {
+      if (Array.isArray(v) && v.some((x) => x?.page && remap.has(x.page))) {
+        m.oerFields = { ...m.oerFields, [k]: v.map((x) => (x?.page && remap.has(x.page) ? { ...x, page: remap.get(x.page) } : x)) };
+        touched = true;
+      }
+    }
+    if (touched) changed.set(i.id, { ...i, metadata: m, modified: true });
+  }
+  const res = await api.call("PATCH", "/x/api/v1/site/outline", {
+    headers: api.headers,
+    body: { site: { name: SITE }, items: after.map((i) => changed.get(i.id) || i) },
+  });
+  if (!res.ok) throw new Error(`relinking failed (${res.status})`);
+  console.log(`relinked ${changed.size} pages to the new pages' ids`);
+}
+
+// outline saves leave descriptions out, so they are set one page at a time
+async function describe() {
+  const after = JSON.parse(readFileSync(path.join(SITE_DIR, "site.json"), "utf8")).items;
+  let n = 0;
+  const wanted = [...newItems.map((i) => [i.metadata.oerSource, i.description]), ...describeLater];
+  for (const [source, description] of wanted) {
+    const real = source && after.find((i) => i.metadata?.oerSource === source);
+    if (!real || !description || real.description === description) continue;
+    const res = await api.updateItem(real.id, "setDescription", { description });
+    if (!res.ok) throw new Error(`setDescription "${real.title}" failed (${res.status})`);
+    n++;
+  }
+  if (n) console.log(`set ${n} descriptions`);
+}
+
 const outline = [
   ...items.map((i) => (deleted.has(i.id) ? { ...i, delete: true } : i)),
   ...newItems,
@@ -321,6 +379,8 @@ if (DRY) {
 } else {
   const res = await api.call("PATCH", "/x/api/v1/site/outline", { headers: api.headers, body: { site: { name: SITE }, items: outline } });
   if (!res.ok) throw new Error(`outline save failed (${res.status}): ${JSON.stringify(res.json).slice(0, 300)}`);
+  await relink();
+  await describe();
   // the Pathways page lists them, as Decap's /pathways does
   const index = `<p>${PATHWAYS_INTRO}</p>\n<oer-collection types="pathway" scope="children" view="pathways" sort="title" controls="none"></oer-collection>`;
   const saved = await api.saveContent(pathwayPage.id, index, { title: pathwayPage.title });
