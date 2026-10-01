@@ -49,6 +49,7 @@ Closes haxtheweb/issues#XXXX
 ## Description of Changes
 ### What changed:
 - nodeToContent skips properties declared with `state: true`, next to the existing readOnly / computed / `__` checks (hax-store.js)
+- new test in test/hax-store-helpers-3.test.js (`nodeToContent > skips Lit state properties`)
 
 ### Why this change was needed:
 Internal Lit state was serialized into page HTML and read back as stray attributes.
@@ -57,8 +58,9 @@ Internal Lit state was serialized into page HTML and read back as stray attribut
 - [x] 🐛 Bug fix (non-breaking change which fixes an issue)
 
 ## Testing Checklist
-- [x] I have tested this change locally (console reproduction above, before and after)
-- [ ] I have added/updated tests for my changes (happy to add one; pointers to the preferred place for hax-store tests welcome)
+- [x] I have tested this change locally (console reproduction in the issue, plus web-test-runner in Chromium)
+- [x] I have added/updated tests for my changes (the new test fails without the fix)
+- [x] All existing tests pass (hax-store*.test.js and hax-body*.test.js: 231 passed)
 ```
 
-Before filing, run `yarn test` for hax-body in a full webcomponents checkout. Our sparse clone can't run the monorepo's browser tests, and we haven't verified the patched build in a browser yet.
+Tested with hax-body's own web-test-runner setup (published dependencies, with main's `@haxtheweb/utils` overlaid): the hax-store and hax-body test files pass (231), and the new test fails without the fix.

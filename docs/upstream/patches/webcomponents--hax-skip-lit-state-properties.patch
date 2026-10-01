@@ -1,4 +1,4 @@
-From 9758b7356f17771e04f0e337f06d1f499c2c58bf Mon Sep 17 00:00:00 2001
+From 1c7075a9a26e4b4c7f241498876db543a8271b19 Mon Sep 17 00:00:00 2001
 From: Michael Collins <michael-collins@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 09:25:10 -0400
 Subject: [PATCH] [hax-body] Don't write Lit state properties into saved
@@ -11,8 +11,9 @@ state and have no attribute, but were written into the page HTML (e.g.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
- elements/hax-body/lib/hax-store.js | 2 ++
- 1 file changed, 2 insertions(+)
+ elements/hax-body/lib/hax-store.js            |  2 ++
+ .../hax-body/test/hax-store-helpers-3.test.js | 28 +++++++++++++++++++
+ 2 files changed, 30 insertions(+)
 
 diff --git a/elements/hax-body/lib/hax-store.js b/elements/hax-body/lib/hax-store.js
 index 2e3bd4c..5379751 100644
@@ -31,6 +32,52 @@ index 2e3bd4c..5379751 100644
            value !== tmpProps[j].value &&
            !nodeName.startsWith("__")
          ) {
+diff --git a/elements/hax-body/test/hax-store-helpers-3.test.js b/elements/hax-body/test/hax-store-helpers-3.test.js
+index dbe73e8..9a77510 100644
+--- a/elements/hax-body/test/hax-store-helpers-3.test.js
++++ b/elements/hax-body/test/hax-store-helpers-3.test.js
+@@ -1,6 +1,7 @@
+ import { expect } from '@open-wc/testing'
+ 
+ import { HAXStore } from '../lib/hax-store.js'
++import { LitElement } from 'lit'
+ 
+ describe('hax-store methods round 3', () => {
+   describe('_openInlineProgramAtCursor', () => {
+@@ -363,6 +364,33 @@ describe('hax-store methods round 3', () => {
+       const content = await HAXStore.nodeToContent(p)
+       expect(content).to.not.contain('&nbsp;')
+     })
++
++    it('skips Lit state properties', async () => {
++      class HaxStateDemo extends LitElement {
++        static get properties() {
++          return {
++            label: { type: String },
++            _open: { state: true },
++            _rows: { state: true },
++          }
++        }
++      }
++      if (!globalThis.customElements.get('hax-state-demo')) {
++        globalThis.customElements.define('hax-state-demo', HaxStateDemo)
++      }
++      HAXStore.validTagList = [...HAXStore.validTagList, 'hax-state-demo']
++      const el = globalThis.document.createElement('hax-state-demo')
++      el.label = 'Hello'
++      el._open = true
++      el._rows = [{ id: 1 }]
++      globalThis.document.body.appendChild(el)
++      await el.updateComplete
++      const content = await HAXStore.nodeToContent(el)
++      el.remove()
++      expect(content).to.contain('label="Hello"')
++      expect(content).to.not.contain('_open')
++      expect(content).to.not.contain('_rows')
++    })
+   })
+ 
+   describe('htmlToHaxElements', () => {
 -- 
 2.43.0
 

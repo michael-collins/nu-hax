@@ -1,6 +1,6 @@
 # Upstream contributions to HAX
 
-This folder holds the issues and pull requests we propose to HAX: drafts first, then links once they're filed. Our own features stay in `learning-materials/custom`. Only fixes and general-purpose pieces go upstream.
+This folder holds the issues and pull requests we propose to HAX: drafts first, then links once they're filed. Round 1 was filed on 2026-10-01. Our own features stay in `learning-materials/custom`. Only fixes and general-purpose pieces go upstream.
 
 ## How HAX takes contributions
 
@@ -19,15 +19,15 @@ From [CONTRIBUTING](https://github.com/haxtheweb/issues/blob/master/CONTRIBUTING
 
 ## Round 1: bug fixes with tests
 
-Verified against current `main`: haxcms-nodejs e41c859 and webcomponents e51c522, both 2026-09-30. Each item has an issue draft and a ready patch in `patches/`. In the haxcms-nodejs patches, the new tests fail without the fix and pass with it. The full suite shows the same results before and after (7 failures already on `main`, in export, actions and config discovery, which depend on the environment). The webcomponents patch has no automated test yet; its issue includes a browser reproduction.
+Verified against current `main`: haxcms-nodejs e41c859 and webcomponents e51c522, both 2026-09-30. Each item has an issue draft and a ready patch in `patches/`. In the haxcms-nodejs patches, the new tests fail without the fix and pass with it. The full suite shows the same results before and after (7 failures already on `main`, in export, actions and config discovery, which depend on the environment). The webcomponents patch adds a test to hax-store-helpers-3; it fails without the fix, and the hax-store and hax-body tests pass with it (231).
 
 | # | Repo | Problem | Draft | Patch | Filed |
 |---|---|---|---|---|---|
-| 1 | haxcms-nodejs | `pageBreakParser` misses a trailing bare `published` and corrupts titles that contain "published " or "locked " | [01](01-page-break-attributes.md) | `haxcms-nodejs--page-break-boolean-attributes.patch` | – |
-| 2 | haxcms-nodejs | Content save without a `<page-break>` writes nothing but returns 200 | [02](02-content-save-without-page-break.md) | `haxcms-nodejs--content-save-without-page-break.patch` | – |
-| 3 | haxcms-nodejs | Outline saves drop item descriptions | [03](03-outline-descriptions-and-id-map.md) | `haxcms-nodejs--outline-descriptions-and-id-map.patch` | – |
-| 4 | haxcms-nodejs | Outline saves don't say which ids new items got | [03](03-outline-descriptions-and-id-map.md) | (same patch) | – |
-| 5 | webcomponents | HAX writes Lit `state: true` properties into saved HTML | [05](05-hax-lit-state-properties.md) | `webcomponents--hax-skip-lit-state-properties.patch` | – |
+| 1 | haxcms-nodejs | `pageBreakParser` misses a trailing bare `published` and corrupts titles that contain "published " or "locked " | [01](01-page-break-attributes.md) | `haxcms-nodejs--page-break-boolean-attributes.patch` | [#3096](https://github.com/haxtheweb/issues/issues/3096) · PR [#44](https://github.com/haxtheweb/haxcms-nodejs/pull/44) |
+| 2 | haxcms-nodejs | Content save without a `<page-break>` writes nothing but returns 200 | [02](02-content-save-without-page-break.md) | `haxcms-nodejs--content-save-without-page-break.patch` | [#3097](https://github.com/haxtheweb/issues/issues/3097) · PR [#45](https://github.com/haxtheweb/haxcms-nodejs/pull/45) |
+| 3 | haxcms-nodejs | Outline saves drop item descriptions | [03](03-outline-descriptions-and-id-map.md) | `haxcms-nodejs--outline-descriptions-and-id-map.patch` | [#3098](https://github.com/haxtheweb/issues/issues/3098) · PR [#46](https://github.com/haxtheweb/haxcms-nodejs/pull/46) |
+| 4 | haxcms-nodejs | Outline saves don't say which ids new items got | [03](03-outline-descriptions-and-id-map.md) | (same patch) | [#3099](https://github.com/haxtheweb/issues/issues/3099) · PR [#46](https://github.com/haxtheweb/haxcms-nodejs/pull/46) |
+| 5 | webcomponents | HAX writes Lit `state: true` properties into saved HTML | [05](05-hax-lit-state-properties.md) | `webcomponents--hax-skip-lit-state-properties.patch` | [#3100](https://github.com/haxtheweb/issues/issues/3100) · PR [#830](https://github.com/haxtheweb/webcomponents/pull/830) |
 
 Checked and not filed:
 - **`theme.variables.hexCode` crash:** already guarded on `main`; released 26.8.1 still has it. Upgrading will fix it.
