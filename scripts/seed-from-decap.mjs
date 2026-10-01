@@ -47,12 +47,15 @@ const MDC_BLOCKS = {
   "google-slides-component": { tag: "oer-google-slides", attrs: { id: "slides" } },
   "sketchfab-component": { tag: "oer-sketchfab" },
   "threed-viewer-component": { tag: "oer-3d-viewer" },
+  "code-embed-component": { tag: "oer-code-embed" },
+  "content-divider": { tag: "oer-divider" },
+  spacer: { tag: "oer-spacer" },
 };
 const kebab = (k) => k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 const escapeAttr = (v) => String(v).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
-function mdcToElement(name, attrText) {
-  const map = MDC_BLOCKS[name];
+function mdcToElement(name, attrText, table = MDC_BLOCKS) {
+  const map = table[name];
   if (!map) return null;
   const attrs = [];
   // key="value", key='value', :key="value" (bound) or bare boolean keys
@@ -66,9 +69,22 @@ function mdcToElement(name, attrText) {
   return `<${map.tag}${attrs.length ? ` ${attrs.join(" ")}` : ""}></${map.tag}>`;
 }
 
+// container components (:::name{…} markdown :::) → opening/closing tags
+// around the normally converted markdown inside
+const MDC_CONTAINERS = {
+  callout: { tag: "oer-callout" },
+  accordion: { tag: "a11y-collapse", attrs: { title: "heading" } },
+};
+
 function extractMdc(md) {
   const blocks = [];
   const stash = (tag) => `\n\nHAXBLOCK${blocks.push(tag) - 1}\n\n`;
+  md = md.replace(/^:::([a-z][a-z0-9-]*)\{([^}]*)\}\s*\n([\s\S]*?)\n:::\s*$/gm, (whole, name, attrText, inner) => {
+    const map = MDC_CONTAINERS[name];
+    if (!map) return whole;
+    const open = mdcToElement(name, attrText, { [name]: map }).replace(/<\/[a-z0-9-]+>$/, "");
+    return `${stash(open)}${inner}${stash(`</${map.tag}>`)}`;
+  });
   const out = md.replace(/::([a-z][a-z0-9-]*)\{([^}]*)\}\s*\n::/g, (whole, name, attrText) => {
     const el = mdcToElement(name, attrText);
     return el ? stash(el) : whole;
