@@ -1,8 +1,8 @@
 From 91c30cd29dacf64f8963838750376b9a151605ab Mon Sep 17 00:00:00 2001
 From: Michael Collins <michael-collins@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 09:24:29 -0400
-Subject: [PATCH] Expand bare boolean page-break attributes without touching
- quoted values
+Subject: [PATCH 1/2] Expand bare boolean page-break attributes without
+ touching quoted values
 
 pageBreakParser expanded 'published ' and 'locked ' with a plain string
 replace: a bare attribute at the end of the tag was missed (and read as
@@ -17,7 +17,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  create mode 100644 test/unit/page-break-parser.test.cjs
 
 diff --git a/src/lib/HAXCMS.js b/src/lib/HAXCMS.js
-index c32162f..17349fe 100644
+index c32162f3..17349fe5 100644
 --- a/src/lib/HAXCMS.js
 +++ b/src/lib/HAXCMS.js
 @@ -4338,8 +4338,12 @@ class HAXCMSClass {
@@ -37,7 +37,7 @@ index c32162f..17349fe 100644
              "content": matches[i][4],
 diff --git a/test/unit/page-break-parser.test.cjs b/test/unit/page-break-parser.test.cjs
 new file mode 100644
-index 0000000..489f9c9
+index 00000000..489f9c94
 --- /dev/null
 +++ b/test/unit/page-break-parser.test.cjs
 @@ -0,0 +1,46 @@
@@ -87,6 +87,58 @@ index 0000000..489f9c9
 +  const pages = HAXCMS.pageBreakParser('<page-break title="A"></page-break><p>Hello</p>')
 +  assert.equal(pages[0].content, '<p>Hello</p>')
 +})
+-- 
+2.43.0
+
+
+From c4de7f1e88e83d2cf86abc0639dccb22ddcde53a Mon Sep 17 00:00:00 2001
+From: Michael Collins <michael-collins@users.noreply.github.com>
+Date: Thu, 1 Oct 2026 10:00:38 -0400
+Subject: [PATCH 2/2] Keep explicit values when whitespace surrounds = (review)
+
+published = "" was treated as a bare attribute and expanded, publishing a
+page that sent an empty value. Bare names followed by optional whitespace
+and = are left as written; test added.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/lib/HAXCMS.js                    | 5 +++--
+ test/unit/page-break-parser.test.cjs | 6 ++++++
+ 2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/HAXCMS.js b/src/lib/HAXCMS.js
+index 17349fe5..f2cbcd15 100644
+--- a/src/lib/HAXCMS.js
++++ b/src/lib/HAXCMS.js
+@@ -4339,8 +4339,9 @@ class HAXCMSClass {
+       const matches = [...body.matchAll(regexp)];
+       for (var i in matches) {
+         // expand bare boolean attributes (published, locked) wherever they
+-        // sit in the tag, but never inside a quoted value such as a title
+-        let attrText = matches[i][2].replace(/("[^"]*")|(\s)(published|locked)(?=\s|\/|$)/g, (match, quoted, space, name) => {
++        // sit in the tag, but never inside a quoted value such as a title,
++        // and never when a value follows (published = "" stays as written)
++        let attrText = matches[i][2].replace(/("[^"]*")|(\s)(published|locked)(?!\s*=)(?=\s|\/|$)/g, (match, quoted, space, name) => {
+           return quoted ? quoted : space + name + '="' + name + '"';
+         });
+         let content = "<div " + attrText + "></div>";
+diff --git a/test/unit/page-break-parser.test.cjs b/test/unit/page-break-parser.test.cjs
+index 489f9c94..298b6b9e 100644
+--- a/test/unit/page-break-parser.test.cjs
++++ b/test/unit/page-break-parser.test.cjs
+@@ -40,6 +40,12 @@ test('explicit values are unchanged', () => {
+   assert.deepEqual(attrs, { title: 'A', published: 'published', locked: 'locked' })
+ })
+ 
++test('whitespace around = keeps an explicit value', () => {
++  const attrs = attrsOf('<page-break title="A" published = "" locked = "locked"></page-break><p>x</p>')
++  assert.equal(attrs.published, '')
++  assert.equal(attrs.locked, 'locked')
++})
++
+ test('content after the page-break is returned as the page body', () => {
+   const pages = HAXCMS.pageBreakParser('<page-break title="A"></page-break><p>Hello</p>')
+   assert.equal(pages[0].content, '<p>Hello</p>')
 -- 
 2.43.0
 

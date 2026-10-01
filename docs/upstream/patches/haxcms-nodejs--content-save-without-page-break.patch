@@ -1,7 +1,7 @@
 From 2cb6177d3364a3aafae6237029ebcff601c7ae00 Mon Sep 17 00:00:00 2001
 From: Michael Collins <michael-collins@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 09:24:30 -0400
-Subject: [PATCH] Refuse content saves that have no page-break instead of
+Subject: [PATCH 1/2] Refuse content saves that have no page-break instead of
  answering 200
 
 saveNode only writes content that follows a <page-break>; a body without
@@ -15,7 +15,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  create mode 100644 test/unit/save-node-page-break.test.cjs
 
 diff --git a/src/siteRoutes/v1/routes/saveNode.js b/src/siteRoutes/v1/routes/saveNode.js
-index c1814ad..69d138f 100644
+index c1814adb..69d138f2 100644
 --- a/src/siteRoutes/v1/routes/saveNode.js
 +++ b/src/siteRoutes/v1/routes/saveNode.js
 @@ -78,6 +78,15 @@ const FileContentScanner = require('../../../lib/FileContentScanner.js');
@@ -36,7 +36,7 @@ index c1814ad..69d138f 100644
              // trap to ensure if front-end didnt send a UUID for id then we make it
 diff --git a/test/unit/save-node-page-break.test.cjs b/test/unit/save-node-page-break.test.cjs
 new file mode 100644
-index 0000000..ec15cea
+index 00000000..ec15ceaf
 --- /dev/null
 +++ b/test/unit/save-node-page-break.test.cjs
 @@ -0,0 +1,54 @@
@@ -94,6 +94,57 @@ index 0000000..ec15cea
 +  assert.equal(res.statusCode, 400)
 +  assert.equal(writes, 0)
 +})
+-- 
+2.43.0
+
+
+From 41c072d11e3d51baa87e713a683f81925dc3180a Mon Sep 17 00:00:00 2001
+From: Michael Collins <michael-collins@users.noreply.github.com>
+Date: Thu, 1 Oct 2026 10:00:50 -0400
+Subject: [PATCH 2/2] Describe the page-break check as it is enforced (review)
+
+The message promised that the body must start with a page-break carrying
+the page attributes, which the check doesn't verify. It now says what is
+enforced: a page-break must be present, and only content after it is saved.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/siteRoutes/v1/routes/saveNode.js    | 7 +++----
+ test/unit/save-node-page-break.test.cjs | 1 +
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/siteRoutes/v1/routes/saveNode.js b/src/siteRoutes/v1/routes/saveNode.js
+index 69d138f2..2705d57b 100644
+--- a/src/siteRoutes/v1/routes/saveNode.js
++++ b/src/siteRoutes/v1/routes/saveNode.js
+@@ -78,13 +78,12 @@ const FileContentScanner = require('../../../lib/FileContentScanner.js');
+           let bytes = 0;
+           // see if we have multiple pages / this page has been told to split into multiple
+           let pageData = HAXCMS.pageBreakParser(body);
+-          // content is only written after a <page-break> (it carries the
+-          // page's attributes); without one nothing would be saved, so say so
+-          // instead of answering 200
++          // only content after a <page-break> is written; without one nothing
++          // would be saved, so say so instead of answering 200
+           if (pageData.length === 0) {
+             return res.status(400).json({
+               status: 400,
+-              data: { message: 'body must start with a <page-break> element carrying the page attributes' },
++              data: { message: 'body must contain a <page-break> element; only content after it is saved' },
+             });
+           }
+           for (var i in pageData) {
+diff --git a/test/unit/save-node-page-break.test.cjs b/test/unit/save-node-page-break.test.cjs
+index ec15ceaf..7b6a0677 100644
+--- a/test/unit/save-node-page-break.test.cjs
++++ b/test/unit/save-node-page-break.test.cjs
+@@ -50,5 +50,6 @@ test('a body without a <page-break> is refused with 400 and nothing is written',
+   const res = stubRes()
+   await saveNode(req, res)
+   assert.equal(res.statusCode, 400)
++  assert.match(res.body.data.message, /<page-break>/)
+   assert.equal(writes, 0)
+ })
 -- 
 2.43.0
 

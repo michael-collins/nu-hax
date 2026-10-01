@@ -1,8 +1,8 @@
 From 7eb543a16ee7ac8d81a89fff14897fff68626e88 Mon Sep 17 00:00:00 2001
 From: Michael Collins <michael-collins@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 09:24:30 -0400
-Subject: [PATCH] Outline saves: keep item descriptions, return the id map for
- new items
+Subject: [PATCH 1/2] Outline saves: keep item descriptions, return the id map
+ for new items
 
 - description sent with an outline item is saved (stripped of tags, as the
   setDescription node operation does); it was dropped before
@@ -18,7 +18,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  create mode 100644 test/unit/save-outline-items.test.cjs
 
 diff --git a/src/openapi/site-spec.yaml b/src/openapi/site-spec.yaml
-index b845627..b4caf71 100644
+index b8456275..b4caf71d 100644
 --- a/src/openapi/site-spec.yaml
 +++ b/src/openapi/site-spec.yaml
 @@ -450,6 +450,11 @@ paths:
@@ -34,7 +34,7 @@ index b845627..b4caf71 100644
            $ref: "#/components/responses/BadRequest"
          "401":
 diff --git a/src/siteRoutes/v1/routes/saveOutline.js b/src/siteRoutes/v1/routes/saveOutline.js
-index 8b0975d..bc9f44a 100644
+index 8b0975d4..bc9f44a1 100644
 --- a/src/siteRoutes/v1/routes/saveOutline.js
 +++ b/src/siteRoutes/v1/routes/saveOutline.js
 @@ -6,6 +6,7 @@ const { sanitizeHTMLForStorage } = require('../../../lib/sanitizeContent.js');
@@ -70,7 +70,7 @@ index 8b0975d..bc9f44a 100644
      }
 diff --git a/test/unit/save-outline-items.test.cjs b/test/unit/save-outline-items.test.cjs
 new file mode 100644
-index 0000000..70ac06c
+index 00000000..70ac06ca
 --- /dev/null
 +++ b/test/unit/save-outline-items.test.cjs
 @@ -0,0 +1,101 @@
@@ -175,6 +175,61 @@ index 0000000..70ac06c
 +  assert.equal(created.description, 'Child')
 +  assert.equal(created.parent, 'item-a')
 +})
+-- 
+2.43.0
+
+
+From 20ff792a901dc0541f4cf2f14530a6c66ec0d805 Mon Sep 17 00:00:00 2001
+From: Michael Collins <michael-collins@users.noreply.github.com>
+Date: Thu, 1 Oct 2026 10:01:16 -0400
+Subject: [PATCH 2/2] Use a prototype-free id map (review)
+
+itemMap was a plain object, so a client id such as __proto__ hit the
+prototype setter instead of becoming a key, and was missing from idMap (and
+from parent remapping). Test covers a reserved client id with a child.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/siteRoutes/v1/routes/saveOutline.js | 3 ++-
+ test/unit/save-outline-items.test.cjs   | 6 ++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/siteRoutes/v1/routes/saveOutline.js b/src/siteRoutes/v1/routes/saveOutline.js
+index bc9f44a1..f419f8a9 100644
+--- a/src/siteRoutes/v1/routes/saveOutline.js
++++ b/src/siteRoutes/v1/routes/saveOutline.js
+@@ -46,7 +46,8 @@ const strip_tags = require('locutus/php/strings/strip_tags').strip_tags;
+       }
+       let safeLocationMap = {};
+       let items = [...req.body['items']];
+-      let itemMap = {};
++      // client id -> server id; no prototype, so any client id is a plain key
++      let itemMap = Object.create(null);
+       let pageAlternateContentMap = {};
+       var page, bytes, cleanTitle;
+       // items from the POST
+diff --git a/test/unit/save-outline-items.test.cjs b/test/unit/save-outline-items.test.cjs
+index 70ac06ca..1cf6ecc3 100644
+--- a/test/unit/save-outline-items.test.cjs
++++ b/test/unit/save-outline-items.test.cjs
+@@ -85,6 +85,7 @@ test('outline items keep their descriptions and new ids are reported', async (t)
+       items: [
+         { id: 'item-a', title: 'A', description: 'New <b>text</b>', parent: null, indent: 0, order: 0, metadata: {} },
+         { id: 'client-1', title: 'B', description: 'Child', parent: 'item-a', indent: 1, order: 0, metadata: {}, new: true },
++        { id: '__proto__', title: 'C', parent: 'client-1', indent: 2, order: 0, metadata: {}, new: true },
+       ],
+     },
+   }
+@@ -98,4 +99,9 @@ test('outline items keep their descriptions and new ids are reported', async (t)
+   assert.ok(created, 'new item is saved under the mapped id')
+   assert.equal(created.description, 'Child')
+   assert.equal(created.parent, 'item-a')
++  // reserved names are mapped like any other client id
++  assert.ok(Object.prototype.hasOwnProperty.call(idMap, '__proto__'))
++  const reserved = items.find((i) => i.id === idMap['__proto__'])
++  assert.ok(reserved, 'item with a reserved client id is saved under the mapped id')
++  assert.equal(reserved.parent, created.id)
+ })
 -- 
 2.43.0
 

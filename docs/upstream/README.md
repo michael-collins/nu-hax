@@ -27,12 +27,14 @@ Verified against current `main`: haxcms-nodejs e41c859 and webcomponents e51c522
 | 2 | haxcms-nodejs | Content save without a `<page-break>` writes nothing but returns 200 | [02](02-content-save-without-page-break.md) | `haxcms-nodejs--content-save-without-page-break.patch` | [#3097](https://github.com/haxtheweb/issues/issues/3097) · PR [#45](https://github.com/haxtheweb/haxcms-nodejs/pull/45) |
 | 3 | haxcms-nodejs | Outline saves drop item descriptions | [03](03-outline-descriptions-and-id-map.md) | `haxcms-nodejs--outline-descriptions-and-id-map.patch` | [#3098](https://github.com/haxtheweb/issues/issues/3098) · PR [#46](https://github.com/haxtheweb/haxcms-nodejs/pull/46) |
 | 4 | haxcms-nodejs | Outline saves don't say which ids new items got | [03](03-outline-descriptions-and-id-map.md) | (same patch) | [#3099](https://github.com/haxtheweb/issues/issues/3099) · PR [#46](https://github.com/haxtheweb/haxcms-nodejs/pull/46) |
-| 5 | webcomponents | HAX writes Lit `state: true` properties into saved HTML | [05](05-hax-lit-state-properties.md) | `webcomponents--hax-skip-lit-state-properties.patch` | [#3100](https://github.com/haxtheweb/issues/issues/3100) · PR [#830](https://github.com/haxtheweb/webcomponents/pull/830) |
+| 5 | webcomponents | HAX writes Lit `state: true` properties into saved HTML | [05](05-hax-lit-state-properties.md) | `webcomponents--hax-skip-lit-state-properties.patch` | [#3100](https://github.com/haxtheweb/issues/issues/3100) · PR [#830](https://github.com/haxtheweb/webcomponents/pull/830) ✅ merged by btopro 2026-10-01 |
 
 Checked and not filed:
 - **`theme.variables.hexCode` crash:** already guarded on `main`; released 26.8.1 still has it. Upgrading will fix it.
 - **Clearing metadata in outline saves:** sending `null` already stores `null`, so a delete operation isn't needed.
 - **Dev-server reload loop:** it was caused by our own icon generator writing into `src/`, and we fixed it on our side.
+
+**Review status (2026-10-01):** #830 was approved and merged by btopro. On #44, #45 and #46 the automated Copilot reviewer suggested one change each (whitespace around `=`, an accurate error message, a prototype-free id map). All three were fixed with tests and answered in their threads. No human review yet.
 
 To apply a patch to a fork: `git am docs/upstream/patches/<file>.patch`.
 
