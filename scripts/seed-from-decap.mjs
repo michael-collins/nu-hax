@@ -11,9 +11,7 @@ import path from "node:path";
 import matter from "gray-matter";
 import { connect } from "./lib/hax-api.mjs";
 
-const DECAP =
-  process.env.DECAP_DIR ||
-  "/Users/msc227/Documents/repos/open-curriculum/oerschema/learning-materials-decapcms";
+const DECAP = process.env.DECAP_DIR || path.resolve("../learning-materials-decapcms");
 const SITE_DIR = new URL("../learning-materials/", import.meta.url).pathname;
 
 const SECTIONS = [

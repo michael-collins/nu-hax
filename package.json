@@ -1,16 +1,19 @@
 {
   "name": "nu-hax",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Tooling and docs for a shadcn-style, OER-focused customization layer on HAXcms",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Michael Collins",
+  "license": "Apache-2.0",
   "devDependencies": {
     "@haxtheweb/create": "^26.8.1",
     "gray-matter": "^4.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/michael-collins/nu-hax.git"
   }
 }

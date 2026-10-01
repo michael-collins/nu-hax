@@ -1,6 +1,7 @@
 // Convert learning-materials-decapcms' cms/config.yml collections into the
 // site's content-type definitions (the JSON the type editor stores).
-//   node scripts/decap-types-to-json.mjs [path/to/cms/config.yml] > types.json
+//   DECAP_DIR=../learning-materials-decapcms node scripts/decap-types-to-json.mjs > types.json
+//   (or pass the path to cms/config.yml as the first argument)
 //
 // Field mapping: string→text, text→longtext, select→select, list→list,
 // datetime→date, boolean→boolean, image→image. Fields HAX already models
@@ -9,13 +10,14 @@
 // left out; relations wait for the books/versioning work.
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import path from "node:path";
 
-const require = createRequire(import.meta.url);
-const YAML = require("/Users/msc227/Documents/repos/open-curriculum/oerschema/learning-materials-decapcms/node_modules/yaml");
+const DECAP = process.env.DECAP_DIR || path.resolve("../learning-materials-decapcms");
+// the Decap project's own copy of `yaml`, so this repo needs no extra dependency
+const require = createRequire(path.join(DECAP, "package.json"));
+const YAML = require("yaml");
 
-const src =
-  process.argv[2] ||
-  "/Users/msc227/Documents/repos/open-curriculum/oerschema/learning-materials-decapcms/cms/config.yml";
+const src = process.argv[2] || path.join(DECAP, "cms/config.yml");
 const config = YAML.parse(readFileSync(src, "utf8"));
 
 const SKIP = new Set(["title", "slug", "description", "tags", "published", "body", "outline", "items", "type", "template"]);
