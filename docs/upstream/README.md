@@ -36,6 +36,8 @@ Checked and not filed:
 
 **Review status (2026-10-01):** #830 was approved and merged by btopro. On #44, #45 and #46 the automated Copilot reviewer suggested one change each (whitespace around `=`, an accurate error message, a prototype-free id map). All three were fixed with tests and answered in their threads. No human review yet.
 
+**Upstream moved (2026-10-01, haxcms-nodejs 295e645, QA for 26.9.0):** the new commits don't touch the files our PRs change. #44, #45 and #46 merge cleanly onto it, with the full suite unchanged (the same 7 failures already on main; our 8 tests pass). Our theme was checked against the new editor build: same internals, blocks register, pathway, collection, Page details and editor saves all work. The custom-theme preload 404 (draft 06) is still there.
+
 To apply a patch to a fork: `git am docs/upstream/patches/<file>.patch`.
 
 ## Our theme against upstream `main` (checked 2026-10-01)
