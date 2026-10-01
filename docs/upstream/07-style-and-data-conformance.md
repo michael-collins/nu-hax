@@ -29,8 +29,8 @@ So the style revision is a theme-scoped layer. It isn't a proposal to restyle HA
 
 | Ours | HAX native | Gap |
 |---|---|---|
-| Content types with custom fields: definitions in a hidden `pageType: "oer-system"` page, values in `metadata.oerFields` | None. Entities/schemas are a fixed system list (`lib/entities.yaml`), and item `metadata` is an open object | Config stored as a page, which we must filter out of /items, search, tags and exports by hand. No server validation of fields. Revision restore doesn't bring back pageType/oerFields |
-| pageType values (**now prefixed `oer:` since 2026-10-01**, e.g. `oer:lesson`; an editor save keeps them) | page-break's pageType list (content, lesson, project, quiz…), which drives icons, the map-menu label, search type and a filter | lesson/project collide with HAX meanings. Six of our values aren't in the page-break dropdown, which shows them blank, so editing that field in page settings could clear them |
+| Content types with custom fields: definitions in a hidden `pageType: "oer:system"` page, values in `metadata.oerFields` | None. Entities/schemas are a fixed system list (`lib/entities.yaml`), and item `metadata` is an open object | Config stored as a page, which we must filter out of /items, search, tags and exports by hand. No server validation of fields. Revision restore doesn't bring back pageType/oerFields |
+| pageType values (**now prefixed `oer:` since 2026-10-01**, e.g. `oer:lesson`; an editor save keeps them) | page-break's pageType list (content, lesson, project, quiz…), which drives icons, the map-menu label, search type and a filter | Prefixing removed the lesson/project collision. Our values still aren't in the page-break dropdown, which shows them blank, so editing that field in page settings could clear them |
 | Collection block: a client-side query over the loaded manifest | Views: `site-view` + `/x/api/v1/views/{id}/results` (filter.pageType/ancestor/tags/published, sort, paging) | Duplicates a native feature he's building, and bypasses server-side visibility rules. Views can't filter on our fields yet |
 | Versions: a frozen copy page per release + `oerVersions` | Git revisions + restore (`/items/{id}/revisions`) | Two version systems. Ours models *releases* (semver, pinning), which git revisions don't. Their content endpoint needs a login, so it can't serve a static site |
 | Relations `[{page, version}]` in oerFields | `relatedItems` (one escaped string) | No collision, but stock tools can't see our relations |
@@ -45,7 +45,7 @@ So the style revision is a theme-scoped layer. It isn't a proposal to restyle HA
 >
 > **Data and APIs:** all our writes go through the outline save, saveNodeDetails, create-node and the files API, and our metadata survives your save paths. Where we're off-model:
 > - **Content types:** we built custom fields (`metadata.oerFields`) because entities/schemas don't cover user-defined types. The definitions live in a hidden page, which I know isn't great.
-> - **pageType:** some of our values aren't in page-break's list, and lesson/project overlap with yours.
+> - **pageType:** our values are now namespaced (`oer:lesson`, `oer:pathway`…) so they can't collide with yours, but they still aren't in page-break's list.
 > - **Collections:** our block queries the manifest client-side, where Views now exist.
 > - **Versions:** we keep release snapshots (semver/pinning) alongside git revisions.
 > - **Editor actions:** we still call private methods like `_editButtonTap`.
