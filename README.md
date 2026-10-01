@@ -1,6 +1,6 @@
 # nu-hax
 
-Making [HAX](https://haxtheweb.org) look and work like a modern OER platform: shadcn-style editing chrome, content types, versions, books and LMS embedding, built as a layer on top of stock HAXcms (no forks or patched files). It began as a way to bring the editing and viewing experience of [learning-materials-decapcms](https://github.com/open-curriculum) to HAX.
+Making [HAX](https://haxtheweb.org) look and work like a modern OER platform: shadcn-style editing chrome, content types, versions, books and LMS embedding, built as a layer on top of stock HAXcms (no forks or patched files). It began as a way to bring the editing and viewing experience of [learning-materials-decapcms](https://github.com/michael-collins/learning-materials-decapcms) to HAX.
 
 This repository holds the tooling and documentation. The HAXcms site, with the custom theme and every UI module, lives in its own repository: **[learning-materials-hax](https://github.com/michael-collins/learning-materials-hax)**. Check it out into `learning-materials/` here to use the scripts.
 
