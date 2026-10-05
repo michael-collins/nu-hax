@@ -54,6 +54,7 @@ Main (haxcms-nodejs e41c859, with its own front-end build) served a copy of the 
 - **Our bug, found and fixed:** Page details sent `setDescription` with the description nested under `details`. Both the release and main read it at the top level, so description edits never saved. Fixed in learning-materials f28fd14, and checked on both.
 
 - [07: style revision and data conformance](07-style-and-data-conformance.md): btopro's concerns, theme test results, conformance table and draft reply.
+- [09: reference items](09-reference-items.md): one page at several places in the outline, natively in JOS/HAX instead of our theme-only link items. Feature request filed 2026-10-05: [#3109](https://github.com/haxtheweb/issues/issues/3109).
 - [08: embeds blocked by the dev server's headers](08-embeds-blocked-by-dev-headers.md): video-player and YouTube under `hax serve` (draft, not filed).
 
 ## Next rounds
