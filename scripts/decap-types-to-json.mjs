@@ -76,6 +76,13 @@ function field(f) {
     if (f.hint) out.help = String(f.hint);
     return out;
   }
+  // a list of people: { name, url }
+  if (f.widget === "list" && (f.fields || []).some((x) => x.name === "name") && (f.fields || []).every((x) => ["name", "url"].includes(x.name))) {
+    const out = { name: f.name, label: f.label || f.name, kind: "people" };
+    if (f.hint) out.help = String(f.hint);
+    if (HEADER.has(f.name)) out.header = true;
+    return out;
+  }
   const kind = KIND[f.widget || "string"];
   if (!kind) return null;
   // lists of objects (attachments, criteria…) have no flat form yet
