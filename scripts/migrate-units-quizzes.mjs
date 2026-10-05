@@ -29,7 +29,9 @@ const SITE_DIR = new URL("../learning-materials/", import.meta.url).pathname;
 const SITE = process.env.HAX_SITE || "learning-materials";
 const DRY = process.argv.includes("--dry-run");
 const PATHWAY = process.argv.slice(2).find((a) => !a.startsWith("--")) || "CGI Foundations";
-const QUESTIONS = JSON.parse(readFileSync(new URL("./data/draft-questions.json", import.meta.url), "utf8")).lessons;
+const DATA = JSON.parse(readFileSync(new URL("./data/draft-questions.json", import.meta.url), "utf8"));
+const QUESTIONS = DATA.lessons;
+const READINESS = DATA.pathways;
 
 const read = () => JSON.parse(readFileSync(path.join(SITE_DIR, "site.json"), "utf8")).items;
 let items = read();
@@ -59,7 +61,12 @@ const types = defs.types.map((t) => {
     return { ...t, schemaType: "oer:Lesson", fields, children: [...new Set([...(t.children || []), "oer:quiz"])] };
   }
   if (t.id === "oer:project") return { ...t, schemaType: "oer:Project" };
-  if (t.id === "oer:pathway") return { ...t, children: [...new Set(["oer:unit", ...(t.children || [])])] };
+  if (t.id === "oer:pathway") {
+    const fields = t.fields.some((f) => f.name === "readinessQuiz")
+      ? t.fields
+      : [...t.fields, { name: "readinessQuiz", label: "Readiness quiz", kind: "relation", types: ["oer:quiz"], help: "Self-check questions to take before starting the pathway." }];
+    return { ...t, fields, children: [...new Set(["oer:unit", ...(t.children || [])])] };
+  }
   return t;
 });
 if (!types.some((t) => t.id === "oer:unit")) {
@@ -136,6 +143,7 @@ function quizHtml(q) {
 `;
 }
 
+const files = [];
 const report = [];
 const lessonComponents = new Map(); // library lesson id -> [ids]
 let quizOrder = 0;
@@ -144,6 +152,12 @@ for (const mod of kids(pathway.id)) {
   const children = kids(mod.id);
   const onlyProjects = children.length && children.every((c) => src(c).metadata?.pageType === "oer:project");
   change(mod.id, (i) => ({ ...i, title: onlyProjects && i.title === "Project" ? "Final project" : i.title, metadata: { ...i.metadata, pageType: "oer:unit" } }));
+  // the unit page lists its lessons (oer-unit)
+  const unitFile = path.join(SITE_DIR, mod.location || "");
+  if (mod.location && existsSync(unitFile)) {
+    const html = readFileSync(unitFile, "utf8");
+    if (!html.includes("<oer-unit")) files.push([unitFile, (html.trim() && html.trim() !== "<p></p>" ? `${html.trim()}\n` : "") + "<oer-unit></oer-unit>\n"]);
+  }
   const lessons = children.filter((c) => src(c).metadata?.pageType === "oer:lesson");
   let current = lessons[0] ? src(lessons[0]) : null;
   for (const c of children) {
@@ -204,7 +218,6 @@ for (const [lessonId, comps] of lessonComponents) {
 }
 
 // the drafted questions move to the quizzes: drop the lesson pages' drafts
-const files = [];
 for (const lessonId of lessonComponents.keys()) {
   const l = byId.get(lessonId);
   const file = path.join(SITE_DIR, l.location || "");
@@ -212,6 +225,40 @@ for (const lessonId of lessonComponents.keys()) {
   const html = readFileSync(file, "utf8");
   const next = html.replace(/\n?<oer-draft\b[^>]*data-source="objectives"[^>]*>[\s\S]*?<\/oer-draft>\n?/g, "\n");
   if (next !== html) files.push([file, next]);
+}
+
+// the pathway's readiness questions become its readiness quiz
+const readiness = READINESS[PATHWAY];
+const hasReadiness = (pathway.metadata?.oerFields?.readinessQuiz || []).length > 0;
+if (readiness && !hasReadiness) {
+  added.push({
+    id: `new-readiness-${pathway.id}`,
+    title: `${PATHWAY} readiness quiz`,
+    parent: quizzes.id,
+    order: quizOrder++,
+    indent: 1,
+    location: "",
+    description: `Check you're ready to start ${PATHWAY}.`,
+    metadata: {
+      pageType: "oer:quiz",
+      icon: "lrn:quiz",
+      published: false,
+      oerTmpKey: `readiness:${pathway.id}`,
+      oerFields: { estimatedDuration: "10 minutes", ...(pathway.metadata?.oerFields?.authors ? { authors: pathway.metadata.oerFields.authors } : {}) },
+    },
+    contents: `<p>Before you start ${text(PATHWAY)}: can you answer these? Your answers aren't recorded.</p>\n${readiness
+      .map(([q, a]) => `<self-check title="Are you ready?">\n  <p slot="question">${text(q)}</p>\n  <p>${text(a)}</p>\n</self-check>`)
+      .join("\n")}\n`,
+    new: true,
+  });
+}
+{
+  const file = path.join(SITE_DIR, pathway.location || "");
+  if (pathway.location && existsSync(file)) {
+    const html = readFileSync(file, "utf8");
+    const next = html.replace(/\n?<oer-draft\b[^>]*data-source="objectives"[^>]*>[\s\S]*?<\/oer-draft>\n?/g, "\n");
+    if (next !== html) files.push([file, next]);
+  }
 }
 
 console.log(`${PATHWAY}: ${kids(pathway.id).length} units; ${lessonComponents.size} lessons; ${added.filter((a) => a.metadata.pageType === "oer:quiz").length} quizzes; ${files.length} lesson drafts removed`);
@@ -233,12 +280,15 @@ console.log("pass 1 saved");
 // pass 2: the quizzes' real ids into their lessons' components
 items = read();
 const quizByLesson = new Map(items.filter((i) => String(i.metadata?.oerTmpKey || "").startsWith("quiz:")).map((i) => [i.metadata.oerTmpKey.slice(5), i]));
+const readinessFor = new Map(items.filter((i) => String(i.metadata?.oerTmpKey || "").startsWith("readiness:")).map((i) => [i.metadata.oerTmpKey.slice(10), i]));
 const second = items.map((i) => {
   if (String(i.metadata?.oerTmpKey || "")) return { ...i, metadata: { ...i.metadata, oerTmpKey: "" }, modified: true };
+  const rq = readinessFor.get(i.id);
+  if (rq) return { ...i, metadata: { ...i.metadata, oerFields: { ...(i.metadata?.oerFields || {}), readinessQuiz: [{ page: rq.id, version: "" }] } }, modified: true };
   const quiz = quizByLesson.get(i.id);
   if (!quiz) return i;
   const comps = (i.metadata?.oerFields?.components || []).filter((c) => c.page !== quiz.id);
   return { ...i, metadata: { ...i.metadata, oerFields: { ...i.metadata.oerFields, components: [...comps, { page: quiz.id, version: "" }] } }, modified: true };
 });
 await save(second);
-console.log(`pass 2 saved: ${quizByLesson.size} quizzes linked from their lessons`);
+console.log(`pass 2 saved: ${quizByLesson.size} quizzes linked from their lessons${readinessFor.size ? ", readiness quiz linked from the pathway" : ""}`);
