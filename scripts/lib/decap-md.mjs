@@ -1,3 +1,4 @@
+import { footnotesToHtml } from "./footnotes.mjs";
 // Decap markdown → HAX page HTML. md-to-html (a HAXcms system action)
 // escapes raw HTML, so MDC components are swapped for placeholder
 // paragraphs before conversion and restored as web components afterwards.
@@ -58,10 +59,14 @@ export function restoreMdc(html, blocks) {
 }
 
 
-/** Markdown with MDC components → HTML, through the site's md-to-html action. */
-export async function decapMarkdownToHtml(api, md) {
+/**
+ * Markdown with MDC components → HTML, through the site's md-to-html action.
+ * Footnotes ("[^1]"), which md-to-html leaves as text, become footnote
+ * markup with a References list; pageId keeps their ids unique.
+ */
+export async function decapMarkdownToHtml(api, md, pageId = "p") {
   const { md: plain, blocks } = extractMdc(md);
   const r = await api.call("POST", "/system/api/v1/actions/md-to-html", { headers: api.userHeaders, body: { md: plain } });
   if (!r.ok) throw new Error(`md-to-html failed (${r.status})`);
-  return restoreMdc(r.json.data.contents, blocks);
+  return footnotesToHtml(restoreMdc(r.json.data.contents, blocks), pageId);
 }

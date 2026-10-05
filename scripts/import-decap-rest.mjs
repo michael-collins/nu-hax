@@ -266,7 +266,7 @@ function section(collection) {
 // content pages
 for (const e of entries) {
   const fm = e.entry.data;
-  const body = e.entry.content.trim() ? (DRY ? "" : await decapMarkdownToHtml(api, await uploadInline(e.entry.content))) : "<p></p>";
+  const body = e.entry.content.trim() ? (DRY ? "" : await decapMarkdownToHtml(api, await uploadInline(e.entry.content), e.id)) : "<p></p>";
   const isPathway = e.collection === "pathways";
   const layout = ["matrix", "syllabus", "sidebar"].includes(fm.template) ? fm.template : "matrix";
   addPage({
