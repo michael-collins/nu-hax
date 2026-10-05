@@ -1,0 +1,86 @@
+{
+  "lessons": {
+    "History of CGI": {
+      "mc": ["Which 1995 film was the first feature-length film made entirely with computer animation?", "Toy Story", ["Jurassic Park", "Tron", "The Abyss"]],
+      "tf": ["Ivan Sutherland's Sketchpad (1963) is considered a foundation of interactive computer graphics.", true],
+      "sc": ["Pick one industry: film, games or advertising. How did CGI change the way work is made in it?", "For example, in film CGI made creatures, environments and effects possible that were impossible or too costly to build or shoot, and moved much of the work from the set into post-production."]
+    },
+    "3D Modeling Fundamentals": {
+      "mc": ["Which kind of face is generally preferred for clean topology that deforms and subdivides well?", "Quads (four-sided faces)", ["Triangles", "N-gons (five or more sides)", "It doesn't matter"]],
+      "tf": ["Edge loops should follow the form of a model, especially where it will bend or deform.", true],
+      "sc": ["Why is it useful to block out a model with few polygons first and add detail later?", "The overall form and proportions are easier to judge and change with few polygons, the topology stays clean, and detail or smoothness can be added later with extra loops or subdivision."]
+    },
+    "Texturing and UV Mapping": {
+      "mc": ["What does a UV map do?", "It maps each point on a 3D surface to a position on a 2D texture", ["It sets the color of the lights", "It stores the model's polygon count", "It controls the render resolution"]],
+      "tf": ["In a PBR metallic workflow, the roughness map controls how sharp or blurry reflections look.", true],
+      "sc": ["A brick texture looks stretched on one side of your model. What would you check, and how might you fix it?", "Check the UV layout with a checker texture for stretched or distorted islands and uneven texel density. Fix it by adding or moving seams, re-unwrapping or relaxing those islands, and scaling them to a consistent density."]
+    },
+    "Lighting Principles": {
+      "mc": ["In three-point lighting, which light is the main source that defines the subject's form?", "The key light", ["The fill light", "The rim (back) light", "The ambient light"]],
+      "tf": ["An HDRI can light a whole scene and also provide realistic reflections.", true],
+      "sc": ["How would you change a scene's lighting to make it feel tense or mysterious rather than cheerful?", "Raise the contrast between key and fill, use harder shadows and a low or side angle, shift to cooler or more saturated colors, and leave parts of the scene in darkness, lit only by motivated sources."]
+    },
+    "Camera and Composition": {
+      "mc": ["Which change gives a shallower depth of field (more background blur)?", "A lower f-stop (a wider aperture)", ["A higher f-stop", "Moving the camera farther from the subject", "Increasing the render resolution"]],
+      "tf": ["A longer focal length (telephoto) compresses the sense of depth between foreground and background.", true],
+      "sc": ["How would you use the rule of thirds to frame a product shot?", "Place the product, or its most important feature, on one of the third lines or intersections, leave space in the direction it faces, and keep any horizon on a third line rather than in the middle, unless you want a deliberately symmetrical shot."]
+    },
+    "Rendering Techniques": {
+      "mc": ["What is the main purpose of render passes (AOVs)?", "To output separate components, such as diffuse, specular and shadows, for compositing", ["To render faster at lower quality", "To save the image in several file formats", "To preview the scene in the viewport"]],
+      "tf": ["In a path tracer, raising the sample count usually reduces noise but increases render time.", true],
+      "sc": ["Your render takes too long. Name three changes that would shorten it, and what each one costs.", "For example: fewer samples with a denoiser (can lose fine detail), fewer light bounces (less realistic indirect light), a lower resolution or render region (less image), or simpler geometry and smaller textures (less detail). Adaptive sampling and GPU rendering can also help."]
+    },
+    "Real-time Engines": {
+      "mc": ["Which of these is a common way to improve performance in a real-time engine?", "Using levels of detail (LODs) for distant objects", ["Raising every texture to 8K", "Turning off occlusion culling", "Giving every object its own unique material"]],
+      "tf": ["Baked lighting is calculated ahead of time, so it costs little while the game runs but can't change during play.", true],
+      "sc": ["What would you check when importing a model from Blender into Unity or Unreal?", "Scale and units, axis orientation, applied transforms, normals and smoothing, UVs (including lightmap UVs), material assignments, pivot placement, naming and collision."]
+    },
+    "Environment Design for Real-time": {
+      "mc": ["What is the main benefit of building an environment from a modular kit?", "Pieces can be reused and snapped together to build many layouts efficiently", ["Every piece needs its own unique texture", "It removes the need for level design", "It increases draw calls, which improves quality"]],
+      "tf": ["Modular pieces are easier to assemble when they are built to a consistent grid size.", true],
+      "sc": ["How can lighting and landmarks guide a player through an environment?", "Brighter or contrasting light and color draw the eye toward the path, framing and leading lines point the way, and distinctive landmarks visible from a distance help players keep their bearings."]
+    },
+    "Real-time Asset Budgets": {
+      "mc": ["What is texel density?", "The number of texture pixels per unit of surface on a model", ["The number of polygons per object", "The file size of a texture", "The number of materials in a scene"]],
+      "tf": ["Combining several objects' textures into one atlas with a shared material can reduce draw calls.", true],
+      "sc": ["Why do real-time assets need tighter budgets than assets for an offline render?", "A game has to draw each frame in a few milliseconds (about 16 ms at 60 fps) on players' hardware with limited memory, while an offline render can spend minutes per frame on a render farm. So polygon counts, texture memory and draw calls all have to be limited."]
+    },
+    "Drawing for 3D Design": {
+      "mc": ["In two-point perspective, how many vanishing points sit on the horizon line?", "Two", ["One", "Three", "None"]],
+      "tf": ["Orthographic views (front, side and top) are useful references for modeling to scale.", true],
+      "sc": ["How does sketching a concept before modeling save time in 3D?", "Sketches let you explore shapes, proportions and silhouettes quickly, solve design problems before committing to geometry, and produce reference views to model from."]
+    },
+    "Hard Surface Modeling": {
+      "mc": ["Why add support (holding) edges near a hard edge before subdividing?", "To keep the edge sharp when the mesh is smoothed", ["To reduce the polygon count", "To create UV seams", "To make the object symmetrical"]],
+      "tf": ["Modifiers such as Bevel, Mirror and Boolean let you change a model without permanently altering its base mesh.", true],
+      "sc": ["When is a boolean operation a good choice, and what problems should you watch for?", "Booleans are quick for cutting holes and combining shapes, especially while blocking out. Watch for messy n-gons, shading artifacts and non-manifold geometry, and clean up the topology or keep the boolean as a non-destructive modifier."]
+    },
+    "Digital Sculpting": {
+      "mc": ["What is retopology?", "Building a clean, lower-polygon mesh over a detailed sculpt", ["Adding subdivision levels to a sculpt", "Painting textures onto a model", "Rigging a character for animation"]],
+      "tf": ["It's good practice to establish large forms at low subdivision levels before adding fine detail.", true],
+      "sc": ["Why might you bake the details of a high-resolution sculpt into a normal map?", "So a lower-polygon mesh that can be animated or used in real time keeps the look of the fine detail, without the cost of the sculpt's millions of polygons."]
+    }
+  },
+  "pathways": {
+    "CGI Foundations": [
+      ["Can you describe the main stages of a CGI project, from concept to final image?", "Concept and reference, modeling, UV mapping and texturing (shading), lighting, camera and layout, rendering, and compositing or output. Animation joins the pipeline when things move."],
+      ["What is the difference between modeling, texturing and lighting, and how does each affect the final render?", "Modeling defines the shape, texturing and shading define what surfaces are made of and how they react to light, and lighting reveals the form, sets the mood and directs the viewer's eye."]
+    ],
+    "Compositor Pathway": [
+      ["What does keying do, and when would you use rotoscoping instead?", "Keying separates a subject from a uniform background, such as a green screen, by color. Rotoscoping draws animated mattes by hand where there is no clean key, for example when there was no green screen or the edges are hard to separate."],
+      ["Why do CG elements need matched lighting, shadows and color to sit convincingly in live-action footage?", "The eye notices when light direction, shadow softness, black levels, grain or color don't match the plate, and the element then looks pasted on. Matching them makes the CG element feel like part of the shot."]
+    ],
+    "Game Artist Pathway": [
+      ["What makes a 3D asset game-ready?", "Efficient topology within its polygon budget, clean UVs with consistent texel density, baked and PBR textures, levels of detail, correct scale and pivot, collision, and clear naming."],
+      ["Name two technical limits you have to design within for a real-time game.", "For example: the frame-time budget, polygon counts, draw calls, texture memory and the cost of dynamic lights and shadows."]
+    ],
+    "Short Film and VFX Pathway": [
+      ["Outline the main stages of a short-film pipeline, from pre-production to post-production.", "Story and script, storyboards and animatic, design, modeling and rigging, layout, animation, effects and simulation, lighting, rendering, compositing, then edit, sound and grade."],
+      ["How would you make a simulated effect, like smoke or debris, feel part of an animated shot?", "Match its lighting, scale, timing and motion to the shot, make it interact with the characters and set, and render it in passes so it can be balanced in compositing."]
+    ],
+    "Short Film Pathway": [
+      ["What makes a story work in a short film only a few minutes long?", "One clear character with a goal, a simple conflict, a beginning, middle and end, an emotional change, and storytelling that relies on pictures more than words."],
+      ["How can an animator convey a character's emotion without dialogue?", "Through posing and silhouette, timing and spacing, facial expression, acting choices and staging."]
+    ]
+  }
+}
