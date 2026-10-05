@@ -14,7 +14,7 @@
 // New sections: Articles and Resources (Library), Books (Curriculum).
 // Run scripts/import-versions.mjs afterwards for their version history.
 // Safe to run again: pages that already exist are left alone.
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, copyFileSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import matter from "gray-matter";
@@ -49,7 +49,8 @@ const sys = items.find((i) => i.metadata?.pageType === "oer:system");
 let defs = sys.metadata.oerContentTypes;
 const typeDef = (id) => defs.types.find((t) => t.id === id) || { fields: [] };
 const newId = () => `item-${randomUUID()}`;
-const report = { created: [], uploaded: [], dropped: [] };
+const report = { created: [], uploaded: [], copied: [], dropped: [] };
+const UPLOADABLE = /\.(jpg|jpeg|png|gif|webm|webp|mp4|mp3|mov|csv|ppt|pptx|xlsx|doc|xls|docx|pdf|rtf|txt|vtt|html|md)$/i;
 const toList = (v) => (Array.isArray(v) ? v : v === undefined || v === null || v === "" ? [] : [v]).map((x) => String(x));
 
 /* ---------- Resource type fields ---------- */
@@ -94,6 +95,15 @@ async function upload(src) {
     return src;
   }
   let url = `files/${name}`;
+  // the files API only takes images, media and office documents
+  // (HAXcms ALLOWED_UPLOAD_EXTENSION_PATTERN); other attachments (.fbx,
+  // .zip, .blend, .glb…) are copied into files/, which the site serves
+  if (!UPLOADABLE.test(name)) {
+    if (!DRY) copyFileSync(file, path.join(SITE_DIR, "files", name));
+    report.copied.push(src);
+    uploads.set(src, url);
+    return url;
+  }
   if (!DRY) {
     const form = new FormData();
     form.append("file-upload", new Blob([readFileSync(file)]), name);
@@ -391,4 +401,5 @@ console.log("saved");
 await relink();
 await describe();
 if (report.uploaded.length) console.log(`uploaded ${report.uploaded.length} files`);
+if (report.copied.length) console.log(`copied into files/ (not accepted by the files API): ${report.copied.map((f) => path.basename(f)).join(", ")}`);
 if (report.dropped.length) console.log(`not linked:\n  ${[...new Set(report.dropped)].join("\n  ")}`);
