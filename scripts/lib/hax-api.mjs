@@ -10,6 +10,14 @@ export async function connect({
   if (!password) throw new Error("Set HAX_PASSWORD (see .env.local)");
 
   async function call(method, path, { body, headers = {} } = {}) {
+    // Outline saves: send only new, changed and deleted items. HAXcms
+    // rewrites site.json and rebuilds its feeds and search index once per
+    // item it's sent, so a whole-site outline took minutes (see
+    // custom/src/outline/outline-model.js saveOutline)
+    if (method === "PATCH" && path === "/x/api/v1/site/outline" && Array.isArray(body?.items)) {
+      body = { ...body, items: body.items.filter((i) => i && (i.new || i.modified || i.delete)) };
+      if (!body.items.length) return { ok: true, status: 200, json: { data: { items: [] } } };
+    }
     const res = await fetch(base + path, {
       method,
       headers: { "Content-Type": "application/json", ...headers },
