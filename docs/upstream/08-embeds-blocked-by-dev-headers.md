@@ -1,6 +1,6 @@
 # 08: video-player and other iframes blocked under the dev server's headers
 
-**Repo:** haxcms-nodejs, plus webcomponents (video-player / a11y-media-player) · **Form:** Bug report · **Status:** draft, not filed
+**Repo:** haxcms-nodejs, plus webcomponents (video-player / a11y-media-player) · **Form:** Bug report · **Status:** filed 2026-10-05 as [haxtheweb/issues#3112](https://github.com/haxtheweb/issues/issues/3112)
 **Found:** 2026-10-01 with haxcms-nodejs 26.8.1 (`hax serve`). The same code is on main (`src/app.js:157-163`).
 
 ## Issue

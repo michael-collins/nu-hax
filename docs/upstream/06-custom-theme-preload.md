@@ -1,6 +1,6 @@
 # 06: preload hints point custom themes at node_modules
 
-**Repo:** haxcms-nodejs · **Form:** Bug report · **Project:** haxcms-nodejs (backend) · **Status:** draft, not filed
+**Repo:** haxcms-nodejs · **Form:** Bug report · **Project:** haxcms-nodejs (backend) · **Status:** filed 2026-10-05 as [haxtheweb/issues#3111](https://github.com/haxtheweb/issues/issues/3111)
 **Found:** 2026-10-01, checking our theme against haxcms-nodejs `main` e41c859. Not in 26.8.1.
 
 ## Issue

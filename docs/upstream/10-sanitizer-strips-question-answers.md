@@ -1,6 +1,6 @@
 # 10: page saves delete the answers of HAX question blocks
 
-**Repo:** haxcms-nodejs · **Form:** Bug report · **Project:** haxcms-nodejs (backend) · **Status:** draft, not filed
+**Repo:** haxcms-nodejs · **Form:** Bug report · **Project:** haxcms-nodejs (backend) · **Status:** filed 2026-10-05 as [haxtheweb/issues#3113](https://github.com/haxtheweb/issues/issues/3113)
 **Found:** 2026-10-05 with 26.8.1 (`dist/lib/sanitizeContent.js`) and the same code on `main` (`src/lib/sanitizeContent.js`).
 
 ## Issue

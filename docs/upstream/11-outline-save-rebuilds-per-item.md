@@ -1,6 +1,6 @@
 # 11: outline saves rebuild site.json, feeds and search index once per item
 
-**Repo:** haxcms-nodejs · **Form:** Bug report · **Project:** haxcms-nodejs (backend) · **Status:** draft, not filed
+**Repo:** haxcms-nodejs · **Form:** Bug report · **Project:** haxcms-nodejs (backend) · **Status:** filed 2026-10-05 as [haxtheweb/issues#3114](https://github.com/haxtheweb/issues/issues/3114)
 **Found:** 2026-10-05 with 26.8.1 (`dist/siteRoutes/v1/routes/saveOutline.js`, `dist/lib/HAXCMS.js`); same code on `main`.
 
 ## Issue

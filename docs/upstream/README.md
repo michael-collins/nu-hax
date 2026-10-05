@@ -36,7 +36,7 @@ Checked and not filed:
 
 **Review status (2026-10-01):** all four round-1 PRs are merged: #830, then #44, #45 and #46 after the Copilot review fixes. #830 was approved and merged by btopro. On #44, #45 and #46 the automated Copilot reviewer suggested one change each (whitespace around `=`, an accurate error message, a prototype-free id map). All three were fixed with tests and answered in their threads. No human review yet.
 
-**Upstream moved (2026-10-01, haxcms-nodejs 295e645, QA for 26.9.0):** the new commits don't touch the files our PRs change. #44, #45 and #46 merge cleanly onto it, with the full suite unchanged (the same 7 failures already on main; our 8 tests pass). Our theme was checked against the new editor build: same internals, blocks register, pathway, collection, Page details and editor saves all work. The custom-theme preload 404 (draft 06) is still there.
+**Upstream moved (2026-10-01, haxcms-nodejs 295e645, QA for 26.9.0):** the new commits don't touch the files our PRs change. #44, #45 and #46 merge cleanly onto it, with the full suite unchanged (the same 7 failures already on main; our 8 tests pass). Our theme was checked against the new editor build: same internals, blocks register, pathway, collection, Page details and editor saves all work. The custom-theme preload 404 (draft 06) is still there — filed [#3111](https://github.com/haxtheweb/issues/issues/3111).
 
 To apply a patch to a fork: `git am docs/upstream/patches/<file>.patch`.
 
@@ -54,10 +54,10 @@ Main (haxcms-nodejs e41c859, with its own front-end build) served a copy of the 
 - **Our bug, found and fixed:** Page details sent `setDescription` with the description nested under `details`. Both the release and main read it at the top level, so description edits never saved. Fixed in learning-materials f28fd14, and checked on both.
 
 - [07: style revision and data conformance](07-style-and-data-conformance.md): btopro's concerns, theme test results, conformance table and draft reply.
-- [11: outline saves rebuild everything once per item](11-outline-save-rebuilds-per-item.md): O(items²) work in saveOutline; minutes on a 675-item site (draft, not filed).
-- [10: page saves delete question answers](10-sanitizer-strips-question-answers.md): the storage sanitizer strips `correct` from `<input>`, erasing multiple-choice / true-false answers on every save (draft, not filed).
+- [11: outline saves rebuild everything once per item](11-outline-save-rebuilds-per-item.md): O(items²) work in saveOutline; minutes on a 675-item site — filed [#3114](https://github.com/haxtheweb/issues/issues/3114).
+- [10: page saves delete question answers](10-sanitizer-strips-question-answers.md): the storage sanitizer strips `correct` from `<input>`, erasing multiple-choice / true-false answers on every save — filed [#3113](https://github.com/haxtheweb/issues/issues/3113).
 - [09: reference items](09-reference-items.md): one page at several places in the outline, natively in JOS/HAX instead of our theme-only link items. Feature request filed 2026-10-05: [#3109](https://github.com/haxtheweb/issues/issues/3109).
-- [08: embeds blocked by the dev server's headers](08-embeds-blocked-by-dev-headers.md): video-player and YouTube under `hax serve` (draft, not filed).
+- [08: embeds blocked by the dev server's headers](08-embeds-blocked-by-dev-headers.md): video-player and YouTube under `hax serve` — filed [#3112](https://github.com/haxtheweb/issues/issues/3112).
 
 ## Next rounds
 
