@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<!--
+  Reader Grain Tuner: tune Reader mode's paper grain for each page colour,
+  with live contrast on the grain's worst pixel. Open this file in a browser.
+  A claude.ai copy (the same page) can also save settings for Claude to read.
+-->
+<title>Reader Grain Tuner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap"
+/>
+<style>
+  :root {
+    --ground: #eceef2;
+    --surface: #ffffff;
+    --ink: #15181e;
+    --muted: #596170;
+    --line: #d5d9e1;
+    --field: #f6f7f9;
+    --accent: #2b56c9;
+    --accent-ink: #ffffff;
+    --pass: #17703f;
+    --pass-bg: #e3f3ea;
+    --fail: #b3261e;
+    --fail-bg: #fbe7e5;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --serif: "Source Serif 4", Georgia, Cambria, serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #0f1115;
+      --surface: #171a20;
+      --ink: #e6e8ec;
+      --muted: #9aa2ae;
+      --line: #2a2f38;
+      --field: #1e2229;
+      --accent: #86a8ff;
+      --accent-ink: #0d1530;
+      --pass: #5fcf95;
+      --pass-bg: #163225;
+      --fail: #ff8a7d;
+      --fail-bg: #3a1d1a;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #0f1115;
+    --surface: #171a20;
+    --ink: #e6e8ec;
+    --muted: #9aa2ae;
+    --line: #2a2f38;
+    --field: #1e2229;
+    --accent: #86a8ff;
+    --accent-ink: #0d1530;
+    --pass: #5fcf95;
+    --pass-bg: #163225;
+    --fail: #ff8a7d;
+    --fail-bg: #3a1d1a;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    padding: 0 16px;
+    padding-block: 24px 48px;
+    background: var(--ground);
+    color: var(--ink);
+    font: 14px/1.5 var(--sans);
+  }
+  .wrap {
+    max-width: 1360px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* header */
+  .top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px 24px;
+    align-items: end;
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .lede {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--muted);
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    justify-content: flex-end;
+  }
+  .status {
+    grid-column: 1 / -1;
+    min-height: 1.5em;
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .status.ok {
+    color: var(--pass);
+  }
+  .status.err {
+    color: var(--fail);
+  }
+  @media (max-width: 720px) {
+    .top {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .actions {
+      justify-content: flex-start;
+    }
+  }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+  .btn {
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .btn:hover {
+    border-color: var(--muted);
+  }
+  .btn.primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--accent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* cards */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .card-head h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .card-head .sub {
+    flex: 1;
+    min-width: 0;
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  .linkish {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+  .linkish:hover {
+    text-decoration: underline;
+  }
+
+  /* the page as the reader sees it */
+  .preview {
+    padding: 22px 24px 20px;
+    font: 19px/1.7 var(--serif);
+    background-repeat: repeat;
+    border-bottom: 1px solid var(--line);
+  }
+  .preview h3 {
+    margin: 0 0 0.35em;
+    font-size: 1.4em;
+    font-weight: 700;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+  .preview p {
+    margin: 0 0 0.7em;
+  }
+  .preview .cap {
+    margin: 0;
+    font-size: 0.82em;
+  }
+  .preview a {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .ringdemo {
+    display: inline-block;
+    margin-left: 0.4em;
+    padding: 0 0.35em;
+    border-radius: 4px;
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+    font: 500 0.7em/1.6 var(--sans);
+  }
+
+  /* contrast on the grain's worst pixel */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 12px 16px;
+    list-style: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    background: var(--pass-bg);
+    color: var(--pass);
+  }
+  .chip b {
+    font: 500 12.5px var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .chip .plain {
+    font: 11.5px var(--mono);
+    opacity: 0.8;
+  }
+  .chip.fail {
+    background: var(--fail-bg);
+    color: var(--fail);
+  }
+  .chip.fail::after {
+    content: "below AA";
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+
+  /* controls */
+  .controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px 18px;
+    padding: 14px 16px 16px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .field.wide {
+    grid-column: 1 / -1;
+  }
+  .field > .label {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+  .field > .label output,
+  .field > .label .val {
+    font: 12.5px var(--mono);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 11.5px;
+  }
+  input[type="range"] {
+    width: 100%;
+    margin: 0;
+    accent-color: var(--accent);
+  }
+  .colour {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  input[type="color"] {
+    flex: none;
+    width: 34px;
+    height: 30px;
+    padding: 2px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--field);
+    cursor: pointer;
+  }
+  input.hex {
+    width: 100%;
+    min-width: 0;
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--field);
+    color: var(--ink);
+    font: 12.5px var(--mono);
+  }
+  input.hex[aria-invalid="true"] {
+    border-color: var(--fail);
+  }
+  .presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .preset {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 9px 0 6px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--field);
+    color: var(--ink);
+    font-size: 12px;
+  }
+  .preset i {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15);
+  }
+  .preset[aria-pressed="true"] {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .seg {
+    display: flex;
+    padding: 2px;
+    gap: 2px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--field);
+  }
+  .seg button {
+    flex: 1;
+    height: 26px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--muted);
+    font: 500 12.5px var(--mono);
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+  }
+  details.palette {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+  }
+  details.palette summary {
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .palette-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 18px;
+    margin-top: 10px;
+  }
+  .share {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  @media (max-width: 460px) {
+    .controls,
+    .palette-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  .where {
+    margin: 0;
+    max-width: 90ch;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .where code {
+    font: 12px var(--mono);
+    color: var(--ink);
+  }
+  /* the settings as JSON, for copying */
+  .json {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .json summary {
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .json textarea {
+    width: 100%;
+    min-height: 220px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    font: 12px/1.5 var(--mono);
+    resize: vertical;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Reader Grain Tuner</h1>
+      <p class="lede">
+        Tune the paper grain on each Reader mode page. Contrast is measured on the grain's worst pixel (the plain page in brackets): text, muted text and links need 4.5:1 for AA, the focus ring 3:1.
+      </p>
+    </div>
+    <div class="actions">
+      <label class="toggle"><input type="checkbox" id="grain-on" checked /> Grain</label>
+      <label class="toggle"><input type="checkbox" id="magnify" /> Magnify ×2</label>
+      <button class="btn" id="copy" type="button">Copy JSON</button>
+      <button class="btn primary" id="save" type="button" disabled>Save for Claude</button>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite">Starting from the values in the theme now.</p>
+  </header>
+
+  <main class="grid" id="grid"></main>
+
+  <p class="where">
+    Applying: each page's <code>filter</code> values drop into <code>TEXTURES</code> in <code>custom/src/ui/oer-reader.js</code>; page colours and palettes live in
+    <code>custom/src/custom-oer-docs-theme.js</code> (<code>:host([reader-colour="…"])</code>). Update the contrast notes beside them too.
+  </p>
+
+  <details class="json" id="json-box">
+    <summary>Settings as JSON</summary>
+    <textarea id="json" readonly aria-label="Settings as JSON"></textarea>
+  </details>
+</div>
+
+<script>
+  // The values in the theme now: TEXTURES in custom/src/ui/oer-reader.js and
+  // the page palettes in custom/src/custom-oer-docs-theme.js. Keep these in
+  // step when the theme changes, so Reset means "what the site has now".
+  const WARM = "#5c4d33";
+  const DEFAULTS = {
+    light: {
+      label: "Light",
+      sub: "white, cool grain, deeper link blue",
+      bg: "#ffffff",
+      noise: { color: "#3c4859", strength: 0.27, coverage: 0.56, size: 0.61, detail: 3 },
+      palette: { text: "#0f1419", muted: "#50565c", link: "#0062a3", ring: "#0087d7" },
+    },
+    paper: {
+      label: "Paper",
+      sub: "warm white, neutral grain, ink-blue links",
+      bg: "#f8f5ec",
+      noise: { color: "#4d4d4d", strength: 0.34, coverage: 0.51, size: 0.66, detail: 4 },
+      palette: { text: "#2f2a22", muted: "#645a4a", link: "#1d4f91", ring: "#4a6fa5" },
+    },
+    sepia: {
+      label: "Sepia",
+      sub: "aged paper, warm grain, brown accents",
+      bg: "#f6efe1",
+      noise: { color: WARM, strength: 0.34, coverage: 0.662, size: 0.75, detail: 2 },
+      palette: { text: "#3a2e20", muted: "#675642", link: "#0f5596", ring: "#9a6a36" },
+    },
+    dark: {
+      label: "Dark",
+      sub: "soft near-black, light grain",
+      bg: "#16181d",
+      noise: { color: "#ebe6db", strength: 0.32, coverage: 0.5, size: 0.88, detail: 3 },
+      palette: { text: "#e3e1dc", muted: "#a3a7ae", link: "#7cb4f0", ring: "#5b8fd0" },
+    },
+  };
+  const PAGES = Object.keys(DEFAULTS);
+  const LIGHT_PAGES = ["light", "paper", "sepia"];
+  const KEYS = ["bg", "noise", "palette"];
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  let state = clone(DEFAULTS);
+
+  /* ---------- colour ---------- */
+  const isHex = (s) => /^#[0-9a-f]{6}$/i.test(s);
+  const rgbOf = (hex) => hex.match(/[0-9a-f]{2}/gi).map((x) => parseInt(x, 16));
+  const lin = (v) => {
+    v /= 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = (r, g, b) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const hexLum = (hex) => lum(...rgbOf(hex));
+  const ratio = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  const mix = (a, b, t) => {
+    const x = rgbOf(a), y = rgbOf(b);
+    return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("");
+  };
+  const isDarkPage = (p) => hexLum(state[p].bg) < 0.2;
+
+  /* ---------- the grain: the theme's SVG filter ---------- */
+  function filterOf(n) {
+    const [r, g, b] = rgbOf(n.color).map((v) => +(v / 255).toFixed(3));
+    const alpha = +n.strength.toFixed(3);
+    const offset = +(-n.strength * (1 - n.coverage)).toFixed(3);
+    return { rgb: [r, g, b], alpha, offset, baseFrequency: +n.size.toFixed(3), numOctaves: n.detail };
+  }
+  function svgOf(n) {
+    const f = filterOf(n);
+    return (
+      "<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'>" +
+      `<filter id='g' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='${f.baseFrequency}' numOctaves='${f.numOctaves}' seed='5' stitchTiles='stitch'/>` +
+      `<feColorMatrix values='0 0 0 0 ${f.rgb[0]} 0 0 0 0 ${f.rgb[1]} 0 0 0 0 ${f.rgb[2]} ${f.alpha} 0 0 0 ${f.offset}'/></filter>` +
+      "<rect width='100%' height='100%' filter='url(#g)'/></svg>"
+    );
+  }
+  const urlOf = (svg) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+
+  // the darkest and lightest pixel of the grain over the page colour
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 240;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  async function extremes(bg, svg) {
+    const img = new Image();
+    img.src = "data:image/svg+xml," + encodeURIComponent(svg);
+    await img.decode();
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, 240, 240);
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, 240, 240).data;
+    let min = 1, max = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const l = lum(d[i], d[i + 1], d[i + 2]);
+      if (l < min) min = l;
+      if (l > max) max = l;
+    }
+    return { min, max };
+  }
+
+  /* ---------- cards ---------- */
+  const grid = document.getElementById("grid");
+  const $ = (id) => document.getElementById(id);
+
+  const PRESETS = {
+    light: (p) => [
+      ["Warm", WARM],
+      ["Neutral", "#4d4d4d"],
+      ["Cool", "#3c4859"],
+      ["Match page", mix(state[p].bg, "#000000", 0.62)],
+    ],
+    dark: (p) => [
+      ["Warm", "#ebe0cc"],
+      ["Neutral", "#e4e4e4"],
+      ["Cool", "#d3deeb"],
+      ["Match page", mix(state[p].bg, "#ffffff", 0.75)],
+    ],
+  };
+
+  function slider(p, key, label, min, max, step, hint) {
+    return `<div class="field">
+      <span class="label"><label for="${p}-${key}">${label}</label><output id="${p}-${key}-out" for="${p}-${key}"></output></span>
+      <input type="range" id="${p}-${key}" min="${min}" max="${max}" step="${step}" data-page="${p}" data-key="${key}" />
+      <span class="hint">${hint}</span>
+    </div>`;
+  }
+  function colourField(p, id, label, cls = "") {
+    return `<div class="field ${cls}">
+      <span class="label"><label for="${p}-${id}-hex">${label}</label></span>
+      <span class="colour">
+        <input type="color" id="${p}-${id}" data-page="${p}" data-colour="${id}" aria-label="${label} picker" />
+        <input class="hex" id="${p}-${id}-hex" data-page="${p}" data-colour="${id}" spellcheck="false" autocomplete="off" />
+      </span>
+    </div>`;
+  }
+
+  function cardHtml(p) {
+    const d = DEFAULTS[p];
+    return `<section class="card" aria-labelledby="h-${p}">
+      <div class="card-head">
+        <h2 id="h-${p}">${d.label}</h2><span class="sub">${d.sub}</span>
+        <button class="linkish" type="button" data-reset="${p}">Reset</button>
+      </div>
+      <div class="preview" id="pv-${p}">
+        <h3>Three-point lighting</h3>
+        <p>A key light sets the mood, a fill light softens the shadows it casts, and a rim light separates the subject from the background. Read more in <a href="#" onclick="return false">Lighting and Rendering</a>.</p>
+        <p class="cap">Figure 4.2 · A key, fill and rim light around a character <span class="ringdemo">focus</span></p>
+      </div>
+      <ul class="chips" id="cx-${p}" aria-label="${d.label} contrast"></ul>
+      <div class="controls">
+        ${colourField(p, "color", "Noise colour", "wide")}
+        <div class="field wide"><span class="presets" id="pr-${p}" role="group" aria-label="${d.label} noise colour presets"></span></div>
+        ${slider(p, "strength", "Strength", 0, 0.8, 0.01, "How dark (or light) the specks get")}
+        ${slider(p, "coverage", "Coverage", 0, 1, 0.01, "How much of the page carries specks")}
+        ${slider(p, "size", "Grain size", 0.25, 1.6, 0.01, "Lower is coarser, higher finer")}
+        <div class="field">
+          <span class="label"><span id="${p}-detail-lbl">Detail</span><span class="val" id="${p}-detail-out"></span></span>
+          <div class="seg" role="group" aria-labelledby="${p}-detail-lbl" id="${p}-detail">
+            ${[1, 2, 3, 4].map((n) => `<button type="button" data-page="${p}" data-detail="${n}">${n}</button>`).join("")}
+          </div>
+          <span class="hint">Layers of noise: more is busier</span>
+        </div>
+        ${colourField(p, "bg", "Page colour", "wide")}
+        <details class="palette">
+          <summary>Palette (text, muted, links, focus ring)</summary>
+          <div class="palette-grid">
+            ${colourField(p, "text", "Text")}${colourField(p, "muted", "Muted text")}${colourField(p, "link", "Links")}${colourField(p, "ring", "Focus ring")}
+          </div>
+        </details>
+        ${LIGHT_PAGES.includes(p) ? `<button class="btn share" type="button" data-share="${p}">Use this grain on ${LIGHT_PAGES.filter((x) => x !== p).map((x) => DEFAULTS[x].label).join(" and ")}</button>` : ""}
+      </div>
+    </section>`;
+  }
+  grid.innerHTML = PAGES.map(cardHtml).join("");
+
+  /* ---------- render ---------- */
+  const timers = {};
+  const measured = {};
+  function colourValue(p, id) {
+    return id === "color" ? state[p].noise.color : id === "bg" ? state[p].bg : state[p].palette[id];
+  }
+  function render(p) {
+    const s = state[p];
+    const pv = $(`pv-${p}`);
+    const svg = svgOf(s.noise);
+    pv.style.backgroundColor = s.bg;
+    pv.style.backgroundImage = $("grain-on").checked ? urlOf(svg) : "none";
+    pv.style.backgroundSize = $("magnify").checked ? "480px 480px" : "240px 240px";
+    pv.style.color = s.palette.text;
+    pv.querySelector("a").style.color = s.palette.link;
+    pv.querySelector(".cap").style.color = s.palette.muted;
+    pv.querySelector(".ringdemo").style.color = s.palette.ring;
+    for (const key of ["strength", "coverage", "size"]) {
+      const el = $(`${p}-${key}`);
+      if (document.activeElement !== el) el.value = s.noise[key];
+      $(`${p}-${key}-out`).textContent = s.noise[key].toFixed(2);
+    }
+    $(`${p}-detail-out`).textContent = s.noise.detail;
+    $(`${p}-detail`).querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.detail === s.noise.detail)));
+    for (const id of ["color", "bg", "text", "muted", "link", "ring"]) {
+      const v = colourValue(p, id);
+      $(`${p}-${id}`).value = v;
+      const hex = $(`${p}-${id}-hex`);
+      if (document.activeElement !== hex) {
+        hex.value = v;
+        hex.removeAttribute("aria-invalid");
+      }
+    }
+    const presets = (isDarkPage(p) ? PRESETS.dark : PRESETS.light)(p);
+    $(`pr-${p}`).innerHTML = presets
+      .map(([name, hex]) => `<button class="preset" type="button" data-page="${p}" data-preset="${hex}" aria-pressed="${hex.toLowerCase() === s.noise.color.toLowerCase()}"><i style="background:${hex}"></i>${name}</button>`)
+      .join("");
+    clearTimeout(timers[p]);
+    timers[p] = setTimeout(() => measure(p, svg), 70);
+    writeJson();
+  }
+
+  async function measure(p, svg) {
+    const s = state[p];
+    const key = s.bg + svg;
+    let ex = measured[key];
+    if (!ex) {
+      try {
+        ex = measured[key] = await extremes(s.bg, svg);
+      } catch {
+        return;
+      }
+    }
+    if (svgOf(state[p].noise) !== svg) return; // moved on since
+    const plain = hexLum(s.bg);
+    const rows = [
+      ["Text", s.palette.text, 4.5],
+      ["Muted", s.palette.muted, 4.5],
+      ["Links", s.palette.link, 4.5],
+      ["Ring", s.palette.ring, 3],
+    ];
+    $(`cx-${p}`).innerHTML = rows
+      .map(([name, hex, need]) => {
+        const l = hexLum(hex);
+        const worst = Math.min(ratio(l, ex.min), ratio(l, ex.max));
+        const ok = worst >= need;
+        return `<li class="chip ${ok ? "" : "fail"}" title="Needs ${need}:1"><span>${name}</span><b>${worst.toFixed(2)}</b><span class="plain">(${ratio(l, plain).toFixed(2)})</span></li>`;
+      })
+      .join("");
+  }
+
+  function renderAll() {
+    PAGES.forEach(render);
+  }
+
+  /* ---------- input ---------- */
+  function setColour(p, id, v) {
+    if (id === "color") state[p].noise.color = v;
+    else if (id === "bg") state[p].bg = v;
+    else state[p].palette[id] = v;
+  }
+  grid.addEventListener("input", (e) => {
+    const t = e.target;
+    const p = t.dataset.page;
+    if (!p) return;
+    if (t.type === "range") {
+      state[p].noise[t.dataset.key] = +t.value;
+    } else if (t.dataset.colour) {
+      const v = t.value.trim().startsWith("#") ? t.value.trim() : "#" + t.value.trim();
+      if (!isHex(v)) {
+        t.setAttribute("aria-invalid", "true");
+        return;
+      }
+      t.removeAttribute("aria-invalid");
+      setColour(p, t.dataset.colour, v.toLowerCase());
+    } else return;
+    dirty();
+    render(p);
+  });
+  grid.addEventListener("click", (e) => {
+    const t = e.target.closest("button");
+    if (!t) return;
+    const p = t.dataset.page || t.dataset.reset || t.dataset.share;
+    if (t.dataset.detail) state[p].noise.detail = +t.dataset.detail;
+    else if (t.dataset.preset) state[p].noise.color = t.dataset.preset;
+    else if (t.dataset.reset) state[p] = clone(DEFAULTS[p]);
+    else if (t.dataset.share) {
+      for (const other of LIGHT_PAGES) if (other !== p) state[other].noise = clone(state[p].noise);
+      dirty();
+      renderAll();
+      return say(`${DEFAULTS[p].label}'s grain now on ${LIGHT_PAGES.filter((x) => x !== p).map((x) => DEFAULTS[x].label).join(" and ")}.`);
+    } else return;
+    dirty();
+    render(p);
+  });
+  $("grain-on").addEventListener("change", renderAll);
+  $("magnify").addEventListener("change", renderAll);
+
+  /* ---------- output ---------- */
+  function output() {
+    const pages = {};
+    for (const p of PAGES) {
+      const s = state[p];
+      pages[p] = { bg: s.bg, noise: { ...s.noise }, filter: filterOf(s.noise), palette: { ...s.palette } };
+    }
+    return pages;
+  }
+  function writeJson() {
+    $("json").value = JSON.stringify(output(), null, 2);
+  }
+  const status = $("status");
+  function say(text, kind = "") {
+    status.textContent = text;
+    status.className = "status " + kind;
+  }
+  let unsaved = false;
+  function dirty() {
+    if (!unsaved && db) say("Unsaved changes.");
+    unsaved = true;
+  }
+
+  $("copy").addEventListener("click", async () => {
+    const text = JSON.stringify(output(), null, 2);
+    try {
+      await navigator.clipboard.writeText(text);
+      say("Copied the settings as JSON.", "ok");
+    } catch {
+      $("json-box").open = true;
+      $("json").focus();
+      $("json").select();
+      say("Copying was blocked here: the JSON is selected below, copy it with ⌘C.");
+    }
+  });
+
+  /* ---------- saving for Claude (the artifact's db) ---------- */
+  let db = null;
+  const DOC = "config/noise";
+  async function connect() {
+    try {
+      db = window.claude && window.claude.use ? await window.claude.use("db") : null;
+    } catch {
+      db = null;
+    }
+    if (!db) {
+      say("Saving works in the claude.ai copy of this tool. Here, use Copy JSON.");
+      return;
+    }
+    $("save").disabled = false;
+    try {
+      const snap = await db.doc(DOC).get();
+      const saved = snap.exists ? snap.data() : null;
+      if (saved && saved.pages) {
+        for (const p of PAGES) {
+          const s = saved.pages[p];
+          if (!s) continue;
+          for (const k of KEYS) if (s[k] !== undefined) state[p][k] = typeof s[k] === "object" ? { ...state[p][k], ...s[k] } : s[k];
+        }
+        renderAll();
+        const when = saved.savedAt ? new Date(saved.savedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "";
+        say(`Loaded your saved settings${when ? " from " + when : ""}.`);
+      } else {
+        say("Starting from the values in the theme now. Save when they look right.");
+      }
+    } catch {
+      say("Couldn't load saved settings; starting from the theme's values.", "err");
+    }
+  }
+  $("save").addEventListener("click", async () => {
+    if (!db) return;
+    $("save").disabled = true;
+    try {
+      await db.doc(DOC).set({ pages: output(), savedAt: new Date().toISOString() });
+      unsaved = false;
+      say(`Saved at ${new Date().toLocaleTimeString([], { timeStyle: "short" })}. Tell Claude to apply them.`, "ok");
+    } catch (err) {
+      say(err && err.code === "invalid_argument" ? "You can view these settings but not save them." : "Saving failed; try again, or use Copy JSON.", "err");
+    } finally {
+      $("save").disabled = false;
+    }
+  });
+
+  renderAll();
+  connect();
+</script>
+</body>
+</html>

@@ -14,6 +14,7 @@ This repository holds the tooling and documentation. The HAXcms site, with the c
 | `scripts/decap-types-to-json.mjs` | Converts Decap `cms/config.yml` collections into the site's content-type definitions |
 | `scripts/import-pathways.mjs` | Imports the Decap pathways (outlines with levels and planned items, prerequisites) and the lessons, exercises, projects, lectures and tutorials they link to; re-runnable |
 | `scripts/contrast-audit.mjs` | WCAG AA contrast check of the theme's colour tokens |
+| `tools/reader-grain-tuner.html` | Tunes Reader mode's paper grain for each page colour, with live contrast on the grain's worst pixel; open it in a browser and copy the settings as JSON |
 | `docs/regression-protection.md` | Proposal for keeping the UI layer safe from upstream HAX changes |
 | `docs/upstream/` | Issues and pull requests proposed to HAX: verified drafts, PR descriptions and ready patches |
 
