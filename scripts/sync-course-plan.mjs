@@ -4,8 +4,9 @@
 //
 // Every page it makes carries metadata.oerPlan ("DART 413:M01" — the course
 // code and the planning record), so running it again finds the same pages:
-// it adds what's missing and refreshes what the plan owns (objectives,
-// courses, a lesson's materials and readings, a quiz's coverage), and never
+// it adds what's missing and refreshes what the plan owns (objectives, the
+// link to the course page, a lesson's materials and readings, a quiz's
+// coverage), and never
 // overwrites page text, titles or descriptions once a page exists.
 //
 // What becomes what:
@@ -153,6 +154,18 @@ const sys = items.find((i) => i.metadata?.pageType === "oer:system");
 const defs = sys.metadata.oerContentTypes;
 const typeDef = (id) => defs.types.find((t) => t.id === id);
 
+// the course's page: Courses fields link to it (scripts/create-course-pages.mjs
+// makes it). Pages can be in other courses too; the sync only adds this one.
+const UNIVERSITY = process.env.COURSE_UNIVERSITY || "Penn State University";
+const coursePages = items.filter((i) => i.metadata?.pageType === "oer:course" && !i.metadata?.oerSnapshotOf && String(i.metadata?.oerFields?.code || "").trim().toUpperCase() === CODE.toUpperCase());
+const coursePage = coursePages.find((c) => c.metadata?.oerFields?.institution === UNIVERSITY) || (coursePages.length === 1 ? coursePages[0] : null);
+if (!coursePage) console.warn(`no ${CODE} course page${coursePages.length ? ` at ${UNIVERSITY}` : ""}: pages won't be linked to the course (run scripts/create-course-pages.mjs)`);
+const COURSE_LINKS = coursePage ? [{ page: coursePage.id, version: "" }] : [];
+const withCourse = (cur) => {
+  const list = Array.isArray(cur) ? cur.filter((x) => x && typeof x === "object" && x.page) : [];
+  return coursePage && !list.some((x) => x.page === coursePage.id) ? [...list, ...COURSE_LINKS] : list;
+};
+
 /* ---------- 0. a Readings field on lessons ---------- */
 
 const typeChanges = [];
@@ -175,7 +188,7 @@ if (!typeDef("oer:lesson").fields.some((f) => f.name === "readings")) {
 const plan = []; // { key, title, description, parentKey | parentId, metadata, contents }
 const fields = (typeId, extra = {}) => {
   const names = new Set(typeDef(typeId).fields.map((f) => f.name));
-  const base = { courses: [CODE], license: "CC BY 4.0", authors: AUTHORS, placeholder: true, ...extra };
+  const base = { courses: COURSE_LINKS, license: "CC BY 4.0", authors: AUTHORS, placeholder: true, ...extra };
   return Object.fromEntries(Object.entries(base).filter(([k]) => names.has(k)));
 };
 const page = (p) => plan.push({ published: false, ...p });
@@ -200,7 +213,7 @@ for (const r of readings) {
     oerFields: {
       ...(r.url ? { url: r.url } : {}),
       kind: "reading",
-      courses: [CODE],
+      courses: COURSE_LINKS,
       authors: people(r.authors),
       ...(r.year ? { date: String(r.year) } : {}),
       ...(parts.container ? { container: parts.container } : {}),
@@ -437,28 +450,34 @@ existing = byPlan();
 // pass 3: what the plan owns on existing pages: links between them, objectives, courses
 const links = (ids) => ids.map(idOf).filter(Boolean).map((page) => ({ page, version: "" }));
 const updates = [];
+// changes to one page add up (a lesson's links, then its course)
 const setFields = (k, next) => {
   const item = existing.get(k);
   if (!item) return;
-  const cur = item.metadata?.oerFields || {};
+  const pending = updates.find((u) => u.id === item.id);
+  const base = pending || item;
+  const cur = base.metadata?.oerFields || {};
   const merged = { ...cur, ...next };
-  if (JSON.stringify(merged) !== JSON.stringify(cur)) updates.push({ ...item, metadata: { ...item.metadata, oerFields: merged }, modified: true });
+  if (JSON.stringify(merged) === JSON.stringify(cur)) return;
+  const updated = { ...base, metadata: { ...base.metadata, oerFields: merged }, modified: true };
+  if (pending) updates[updates.indexOf(pending)] = updated;
+  else updates.push(updated);
 };
 for (const m of modules) {
   setFields(key(m.id), {
     components: links(componentsOf(m)),
     readings: links(readings.filter((r) => r.moduleIds.includes(m.id)).map((r) => r.id)),
     learningObjectives: (m.objectives || []).map(unplan),
-    courses: [CODE],
   });
 }
-// every plan page whose type has a Courses field carries the course code
-// (Quizzes and Resources gained one after the first scaffold)
+// every plan page whose type has a Courses field links to the course page,
+// keeping any other courses it's in
 for (const p of plan) {
   const item = existing.get(p.key);
   if (!item || !typeDef(item.metadata?.pageType)?.fields.some((f) => f.name === "courses")) continue;
   const cur = item.metadata?.oerFields?.courses || [];
-  if (!cur.includes(CODE)) setFields(p.key, { courses: [...cur, CODE] });
+  const next = withCourse(cur);
+  if (JSON.stringify(next) !== JSON.stringify(cur)) setFields(p.key, { courses: next });
 }
 // pages that belong under another plan page (the final project's proposal)
 for (const p of plan.filter((x) => x.parentKey)) {

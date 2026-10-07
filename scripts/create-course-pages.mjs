@@ -4,9 +4,9 @@
 // collection shows every page whose Courses field holds the code.
 //   node --env-file=.env.local scripts/create-course-pages.mjs [--dry-run]
 //
-// Also: every type's Courses field becomes a pick from the course codes
-// (Course pages' codes and the codes pages use), Quizzes and Resources get a
-// Courses field, and "Dart 303" is merged into "DART 303".
+// Also: Quizzes and Resources get a Courses field (links to course pages),
+// and "Dart 303" is merged into "DART 303". A course is its code at its
+// university: these are Penn State's.
 // Titles, credits and prerequisites are from the Penn State bulletin
 // (bulletins.psu.edu, checked 2026-10-07); the page links to the bulletin
 // rather than copying its description. Safe to run again: existing course
@@ -20,6 +20,8 @@ const SITE = process.env.HAX_SITE || "learning-materials";
 const DRY = process.argv.includes("--dry-run");
 const bulletin = (code) => `https://bulletins.psu.edu/search/?P=${encodeURIComponent(code)}`;
 const DMD = { program: "Digital Multimedia Design (B.Des.)", delivery: "Online" };
+// the university these courses belong to (another university's courses get their own entry)
+const PSU = { institution: "Penn State University", institutionUrl: "https://www.psu.edu/" };
 
 const COURSES = [
   { code: "DMD 100", title: "Digital Multimedia Design Foundations", credits: "3", ...DMD, book: "DMD 100: Digital Multimedia Design Foundations" },
@@ -77,13 +79,21 @@ const live = (i) => !i.metadata?.oerSnapshotOf && !i.metadata?.oerRef?.page;
 const sys = items.find((i) => i.metadata?.pageType === "oer:system");
 const defs = sys.metadata.oerContentTypes;
 const lesson = defs.types.find((t) => t.id === "oer:lesson");
-const coursesField = { ...lesson.fields.find((f) => f.name === "courses"), suggest: true, suggestFrom: "oer:course:code" };
+// Courses fields link to Course pages (scripts/migrate-courses-to-links.mjs)
+const coursesField = {
+  name: "courses",
+  label: "Courses",
+  kind: "relation",
+  types: ["oer:course"],
+  filter: true,
+  help: "The courses this page is taught in, at any university. A page can be in several courses.",
+};
 const license = lesson.fields.find((f) => f.name === "license");
 
 /* ---------- content types ---------- */
 
 let types = defs.types.map((t) => {
-  let fields = t.fields.map((f) => (f.name === "courses" ? { ...f, suggest: true, suggestFrom: "oer:course:code" } : f));
+  let fields = t.fields.map((f) => (f.name === "courses" ? { ...coursesField, ...(f.header ? { header: true } : {}) } : f));
   if (["oer:quiz", "oer:resource"].includes(t.id) && !fields.some((f) => f.name === "courses")) fields = [...fields, coursesField];
   return { ...t, fields };
 });
@@ -100,6 +110,8 @@ if (!types.some((t) => t.id === "oer:course")) {
     fields: [
       { name: "code", label: "Course code", kind: "text", required: true, header: true, help: "As in the bulletin, e.g. DART 413. Pages whose Courses field holds this code are listed on the course page." },
       { name: "credits", label: "Credits", kind: "text", header: true },
+      { name: "institution", label: "University", kind: "text", header: true, suggest: true, filter: true, help: "The university that offers the course." },
+      { name: "institutionUrl", label: "University website", kind: "url" },
       { name: "bulletin", label: "Bulletin", kind: "url", header: true, help: "The course's entry in the university bulletin. Link to it rather than copying its description." },
       { name: "program", label: "Program", kind: "text", suggest: true },
       { name: "delivery", label: "Delivery", kind: "select", header: true, options: ["In person", "Online", "Hybrid"].map((v) => ({ value: v, label: v })) },
@@ -166,11 +178,18 @@ if (!section) {
 
 /* ---------- course pages ---------- */
 
-const existing = new Map(items.filter((i) => i.metadata?.pageType === "oer:course" && live(i)).map((i) => [String(i.metadata?.oerFields?.code || "").toUpperCase(), i]));
-const coursesOf = (i) => (i.metadata?.oerFields?.courses || []).map((x) => String(MERGE[x] || x).toUpperCase());
+// a course is its code at its university
+const keyOf = (code, institution) => `${String(code).trim().toUpperCase()}@${institution || ""}`;
+const coursePages = items.filter((i) => i.metadata?.pageType === "oer:course" && live(i));
+const existing = new Map(coursePages.map((i) => [keyOf(i.metadata?.oerFields?.code, i.metadata?.oerFields?.institution), i]));
+// the codes a page is in: links to course pages, or codes from before links
+const coursesOf = (i) =>
+  (i.metadata?.oerFields?.courses || []).map((x) =>
+    x && typeof x === "object" ? String(coursePages.find((c) => c.id === x.page)?.metadata?.oerFields?.code || "").toUpperCase() : String(MERGE[x] || x).toUpperCase(),
+  );
 let order = 0;
-for (const c of COURSES) {
-  if (existing.has(c.code.toUpperCase())) continue;
+for (const c of COURSES.map((x) => ({ ...PSU, ...x }))) {
+  if (existing.has(keyOf(c.code, c.institution))) continue;
   const pathways = items.filter((i) => live(i) && i.metadata?.pageType === "oer:pathway" && coursesOf(i).includes(c.code.toUpperCase()));
   const book = c.book && items.find((i) => live(i) && i.metadata?.pageType === "oer:book" && i.title === c.book);
   const intro = c.description
@@ -191,6 +210,8 @@ for (const c of COURSES) {
       oerFields: {
         code: c.code,
         credits: c.credits,
+        institution: c.institution,
+        institutionUrl: c.institutionUrl,
         bulletin: bulletin(c.code),
         ...(c.program ? { program: c.program } : {}),
         ...(c.delivery ? { delivery: c.delivery } : {}),
@@ -221,7 +242,7 @@ const save = async (list) => {
 await save([...out, ...create]);
 
 // prerequisites between the new course pages, and descriptions
-const byCode = new Map(items.filter((i) => i.metadata?.pageType === "oer:course" && live(i)).map((i) => [i.metadata.oerFields.code.toUpperCase(), i]));
+const byCode = new Map(items.filter((i) => i.metadata?.pageType === "oer:course" && live(i) && i.metadata.oerFields.institution === PSU.institution).map((i) => [i.metadata.oerFields.code.toUpperCase(), i]));
 const links = [];
 for (const c of create.filter((x) => x._requires?.length)) {
   const page = byCode.get(c.metadata.oerFields.code.toUpperCase());
