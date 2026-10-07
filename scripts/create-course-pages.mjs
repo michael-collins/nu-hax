@@ -175,7 +175,7 @@ for (const c of COURSES) {
   const book = c.book && items.find((i) => live(i) && i.metadata?.pageType === "oer:book" && i.title === c.book);
   const intro = c.description
     ? `<oer-draft note="Course description from the ${attr(c.code)} course plan. Revise it, then Publish to show it to readers.">\n<p>${esc(c.description)}</p>\n</oer-draft>`
-    : `<p>${esc(c.title)} is a ${esc(c.credits.split(" ")[0])}-credit course. The bulletin entry linked above has its official description and requirements.</p>`;
+    : "";
   create.push({
     id: `new-course-${c.code.replace(/\W+/g, "-")}`,
     title: `${c.code}: ${c.title}`,
@@ -200,7 +200,7 @@ for (const c of COURSES) {
         license: "CC BY 4.0",
       },
     },
-    contents: `${intro}\n<h2>Taught in this course</h2>\n<oer-collection scope="site" view="table" sort="title" per-page="50" controls="full" group="type"></oer-collection>`,
+    contents: `${intro ? `${intro}\n` : ""}<h2>Taught in this course</h2>\n<oer-collection scope="site" view="table" sort="title" per-page="50" controls="full" group="type"></oer-collection>`,
     new: true,
     _requires: c.requires || [],
     _description: `${c.title}, ${c.credits} credits.`,

@@ -200,6 +200,7 @@ for (const r of readings) {
     oerFields: {
       ...(r.url ? { url: r.url } : {}),
       kind: "reading",
+      courses: [CODE],
       authors: people(r.authors),
       ...(r.year ? { date: String(r.year) } : {}),
       ...(parts.container ? { container: parts.container } : {}),
@@ -450,6 +451,14 @@ for (const m of modules) {
     learningObjectives: (m.objectives || []).map(unplan),
     courses: [CODE],
   });
+}
+// every plan page whose type has a Courses field carries the course code
+// (Quizzes and Resources gained one after the first scaffold)
+for (const p of plan) {
+  const item = existing.get(p.key);
+  if (!item || !typeDef(item.metadata?.pageType)?.fields.some((f) => f.name === "courses")) continue;
+  const cur = item.metadata?.oerFields?.courses || [];
+  if (!cur.includes(CODE)) setFields(p.key, { courses: [...cur, CODE] });
 }
 // pages that belong under another plan page (the final project's proposal)
 for (const p of plan.filter((x) => x.parentKey)) {
