@@ -258,6 +258,8 @@ for (const m of modules) {
   const activities = String(m.activities || "")
     .split(/\s*·\s*/)
     .map(unplan)
+    // the plan writes class time as bare minutes: "proposal pitches (80)"
+    .map((x) => x.replace(/\((\d{1,3})\)$/, "($1 min)"))
     .filter(Boolean);
   const body = [
     m.topics ? `<p>${esc(unplan(m.topics))}</p>` : "",
