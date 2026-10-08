@@ -332,6 +332,7 @@ EXP `rubrics.rb` L22-124; IMP `rubrics_converter.rb` L24-73 → `rubric_importer
 - `ignore_for_scoring`, `mastery_points` and `learning_outcome_identifierref` are optional (outcomes need `learning_outcomes.xml`; out of scope).
 - **Attaching to an assignment.** In `assignment_settings.xml` (§6), write `<rubric_identifierref>gRUB1</rubric_identifierref>` plus explicit booleans `<rubric_use_for_grading>`, `<rubric_hide_score_total>`, `<rubric_hide_points>` and `<rubric_hide_outcome_results>`. Each is set only if present (`assignment_importer.rb` L232-251), so write all four. The association purpose is `grading`. `<saved_rubric_comments><comment criterion_id="_1001">text</comment></saved_rubric_comments>` is optional. Rubrics are imported before assignments (`course_content_importer.rb` L134 vs L164).
 - If the assignment's `points_possible` is nil and its grading type is points, it inherits the rubric's points (L251).
+- A rating can carry a `<long_description>` (what that level looks like for the criterion), placed after its `<criterion_id>` (EXP `rubrics.rb` L117, IMP `rubrics_converter.rb` L59). This site sends each rubric page's level descriptions there. A criterion's points are the assignment's points split by the criteria's weights, and each rating's points are its level's share of those (`custom/src/rubrics/rubric-model.js`).
 
 ---
 

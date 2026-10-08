@@ -68,7 +68,8 @@ for (const item of existing.json?.data?.items ?? []) {
   if (SEEDED_TYPES.has(item.metadata?.pageType)) await api.deleteItem(item.id);
 }
 
-// rubric data file the <oer-rubric> block reads
+// the rubric data file; scripts/migrate-rubrics.mjs then makes it into
+// rubric pages (the <oer-rubric> block and the Canvas export read those)
 mkdirSync(path.join(SITE_DIR, "files/data"), { recursive: true });
 copyFileSync(
   path.join(DECAP, "content/data/rubrics.json"),
