@@ -10,8 +10,8 @@
 // its readings as links. Assignments sit in the module of their first week
 // and fall due in their plan week. The delivery mode (from the course page's
 // Delivery, else in person) decides what that means: the start of the week's
-// first class, or Sunday 11:59 pm online and asynchronous; until the plan has
-// class meetings, defaults.dueDay at defaults.dueTime (see
+// Sunday 11:59 pm of that week (defaults: dueRule "day", or "first-class" for
+// the start of the week's first class once there are meetings; see
 // custom/src/lms/offering-schedule.js). Fill in meetings and breaks.
 //
 // Grading: Canvas weights groups, not single assignments, so assignments are
@@ -144,7 +144,7 @@ const offering = {
   meetings: [],
   // [{ label: "Spring break", start: "2027-03-08", end: "2027-03-14" }]
   breaks: [],
-  defaults: { dueDay: "Fri", dueTime: "23:59", contentMode: "embed" },
+  defaults: { dueRule: "day", dueDay: "Sun", dueTime: "23:59", contentMode: "embed" },
   groups,
   // rating levels for every rubric criterion, as a share of its points
   rubricScale: [
