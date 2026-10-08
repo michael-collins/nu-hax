@@ -59,6 +59,10 @@ Main (haxcms-nodejs e41c859, with its own front-end build) served a copy of the 
 - [09: reference items](09-reference-items.md): one page at several places in the outline, natively in JOS/HAX instead of our theme-only link items. Feature request filed 2026-10-05: [#3109](https://github.com/haxtheweb/issues/issues/3109).
 - [08: embeds blocked by the dev server's headers](08-embeds-blocked-by-dev-headers.md): video-player and YouTube under `hax serve` — filed [#3112](https://github.com/haxtheweb/issues/issues/3112).
 
+## Quirk backlog
+
+[quirks-backlog.md](quirks-backlog.md) lists every HAX quirk we've hit, checked against `main` on 2026-10-08: what's filed, what's still live (with where it lives, a suggested fix and our workaround), what upgrading fixes, and what isn't HAX's doing. Candidates for the next round of issues and PRs come from there.
+
 ## Next rounds
 
 1. **Hooks** that make custom themes less fragile:
