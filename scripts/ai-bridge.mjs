@@ -1,30 +1,31 @@
-// A local helper that lets the site's authoring tools ask Claude, with the
-// API key kept in .env.local, never in the browser. It listens on this
-// computer only (127.0.0.1) and answers only the local site (the Origin of
-// `hax serve`, http://localhost:3000, unless AI_BRIDGE_ORIGINS says
-// otherwise). Claude gets no tools: what an imported course contains can
-// only shape the suggestions an author then reviews.
+// A local helper for the site's authoring tools: it asks Claude, with the
+// API key kept in .env.local, never in the browser, and checks whether
+// links still work (a browser page can't ask other sites). It listens on
+// this computer only (127.0.0.1) and answers only the local site (the
+// Origin of `hax serve`, http://localhost:3000, unless AI_BRIDGE_ORIGINS
+// says otherwise). Claude gets no tools: what an imported course contains
+// can only shape the suggestions an author then reviews.
 //   node --env-file=.env.local scripts/ai-bridge.mjs
-// Environment: ANTHROPIC_API_KEY (required), ANTHROPIC_MODEL (default
-// claude-sonnet-5), AI_BRIDGE_PORT (default 3110), AI_BRIDGE_ORIGINS
-// (comma-separated).
+// Environment: ANTHROPIC_API_KEY (for Claude; without it the helper only
+// checks links), ANTHROPIC_MODEL (default claude-sonnet-5), AI_BRIDGE_PORT
+// (default 3110), AI_BRIDGE_ORIGINS (comma-separated).
 //
 // Endpoints:
-//   GET  /status          { ok, model }
+//   GET  /status          { ok, ai, model, links }
 //   POST /canvas/refine   { course, types, items } → { items: [{ id, action,
 //                         type, matchId, reason, description }] }
 //                         (the Canvas import's "Refine with Claude")
+//   POST /links/check     { urls } (up to 50) → { results: [{ url, status,
+//                         code, final, note, archive }] } (scripts/lib/link-check.mjs)
 import http from "node:http";
+import { checkLinks } from "./lib/link-check.mjs";
 
 const KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 const PORT = Number(process.env.AI_BRIDGE_PORT) || 3110;
 const ORIGINS = (process.env.AI_BRIDGE_ORIGINS || "http://localhost:3000,http://127.0.0.1:3000").split(",").map((s) => s.trim()).filter(Boolean);
 const MAX_BODY = 1_000_000;
-if (!KEY) {
-  console.error("Set ANTHROPIC_API_KEY in nu-hax/.env.local, then run: node --env-file=.env.local scripts/ai-bridge.mjs");
-  process.exit(1);
-}
+if (!KEY) console.warn("No ANTHROPIC_API_KEY (in nu-hax/.env.local): checking links only, no Claude.");
 
 const SYSTEM = `You help import a Canvas course into an open educational resources (OER) site. The site keeps reusable learning materials as typed pages (lessons, lectures, tutorials, articles, resources, exercises, activities, projects, quizzes). A course's schedule (weeks, due dates, points, grade groups) goes into a separate course sequence, so pages hold the material itself.
 
@@ -136,17 +137,36 @@ const server = http.createServer(async (req, res) => {
     });
     return res.end();
   }
-  if (req.method === "GET" && req.url === "/status") return send(200, { ok: true, model: MODEL });
-  if (req.method === "POST" && req.url === "/canvas/refine") {
+  if (req.method === "GET" && req.url === "/status") return send(200, { ok: true, ai: !!KEY, model: KEY ? MODEL : "", links: true });
+  const body = async () => {
     let size = 0;
     const chunks = [];
     for await (const c of req) {
       size += c.length;
-      if (size > MAX_BODY) return send(413, { error: "Too much at once" });
+      if (size > MAX_BODY) return null;
       chunks.push(c);
     }
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  };
+  if (req.method === "POST" && req.url === "/links/check") {
     try {
-      const out = await refine(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+      const data = await body();
+      if (!data) return send(413, { error: "Too much at once" });
+      const urls = (Array.isArray(data.urls) ? data.urls : []).map(String).filter((u) => /^https?:\/\//i.test(u) && u.length < 2000).slice(0, 50);
+      const results = await checkLinks(urls);
+      console.log(`checked ${results.length} links: ${["ok", "moved", "dead", "private", "unknown"].map((s) => `${results.filter((r) => r.status === s).length} ${s}`).join(", ")}`);
+      return send(200, { results });
+    } catch (err) {
+      console.error(err.message);
+      return send(500, { error: err.message });
+    }
+  }
+  if (req.method === "POST" && req.url === "/canvas/refine") {
+    if (!KEY) return send(503, { error: "Claude isn't set up: add ANTHROPIC_API_KEY to nu-hax/.env.local and restart the helper" });
+    try {
+      const data = await body();
+      if (!data) return send(413, { error: "Too much at once" });
+      const out = await refine(data);
       console.log(`refined ${out.items.length} items${out.usage ? ` (${out.usage.input_tokens} in, ${out.usage.output_tokens} out)` : ""}`);
       return send(200, out);
     } catch (err) {
@@ -157,4 +177,4 @@ const server = http.createServer(async (req, res) => {
   return send(404, { error: "Not here" });
 });
 
-server.listen(PORT, "127.0.0.1", () => console.log(`AI helper on http://127.0.0.1:${PORT} (${MODEL}), answering ${ORIGINS.join(", ")}`));
+server.listen(PORT, "127.0.0.1", () => console.log(`Local helper on http://127.0.0.1:${PORT} (${KEY ? MODEL : "links only"}), answering ${ORIGINS.join(", ")}`));

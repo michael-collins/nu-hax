@@ -5,8 +5,9 @@
 // titles, order, indents, points, due and availability dates (to the
 // minute: 11:59:59 pm and 11:59 pm are the same deadline), grade groups,
 // rubrics, submission types. What the import leaves out on purpose
-// (instructor-only modules, surveys, external tools) is listed apart from
-// real differences.
+// (instructor-only modules, surveys, external tools) and changes on purpose
+// (a link to an old course site that now points at the page here) are
+// listed apart from real differences.
 //   node scripts/canvas-roundtrip.mjs <export.imscc> [--verbose]
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -92,6 +93,9 @@ const settingsOf = (course, it) => {
 };
 const skippedOnPurpose = new Map(); // module item id → reason
 for (const m of plan.modules) for (const e of m.items) if (m.skip || e.action === "skip") skippedOnPurpose.set(e.id, m.skip ? m.reason : e.reasons[0]);
+// links to an old site's page that the site has now: the page, not the link
+const pointedHere = new Map();
+for (const m of plan.modules) for (const e of m.items) if (e.kind === "link" && e.action === "link" && e.match) pointedHere.set(e.id, e.match.title);
 
 const report = { matched: 0, intended: [], differences: [] };
 const backModules = new Map(back.modules.map((m) => [norm(m.title), m]));
@@ -109,10 +113,11 @@ for (const om of original.modules) {
     const b = bi.find((x, k) => norm(x.title) === norm(it.title) && k >= n - 3) || bi[n];
     if (!b || norm(b.title) !== norm(it.title)) return report.differences.push(`${om.title} › ${it.title}: missing${b ? ` (found “${b.title}” there)` : ""}`);
     const issues = [];
-    if (b.kind !== it.kind) issues.push(`was a ${it.kind}, now a ${b.kind}`);
+    if (pointedHere.has(it.id) && b.kind !== it.kind) report.intended.push(`${om.title} › ${it.title}: now this site's “${pointedHere.get(it.id)}”, not ${it.url}`);
+    else if (b.kind !== it.kind) issues.push(`was a ${it.kind}, now a ${b.kind}`);
     if (bi.indexOf(b) !== n) issues.push(`moved from place ${n + 1} to ${bi.indexOf(b) + 1}`);
     if ((b.indent || 0) !== (it.indent || 0)) issues.push(`indent ${it.indent} → ${b.indent}`);
-    if (it.kind === "link" && it.url !== b.url) issues.push(`address ${it.url} → ${b.url}`);
+    if (it.kind === "link" && b.kind === "link" && it.url !== b.url) issues.push(`address ${it.url} → ${b.url}`);
     const os = settingsOf(original, it);
     const bs = settingsOf(back, b);
     if (os && bs) {
