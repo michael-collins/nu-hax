@@ -7,7 +7,7 @@
 // SITE_DIR points it at another copy of the site.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
-import { addressIndex, analyseLink, linksIn, courseCode } from "../learning-materials/custom/src/links/link-model.js";
+import { addressIndex, analyseLink, linksIn, linkContexts, courseCode } from "../learning-materials/custom/src/links/link-model.js";
 import { checkLinks } from "./lib/link-check.mjs";
 
 const SITE_DIR = process.env.SITE_DIR || new URL("../learning-materials/", import.meta.url).pathname;
@@ -23,12 +23,15 @@ for (const item of items.filter((i) => i.location && !i.metadata?.oerSnapshotOf 
   if (!existsSync(file)) continue;
   pages++;
   const hint = courseCode(item.metadata?.oerSource || "");
-  for (const { url, tag } of linksIn(readFileSync(file, "utf8"))) {
+  const htmlText = readFileSync(file, "utf8");
+  const contexts = linkContexts(htmlText);
+  for (const { url, tag } of linksIn(htmlText)) {
     const info = analyseLink(url, index, { hint, tag });
     if (!info || info.kind === "site") continue;
     const key = info.kind === "broken" && hint ? `${hint}::${url}` : url;
     const rec = records.get(key) || { ...info, key, uses: [] };
-    rec.uses.push(item.slug);
+    const c = contexts.find((x) => x.url === url);
+    rec.uses.push({ slug: item.slug, context: c ? `“${c.before}[${c.text}]${c.after}”` : "" });
     records.set(key, rec);
   }
 }
@@ -41,11 +44,12 @@ if (args.includes("--check")) {
   for (const l of links) if (results.has(l.url)) l.check = results.get(l.url);
 }
 
-const where = (l) => `${l.uses.length === 1 ? l.uses[0] : `${l.uses[0]} and ${l.uses.length - 1} more`}`;
+// where each link is: the page, and the link's words [in brackets] in their sentence
+const where = (l) => l.uses.map((u) => `      on ${u.slug}${u.context ? `: ${u.context}` : ""}`).join("\n");
 const section = (title, list, line) => {
   if (!list.length) return;
   console.log(`\n${title} (${list.length})`);
-  for (const l of list) console.log(`  ${line(l)}\n      on ${where(l)}`);
+  for (const l of list) console.log(`  ${line(l)}\n${where(l)}`);
 };
 console.log(`${pages} pages, ${links.length} links that aren't to working pages here`);
 section("Old site → the page here", links.filter((l) => l.match), (l) => `${l.url}\n    → ${l.match.slug}`);
