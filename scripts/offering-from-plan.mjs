@@ -146,14 +146,8 @@ const offering = {
   breaks: [],
   defaults: { dueRule: "day", dueDay: "Sun", dueTime: "23:59", contentMode: "embed" },
   groups,
-  // rating levels for every rubric criterion, as a share of its points
-  rubricScale: [
-    { name: "Exemplary", share: 1 },
-    { name: "Proficient", share: 0.85 },
-    { name: "Developing", share: 0.7 },
-    { name: "Beginning", share: 0.5 },
-    { name: "Missing", share: 0 },
-  ],
+  // items' rubrics name the site's rubric pages by key, each with its own
+  // criteria, weights and levels
   modules: out,
 };
 writeFileSync(OUT, JSON.stringify(offering, null, 2) + "\n");

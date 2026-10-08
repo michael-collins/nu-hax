@@ -23,10 +23,8 @@ if (!planFile || !outFile) {
 }
 
 const offering = JSON.parse(readFileSync(planFile, "utf8"));
+// rubrics come from the site's rubric pages
 const items = JSON.parse(readFileSync(path.join(SITE_DIR, "site.json"), "utf8")).items;
-const rubricsFile = path.join(SITE_DIR, "files/data/rubrics.json");
-const rubricsData = existsSync(rubricsFile) ? JSON.parse(readFileSync(rubricsFile, "utf8")) : [];
-const rubrics = Array.isArray(rubricsData) ? rubricsData : rubricsData.rubrics || [];
 const htmlOf = async (item) => {
   const file = item.location && path.join(SITE_DIR, item.location);
   return file && existsSync(file) ? readFileSync(file, "utf8") : "";
@@ -39,7 +37,7 @@ const fileOf = async (url) => {
   return existsSync(file) ? new Uint8Array(readFileSync(file)) : null;
 };
 
-const { files, report } = await buildCanvasPackage({ offering, items, htmlOf, fileOf, rubrics, includeDrafts: args.includes("--include-drafts") });
+const { files, report } = await buildCanvasPackage({ offering, items, htmlOf, fileOf, includeDrafts: args.includes("--include-drafts") });
 writeFileSync(outFile, zipBytes(files));
 const c = report.counts;
 console.log(`${outFile}: ${c.modules} modules, ${c.pages} pages, ${c.assignments} assignments, ${c.discussions} discussions, ${c.quizzes} quizzes, ${c.links} links, ${c.files} files, ${c.rubrics} rubrics, ${c.events} calendar events (${files.length} files in the package)`);

@@ -2,7 +2,7 @@
 // running a course (15 weeks, 6 weeks, any length), linked to the courses
 // it's for. Its structure (modules and their items as LMS pages,
 // assignments, quizzes and links; due weeks, points, submission types,
-// rubrics; grade groups and weights; the rubric point scale) lives in the
+// rubrics; grade groups and weights) lives in the
 // page's metadata.oerSequence, edited in the sequence builder. Term dates
 // come at export: start and end, breaks, the typical due day and time,
 // class meetings (custom/src/lms/).

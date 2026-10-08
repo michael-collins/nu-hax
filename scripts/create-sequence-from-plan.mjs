@@ -4,8 +4,8 @@
 //   node scripts/offering-from-plan.mjs /tmp/dart413.json
 //   node --env-file=.env.local scripts/create-sequence-from-plan.mjs /tmp/dart413.json
 //     [--title "DART 413: 15-week studio"] [--update] [--dry-run]
-// The sequence keeps the plan's modules, items, grade groups and rubric
-// scale; the course, length and delivery go in its fields. Term dates are
+// The sequence keeps the plan's modules, items and grade groups (items'
+// rubrics name the site's rubric pages by key); the course, length and delivery go in its fields. Term dates are
 // chosen when it's exported. It starts unpublished. With --update, an
 // existing sequence for the same course and length gets the plan's
 // structure again (its title, fields and page text stay).
@@ -31,7 +31,7 @@ const plan = JSON.parse(readFileSync(planFile, "utf8"));
 const DELIVERY = { "in-person": "In person", hybrid: "Hybrid", "online-sync": "Online (synchronous)", "online-async": "Online (asynchronous)" };
 const key = `${plan.code}:sequence:${plan.weeks}`;
 const title = opt("--title") || `${plan.code}: ${plan.weeks}-week ${plan.delivery === "online-async" ? "online" : "studio"}`;
-const sequence = { version: 1, modules: plan.modules, groups: plan.groups, rubricScale: plan.rubricScale };
+const sequence = { version: 1, modules: plan.modules, groups: plan.groups };
 const out = [];
 const create = [];
 
