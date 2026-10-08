@@ -32,8 +32,15 @@ const htmlOf = async (item) => {
   return file && existsSync(file) ? readFileSync(file, "utf8") : "";
 };
 
-const { files, report } = await buildCanvasPackage({ offering, items, htmlOf, rubrics, includeDrafts: args.includes("--include-drafts") });
+// attachments for File items: the site's own files, read from disk
+const fileOf = async (url) => {
+  if (/^https?:\/\//.test(url)) return null;
+  const file = path.join(SITE_DIR, decodeURIComponent(url.replace(/^\/+/, "").split("?")[0]));
+  return existsSync(file) ? new Uint8Array(readFileSync(file)) : null;
+};
+
+const { files, report } = await buildCanvasPackage({ offering, items, htmlOf, fileOf, rubrics, includeDrafts: args.includes("--include-drafts") });
 writeFileSync(outFile, zipBytes(files));
 const c = report.counts;
-console.log(`${outFile}: ${c.modules} modules, ${c.pages} pages, ${c.assignments} assignments, ${c.quizzes} quizzes, ${c.links} links, ${c.rubrics} rubrics, ${c.events} calendar events (${files.length} files)`);
+console.log(`${outFile}: ${c.modules} modules, ${c.pages} pages, ${c.assignments} assignments, ${c.discussions} discussions, ${c.quizzes} quizzes, ${c.links} links, ${c.files} files, ${c.rubrics} rubrics, ${c.events} calendar events (${files.length} files in the package)`);
 for (const w of report.warnings) console.log(`  ! ${w}`);
