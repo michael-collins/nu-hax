@@ -765,6 +765,39 @@ Code: `content_migration.rb` L1052-1056 (options `shift_dates`, `remove_dates`, 
 
 ---
 
+## 12. Discussions (`<topic id>.xml` + `<meta id>.xml`)
+EXP `lib/cc/topic_resources.rb` L46-151; IMP `lib/cc/importer/canvas/topic_converter.rb` L24-87 → `app/models/importers/discussion_topic_importer.rb`.
+
+Manifest: the CC topic resource (type `imsdt_xmlv1p1`, exact) depends on a Canvas meta resource (LOR):
+```xml
+<resource identifier="gTOPIC" type="imsdt_xmlv1p1"><file href="gTOPIC.xml"/><dependency identifierref="gTOPICMETA"/></resource>
+<resource identifier="gTOPICMETA" type="associatedcontent/imscc_xmlv1p1/learning-application-resource" href="gTOPICMETA.xml"><file href="gTOPICMETA.xml"/></resource>
+```
+`gTOPIC.xml` (the prompt; HTML escaped in `<text>`):
+```xml
+<topic xmlns="http://www.imsglobal.org/xsd/imsccv1p1/imsdt_v1p1"><title>Critique 1</title><text texttype="text/html">&lt;p&gt;Prompt…&lt;/p&gt;</text></topic>
+```
+`gTOPICMETA.xml` (topic fields FIRST: the importer reads the first matching element, and the nested `<assignment>` reuses `title`, `position`, `workflow_state`, `has_group_category`):
+```xml
+<topicMeta identifier="gTOPICMETA" xmlns="http://canvas.instructure.com/xsd/cccv1p0">
+  <topic_id>gTOPIC</topic_id>                 <!-- the migration id; module items point here -->
+  <title>Critique 1</title>
+  <position>1</position>
+  <type>topic</type>                          <!-- topic | announcement -->
+  <discussion_type>threaded</discussion_type> <!-- side_comment is turned into threaded on import -->
+  <require_initial_post>false</require_initial_post>
+  <has_group_category>false</has_group_category>
+  <group_category>Critique groups</group_category>  <!-- with has_group_category=true -->
+  <workflow_state>active</workflow_state>     <!-- active | unpublished -->
+  <allow_rating>false</allow_rating>
+  <todo_date>2027-01-25T04:59:00</todo_date>   <!-- ungraded: a to-do date -->
+  <assignment identifier="gTOPICASG">          <!-- graded: same fields as §6, submission_types discussion_topic; rubric refs work -->
+    …
+  </assignment>
+</topicMeta>
+```
+Module item: `<content_type>DiscussionTopic</content_type>` with `<identifierref>` = `topic_id`. Completion requirements: `must_contribute` (ungraded) or `must_submit` (graded). Reply-count checkpoints (`reply_to_entry_required_count`) need the course's discussion checkpoints feature; the generator writes the reply requirement into the prompt instead.
+
 ## Appendix: minimal end-to-end checklist
 1. `imsmanifest.xml` with: the schema + `canvas_export.txt` resource (§1.4), plus syllabus, page, assignment, quiz, file and weblink resources.
 2. `course_settings/`:
