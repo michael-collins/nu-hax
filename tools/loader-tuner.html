@@ -391,8 +391,10 @@
     gap: 0.3cqw;
     width: 100%;
   }
+  /* to scale, as on a 1280px-wide screen */
   .figure {
-    width: min(40cqw, 320px);
+    width: calc(100cqw * var(--size, 400) / 1280);
+    max-width: 78cqw;
     aspect-ratio: 4 / 3;
   }
   .messaging p {
@@ -751,7 +753,7 @@
     <div class="col">
       <section class="card" aria-labelledby="preview-h">
         <div class="card-head">
-          <h2 id="preview-h">Preview</h2>
+          <h2 id="preview-h">Preview <span class="note" style="display: inline; font-weight: 400">as on a 1280px-wide screen</span></h2>
           <div class="seg" role="group" aria-label="Preview colours">
             <button type="button" data-scheme="light" aria-pressed="true">Light</button>
             <button type="button" data-scheme="dark" aria-pressed="false">Dark</button>
@@ -996,6 +998,7 @@ function dissolve(screen, s, done) {
 
 /* settings:begin (the site's custom/src/loader/loader-settings.js) */
 const SITE_SETTINGS = {
+  "size": 400,
   "firstMs": 40,
   "gapMs": 336,
   "groupGapMs": 500,
@@ -1052,6 +1055,7 @@ const SITE_SETTINGS = {
       title: "Build",
       note: "Each layer drops onto the page; layers in a group come closer together.",
       rows: [
+        { key: "size", label: "Figure size", min: 200, max: 640, step: 10, fmt: (v) => `${v} px` },
         { key: "firstMs", label: "First layer after", min: 0, max: 800, step: 10, fmt: ms },
         { key: "gapMs", label: "Between layers", min: 40, max: 700, step: 4, fmt: ms },
         { key: "groupGapMs", label: "Between groups", min: 40, max: 1000, step: 10, fmt: ms },
@@ -1168,6 +1172,7 @@ const SITE_SETTINGS = {
         input.setAttribute("aria-valuetext", r.fmt(state[r.key]));
         input.addEventListener("input", () => {
           state[r.key] = Number(input.value);
+          if (r.key === "size") $("figure").style.setProperty("--size", state.size);
           $(`o-${r.key}`).textContent = r.fmt(state[r.key]);
           input.setAttribute("aria-valuetext", r.fmt(state[r.key]));
           changed(false);
@@ -1246,6 +1251,7 @@ const SITE_SETTINGS = {
     screen.classList.remove("oer-dissolve");
     screen.hidden = false;
     $("figure").toggleAttribute("dark", $("stage").dataset.scheme === "dark");
+    $("figure").style.setProperty("--size", state.size);
     const settings = clone(state);
     const fig = drawFigure($("figure"), figure, settings);
     run = { id, fig, t0: performance.now(), timers: [], frame: 0, settings };

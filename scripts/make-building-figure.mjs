@@ -212,6 +212,11 @@ out("custom/src/loader/building-figure.generated.js", module);
 const loader = new URL("../learning-materials/custom/src/loader/", import.meta.url);
 const { LOADER_SETTINGS } = await import(new URL("loader-settings.js", loader));
 const core = readFileSync(new URL("loader-core.js", loader), "utf8").replace(/^export /gm, "");
+// the figure's size for the first frame, before the site's code runs
+const themeCss = new URL("../learning-materials/theme/theme.css", import.meta.url);
+const sized = readFileSync(themeCss, "utf8").replace(/(--oer-figure-size: )\d+px(; \/\* LOADER_SETTINGS\.size \*\/)/, `$1${LOADER_SETTINGS.size}px$2`);
+writeFileSync(themeCss, sized);
+console.log(`theme/theme.css: figure ${LOADER_SETTINGS.size}px`);
 const tunerFile = new URL("../tools/loader-tuner.html", import.meta.url);
 let tuner = "";
 try {
