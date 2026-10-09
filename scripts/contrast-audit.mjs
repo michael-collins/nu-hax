@@ -64,6 +64,17 @@ const PAIRS = [
   ["primary", "background", 3],
   ["ring", "background", 3],
   ["input-border", "background", 3],
+  // the layers in dark mode: frame (card), menus (popover), hover (accent)
+  ["foreground", "muted", 4.5],
+  ["foreground", "accent", 4.5],
+  ["foreground", "popover", 4.5],
+  ["muted-foreground", "popover", 4.5],
+  ["muted-foreground", "accent", 4.5],
+  ["link", "popover", 4.5],
+  ["primary", "card", 3],
+  ["input-border", "card", 3],
+  ["input-border", "popover", 3],
+  ["ring", "card", 3],
 ];
 
 let failures = 0;
