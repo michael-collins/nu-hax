@@ -82,6 +82,8 @@ HAX's own components (its editor bar, tray, dialogs) get the same look from `edi
 - **Bulk actions.** Select rows, then a bar appears with the actions and a confirmation that says exactly what changes ("Publish 58 drafts? Readers will see them.").
 - **Drafts.** New pages start as drafts. Draft blocks (`oer-draft`) hold text for review; publishing can release it. Readers never see drafts, on the editing site or the published copy.
 - **Destructive actions** say how many things they affect, before they happen.
+- **Course sites.** One per course at `/<course code>` (`types/course-site.js`, `blocks/oer-course-site.js`): a full-width microsite that pitches the course. Facts, the semester and projects come from the course and its plan; the site's fields hold the pitch. It uses the same tokens and components with a larger type scale (hero up to 3.75rem), wide sections (72rem) and generous spacing; it scrolls in its own frame. Sections with nothing to show are left out for readers and say what to add for authors.
+- **Colour mixes** with `--primary` use `color-mix(in oklab, …)`: in `oklch`, mixing with white or black swings the hue (pale blue turned pink).
 - **Loading.** The loading screen builds a page (timing in `loader/loader-settings.js`, tuned with nu-hax `tools/loader-tuner.html`).
 
 ## Writing
@@ -118,7 +120,7 @@ The site's types (`types/content-types.js`, edited in Site → Content types) an
 
 - **Course materials:** Lesson, Lecture, Tutorial, Article, Resource.
 - **Assessed work:** Exercise, Reflection, Project, Activity (a step in a project), Quiz, Rubric.
-- **Courses and pathways:** Course, Course sequence, Pathway, Unit, Book, Specialization.
+- **Courses and pathways:** Course, Course site, Course sequence, Pathway, Unit, Book, Specialization.
 - **Site structure:** Section; Heading (navigation labels, added in Edit navigation).
 
 Add a type only when it needs its own fields or behaviour; a different genre with the same fields is a candidate for a "kind" instead (see the type consolidation sketch). A new type needs: its definition (fields, icon, description), a home page if it's listed (`HOME_TITLES`), a group (`TYPE_GROUPS`), and, if it's assessed, its place in sequences and the Canvas import (`lms/`).
