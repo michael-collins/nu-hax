@@ -1,0 +1,1405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<!--
+  Loading Screen Tuner: dial in the site's loading figure (how it builds,
+  and how fast it finishes once the page is ready) with a live preview and
+  the wait it adds to a page load. Open this file in a browser. A claude.ai
+  copy (the same page) can also save settings for Claude to apply.
+  The marked blocks in the script are filled by
+  `node scripts/make-building-figure.mjs`: the figure, the site's
+  loader-core.js and its loader-settings.js, so the preview is the site's.
+-->
+<title>Loading Screen Tuner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
+<style>
+  :root {
+    --ground: #eceef2;
+    --surface: #ffffff;
+    --ink: #15181e;
+    --muted: #596170;
+    --line: #d5d9e1;
+    --field: #f6f7f9;
+    --accent: #2b56c9;
+    --accent-ink: #ffffff;
+    --accent-soft: #e4ebfb;
+    --pass: #17703f;
+    --pass-bg: #e3f3ea;
+    --warn: #8a5300;
+    --warn-bg: #fbefd6;
+    --fail: #b3261e;
+    --fail-bg: #fbe7e5;
+    --ring: #2b56c9;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #0f1115;
+      --surface: #171a20;
+      --ink: #e6e8ec;
+      --muted: #9aa2ae;
+      --line: #2a2f38;
+      --field: #1e2229;
+      --accent: #86a8ff;
+      --accent-ink: #0d1530;
+      --accent-soft: #1d2740;
+      --pass: #5fcf95;
+      --pass-bg: #163225;
+      --warn: #e8b85c;
+      --warn-bg: #362812;
+      --fail: #ff8a7d;
+      --fail-bg: #3a1d1a;
+      --ring: #86a8ff;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #0f1115;
+    --surface: #171a20;
+    --ink: #e6e8ec;
+    --muted: #9aa2ae;
+    --line: #2a2f38;
+    --field: #1e2229;
+    --accent: #86a8ff;
+    --accent-ink: #0d1530;
+    --accent-soft: #1d2740;
+    --pass: #5fcf95;
+    --pass-bg: #163225;
+    --warn: #e8b85c;
+    --warn-bg: #362812;
+    --fail: #ff8a7d;
+    --fail-bg: #3a1d1a;
+    --ring: #86a8ff;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    padding: 0 16px;
+    padding-block: 24px 48px;
+    background: var(--ground);
+    color: var(--ink);
+    font: 14px/1.5 var(--sans);
+  }
+  .wrap {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  code,
+  .num {
+    font-family: var(--mono);
+    font-size: 0.92em;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* header */
+  .top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px 24px;
+    align-items: end;
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .lede {
+    margin: 0;
+    max-width: 66ch;
+    color: var(--muted);
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .status {
+    grid-column: 1 / -1;
+    min-height: 1.5em;
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .status.ok {
+    color: var(--pass);
+  }
+  .status.err {
+    color: var(--fail);
+  }
+  @media (max-width: 760px) {
+    .top {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .actions {
+      justify-content: flex-start;
+    }
+  }
+
+  /* controls */
+  button,
+  input,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--field);
+  }
+  .btn.primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .btn.primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 88%, var(--ink));
+  }
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+  .ico {
+    width: 16px;
+    height: 16px;
+    flex: none;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  .seg {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    border-radius: 9px;
+    background: var(--field);
+    border: 1px solid var(--line);
+  }
+  .seg button {
+    height: 28px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+  }
+  .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .check input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--accent);
+  }
+  input[type="range"] {
+    width: 100%;
+    margin: 0;
+    accent-color: var(--accent);
+  }
+
+  /* layout */
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 980px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  .col {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+  }
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+  .card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px 12px;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--field);
+    border: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .chip b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* the preview: a page of the site under its loading screen */
+  .stage {
+    --s-frame: #f7f8f8;
+    --s-panel: #ffffff;
+    --s-line: #e1eaef;
+    --s-bar: #e5e5e6;
+    --s-soft: #eef0f2;
+    --s-head: #c9cdd3;
+    --s-screen: #f7f8f8;
+    --s-label: #5b616e;
+    position: relative;
+    aspect-ratio: 16 / 10;
+    max-width: 100%;
+    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--s-frame);
+    container-type: inline-size;
+  }
+  .stage[data-scheme="dark"] {
+    --s-frame: #17181c;
+    --s-panel: #101114;
+    --s-line: #2c2e31;
+    --s-bar: #26282c;
+    --s-soft: #1c1d21;
+    --s-head: #3a3c42;
+    --s-screen: #17181c;
+    --s-label: #9a9ea6;
+  }
+  .site {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: 21% minmax(0, 1fr);
+  }
+  .site .side {
+    display: flex;
+    flex-direction: column;
+    gap: 2.2cqw;
+    padding: 2.4cqw 1.8cqw;
+  }
+  .site .panel {
+    margin: 0.8cqw 0.8cqw 0.8cqw 0;
+    border: 1px solid var(--s-line);
+    border-radius: 1cqw;
+    background: var(--s-panel);
+    display: flex;
+    flex-direction: column;
+    gap: 1.6cqw;
+    padding: 0 9cqw;
+  }
+  .site .bar {
+    height: 1.1cqw;
+    border-radius: 0.6cqw;
+    background: var(--s-bar);
+  }
+  .site .bar.soft {
+    background: var(--s-soft);
+  }
+  .site .crumbs {
+    margin: 0 -9cqw;
+    padding: 0 3cqw;
+    height: 5cqw;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--s-line);
+  }
+  .site .title {
+    height: 3cqw;
+    width: 45%;
+    margin-top: 3cqw;
+    border-radius: 0.6cqw;
+    background: var(--s-head);
+  }
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--s-screen);
+  }
+  .screen[hidden] {
+    display: none;
+  }
+  .messaging {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3cqw;
+    width: 100%;
+  }
+  .figure {
+    width: min(40cqw, 320px);
+    aspect-ratio: 4 / 3;
+  }
+  .messaging p {
+    margin: 0;
+    font: 500 clamp(11px, 1.5cqw, 14px) / 1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: 0.01em;
+    color: var(--s-label);
+  }
+  /* the site's dissolve (theme/theme.css), here */
+  .screen.oer-dissolve {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--oer-dissolve, 0.55s) cubic-bezier(0.4, 0, 0.2, 1) var(--oer-dissolve-delay, 0.15s);
+  }
+  .screen.oer-dissolve .messaging {
+    opacity: 0;
+    transform: scale(0.985);
+    transition:
+      opacity var(--oer-figure-fade, 0.35s) ease,
+      transform calc(var(--oer-figure-fade, 0.35s) + 0.15s) cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .run {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+  }
+  .run .load {
+    display: grid;
+    grid-template-columns: auto minmax(120px, 1fr) 4.5em;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 260px;
+  }
+  .run .load output {
+    text-align: right;
+  }
+  .result {
+    margin: 0;
+    min-height: 3em;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--field);
+    font-size: 13px;
+  }
+  .result .step {
+    white-space: nowrap;
+  }
+  .result .sep {
+    color: var(--muted);
+    padding: 0 4px;
+  }
+
+  /* the timeline of one loop */
+  .tl {
+    display: grid;
+    grid-template-columns: 4.5em minmax(0, 1fr);
+    gap: 3px 10px;
+    align-items: center;
+    font-size: 12px;
+  }
+  .tl .name {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    text-align: right;
+  }
+  .tl .track {
+    position: relative;
+    height: 10px;
+  }
+  .tl .present,
+  .tl .drop,
+  .tl .fade,
+  .tl .on {
+    position: absolute;
+    top: 2px;
+    height: 6px;
+    border-radius: 3px;
+  }
+  .tl .present {
+    background: color-mix(in srgb, var(--ink) 22%, transparent);
+  }
+  .tl .fade {
+    background: linear-gradient(to right, color-mix(in srgb, var(--ink) 22%, transparent), transparent);
+  }
+  .tl .drop {
+    top: 0;
+    height: 10px;
+    background: var(--accent);
+  }
+  .tl .on {
+    background: var(--ink);
+  }
+  .tl .axis {
+    position: relative;
+    height: 18px;
+    border-top: 1px solid var(--line);
+  }
+  .tl .tick {
+    position: absolute;
+    top: 2px;
+    transform: translateX(-50%);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .tl-area {
+    position: relative;
+    font-size: 12px;
+  }
+  .marker {
+    position: absolute;
+    top: 0;
+    bottom: 20px;
+    width: 0;
+    border-left: 2px solid var(--accent);
+    pointer-events: none;
+  }
+  .marker.loop {
+    border-left: 2px dashed var(--muted);
+  }
+  .marker.ready {
+    border-left-color: var(--pass);
+  }
+  .marker.head {
+    border-left: 1px solid var(--fail);
+  }
+  .marker[hidden] {
+    display: none;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend span::before {
+    content: "";
+    display: inline-block;
+    width: 14px;
+    height: 0;
+    margin-right: 6px;
+    vertical-align: middle;
+    border-top: 2px solid currentColor;
+  }
+  .legend .l-drop::before {
+    height: 8px;
+    border: 0;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+  .legend .l-built::before {
+    border-color: var(--accent);
+  }
+  .legend .l-loop::before {
+    border-top-style: dashed;
+  }
+  .legend .l-ready::before {
+    border-color: var(--pass);
+  }
+  .legend .l-head::before {
+    border-top-width: 1px;
+    border-color: var(--fail);
+  }
+
+  /* the wait table */
+  .table-wrap {
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th,
+  td {
+    padding: 7px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  th {
+    font-weight: 500;
+    color: var(--muted);
+  }
+  td.n {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .waitbar {
+    position: relative;
+    min-width: 120px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--field);
+    overflow: hidden;
+  }
+  .waitbar span {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 4px;
+  }
+  .good {
+    background: var(--pass);
+  }
+  .fair {
+    background: var(--warn);
+  }
+  .slow {
+    background: var(--fail);
+  }
+
+  /* settings */
+  .settings {
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+  }
+  @media (max-width: 980px) {
+    .settings {
+      position: static;
+      max-height: none;
+    }
+  }
+  fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .settings hr {
+    width: 100%;
+    margin: 4px 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+  }
+  legend {
+    padding: 0;
+    margin-bottom: 2px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .row .lab {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .row output {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+  .row.off {
+    opacity: 0.5;
+  }
+  .easing {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+  }
+  .easing svg {
+    width: 72px;
+    height: 72px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--field);
+  }
+  .easing .pick {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .easing select {
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+  .easing .xy {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .easing .xy input {
+    width: 100%;
+    height: 30px;
+    padding: 0 4px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    font-family: var(--mono);
+    font-size: 12px;
+    text-align: center;
+  }
+  .where {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  details.json summary {
+    cursor: pointer;
+    color: var(--muted);
+  }
+  details.json textarea {
+    width: 100%;
+    min-height: 220px;
+    margin-top: 8px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    font: 12px/1.5 var(--mono);
+  }
+  .sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Loading Screen Tuner</h1>
+      <p class="lede">
+        Dial in the figure that builds a page while the site loads: how it builds, and how fast it finishes once the page is ready. The preview runs the site's own code; the table shows the wait it adds.
+      </p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="reset" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>Site's values</button>
+      <button class="btn" id="copy" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>Copy JSON</button>
+      <button class="btn primary" id="save" type="button" disabled><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" /><path d="M7 3v4a1 1 0 0 0 1 1h7" /></svg>Save for Claude</button>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite">Starting from the values on the site now.</p>
+  </header>
+
+  <div class="layout">
+    <div class="col">
+      <section class="card" aria-labelledby="preview-h">
+        <div class="card-head">
+          <h2 id="preview-h">Preview</h2>
+          <div class="seg" role="group" aria-label="Preview colours">
+            <button type="button" data-scheme="light" aria-pressed="true">Light</button>
+            <button type="button" data-scheme="dark" aria-pressed="false">Dark</button>
+          </div>
+        </div>
+        <div class="stage" id="stage" data-scheme="light">
+          <div class="site" aria-hidden="true">
+            <div class="side">
+              <div class="bar" style="width: 70%; height: 1.6cqw"></div>
+              <div class="bar soft" style="width: 100%; height: 2.6cqw"></div>
+              <div class="bar" style="width: 80%"></div>
+              <div class="bar" style="width: 65%"></div>
+              <div class="bar" style="width: 72%"></div>
+              <div class="bar" style="width: 58%"></div>
+              <div class="bar" style="width: 76%"></div>
+            </div>
+            <div class="panel">
+              <div class="crumbs"><div class="bar" style="width: 30%"></div></div>
+              <div class="title"></div>
+              <div class="bar soft" style="width: 18%"></div>
+              <div class="bar" style="width: 100%"></div>
+              <div class="bar" style="width: 96%"></div>
+              <div class="bar" style="width: 100%"></div>
+              <div class="bar" style="width: 74%"></div>
+              <div class="bar" style="width: 34%; height: 2cqw; margin-top: 1.5cqw; background: var(--s-head)"></div>
+              <div class="bar" style="width: 100%"></div>
+              <div class="bar" style="width: 88%"></div>
+            </div>
+          </div>
+          <div class="screen" id="screen">
+            <div class="messaging">
+              <div class="figure" id="figure" aria-hidden="true"></div>
+              <p>Building the page</p>
+            </div>
+          </div>
+        </div>
+        <div class="run">
+          <button class="btn primary" id="play" type="button"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3" /></svg>Load the page</button>
+          <div class="load">
+            <label for="load">Ready after</label>
+            <input type="range" id="load" min="0.1" max="8" step="0.1" value="1.2" />
+            <output id="load-out" for="load" class="num">1.2 s</output>
+          </div>
+          <label class="check"><input type="checkbox" id="manual" /> Ready when I say</label>
+          <button class="btn" id="ready-now" type="button" disabled><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" x2="4" y1="22" y2="15" /></svg>Ready now</button>
+          <label class="check"><input type="checkbox" id="repeat" /> Repeat</label>
+        </div>
+        <p class="result" id="result" aria-live="polite"></p>
+        <p class="note" id="motion-note" hidden>
+          Your system asks for less motion. On the site, people with that setting see a still figure and a quick fade; the preview animates anyway so you can tune it.
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="tl-h">
+        <div class="card-head">
+          <h2 id="tl-h">One loop</h2>
+          <div class="chips" id="loop-chips"></div>
+        </div>
+        <div class="tl-area" id="tl-area">
+          <div class="tl" id="tl"></div>
+          <div class="marker" id="m-built" title="Built"></div>
+          <div class="marker loop" id="m-loop" title="Starts fading to loop"></div>
+          <div class="marker ready" id="m-ready" hidden title="Page ready"></div>
+          <div class="marker head" id="m-head" hidden></div>
+        </div>
+        <div class="legend">
+          <span class="l-drop">a layer drops</span>
+          <span class="l-built">built</span>
+          <span class="l-loop">fades to loop</span>
+          <span class="l-ready">page ready</span>
+          <span class="l-head">now</span>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="wait-h">
+        <div class="card-head">
+          <h2 id="wait-h">The wait it adds</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Page ready at</th><th scope="col">Page shows at</th><th scope="col">Waiting added</th><th scope="col"><span class="sr">Added, drawn</span></th></tr>
+            </thead>
+            <tbody id="wait"></tbody>
+          </table>
+        </div>
+        <p class="note">Times from when the figure starts, about a quarter of a second into a page load. "Shows" is when the screen starts to fade; it's gone a dissolve later.</p>
+      </section>
+    </div>
+
+    <aside class="card settings" id="settings" aria-label="Settings"></aside>
+  </div>
+
+  <p class="where">
+    Applying: these go into <code>LOADER_SETTINGS</code> in the site's <code>custom/src/loader/loader-settings.js</code>; then <code>node scripts/make-building-figure.mjs</code> in nu-hax (so this tuner starts from them) and a rebuild.
+  </p>
+
+  <details class="json" id="json-box">
+    <summary>Settings as JSON</summary>
+    <textarea id="json" readonly aria-label="Settings as JSON"></textarea>
+  </details>
+</div>
+
+<script>
+/* figure:begin (filled by nu-hax/scripts/make-building-figure.mjs) */
+const FIGURE = {"css":":host{display:block;position:relative;--fill:#f7f8f8;--front:#85858f;--mid:#ababb4;--faint:#cfcfd6;--accent:#18181b}\n:host([dark]){--fill:#17181c;--front:#8a8a94;--mid:#5c5c66;--faint:#3a3a42;--accent:#f4f4f5}\nsvg{position:absolute;display:block;overflow:visible}\nsvg.base{inset:0;width:100%;height:100%}\n.l{will-change:transform,opacity}\npath,ellipse{vector-effect:non-scaling-stroke;stroke-width:1;stroke-linejoin:round;stroke-linecap:round;fill:none}\n.fill{fill:var(--fill)}\n.front{stroke:var(--front)}\n.mid{stroke:var(--mid)}\n.faint{stroke:var(--faint)}\n.caret{fill:var(--accent)}\n@media (prefers-reduced-motion:reduce){.l{animation:none!important;opacity:1!important;transform:none!important}}","html":"<svg class=\"base\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 300\">\n<g>\n    <path class=\"fill\" d=\"M43.27 158L44.39 161.25L47.58 164L179.22 240L183.98 241.84L189.61 242.49L195.23 241.84L200 240L352.42 152L355.61 149.25L356.73 146L356.73 152L355.61 155.25L352.42 158L200 246L195.23 247.84L189.61 248.49L183.98 247.84L179.22 246L47.58 170L44.39 167.25L43.27 164Z\"/>\n    <path class=\"faint\" d=\"M43.27 164L44.39 167.25L47.58 170L179.22 246L183.98 247.84L189.61 248.49L195.23 247.84L200 246L352.42 158L355.61 155.25L356.73 152\"/>\n    <path class=\"faint\" d=\"M43.27 158L43.27 164M356.73 146L356.73 152\"/>\n    <path class=\"fill faint\" d=\"M352.42 140L355.61 142.75L356.73 146L355.61 149.25L352.42 152L200 240L195.23 241.84L189.61 242.49L183.98 241.84L179.22 240L47.58 164L44.39 161.25L43.27 158L44.39 154.75L47.58 152L200 64L204.77 62.16L210.39 61.51L216.02 62.16L220.78 64Z\"/>\n  </g>\n<g>\n    <path class=\"fill\" d=\"M91.18 157L91.55 158.08L92.61 159L182.68 211L184.27 211.61L186.14 211.83L188.02 211.61L189.61 211L307.39 143L308.45 142.08L308.82 141L308.82 144L308.45 145.08L307.39 146L189.61 214L188.02 214.61L186.14 214.83L184.27 214.61L182.68 214L92.61 162L91.55 161.08L91.18 160Z\"/>\n    <path class=\"mid\" d=\"M91.18 160L91.55 161.08L92.61 162L182.68 214L184.27 214.61L186.14 214.83L188.02 214.61L189.61 214L307.39 146L308.45 145.08L308.82 144\"/>\n    <path class=\"mid\" d=\"M91.18 157L91.18 160M308.82 141L308.82 144\"/>\n    <path class=\"fill front\" d=\"M307.39 139L308.45 139.92L308.82 141L308.45 142.08L307.39 143L189.61 211L188.02 211.61L186.14 211.83L184.27 211.61L182.68 211L92.61 159L91.55 158.08L91.18 157L91.55 155.92L92.61 155L210.39 87L211.98 86.39L213.86 86.17L215.73 86.39L217.32 87Z\"/>\n  </g>\n</svg>\n<svg class=\"l header\" viewBox=\"198 89 97 62\" style=\"left:49.5%;top:29.67%;width:24.25%;height:20.67%\"><g>\n    <path class=\"fill\" d=\"M200.76 99L200.9 99.41L201.3 99.75L278.38 144.25L278.97 144.48L279.67 144.56L280.38 144.48L280.97 144.25L292.23 137.75L292.63 137.41L292.77 137L292.77 141L292.63 141.41L292.23 141.75L280.97 148.25L280.38 148.48L279.67 148.56L278.97 148.48L278.38 148.25L201.3 103.75L200.9 103.41L200.76 103Z\"/>\n    <path class=\"mid\" d=\"M200.76 103L200.9 103.41L201.3 103.75L278.38 148.25L278.97 148.48L279.67 148.56L280.38 148.48L280.97 148.25L292.23 141.75L292.63 141.41L292.77 141\"/>\n    <path class=\"mid\" d=\"M200.76 99L200.76 103M292.77 137L292.77 141\"/>\n    <path class=\"fill front\" d=\"M292.23 136.25L292.63 136.59L292.77 137L292.63 137.41L292.23 137.75L280.97 144.25L280.38 144.48L279.67 144.56L278.97 144.48L278.38 144.25L201.3 99.75L200.9 99.41L200.76 99L200.9 98.59L201.3 98.25L212.56 91.75L213.15 91.52L213.86 91.44L214.56 91.52L215.16 91.75Z\"/>\n  </g></svg>\n<svg class=\"l line1\" viewBox=\"185 104 81 51\" style=\"left:46.25%;top:34.67%;width:20.25%;height:17%\"><g>\n    <path class=\"fill\" d=\"M187.77 109L187.91 109.41L188.31 109.75L258.46 150.25L259.05 150.48L259.76 150.56L260.46 150.48L261.05 150.25L262.79 149.25L263.19 148.91L263.32 148.5L263.32 150L263.19 150.41L262.79 150.75L261.05 151.75L260.46 151.98L259.76 152.06L259.05 151.98L258.46 151.75L188.31 111.25L187.91 110.91L187.77 110.5Z\"/>\n    <path class=\"mid\" d=\"M187.77 110.5L187.91 110.91L188.31 111.25L258.46 151.75L259.05 151.98L259.76 152.06L260.46 151.98L261.05 151.75L262.79 150.75L263.19 150.41L263.32 150\"/>\n    <path class=\"mid\" d=\"M187.77 109L187.77 110.5M263.32 148.5L263.32 150\"/>\n    <path class=\"fill front\" d=\"M262.79 147.75L263.19 148.09L263.32 148.5L263.19 148.91L262.79 149.25L261.05 150.25L260.46 150.48L259.76 150.56L259.05 150.48L258.46 150.25L188.31 109.75L187.91 109.41L187.77 109L187.91 108.59L188.31 108.25L190.04 107.25L190.64 107.02L191.34 106.94L192.04 107.02L192.64 107.25Z\"/>\n  </g></svg>\n<svg class=\"l line2\" viewBox=\"177 109 87 55\" style=\"left:44.25%;top:36.33%;width:21.75%;height:18.33%\"><g>\n    <path class=\"fill\" d=\"M179.11 114L179.25 114.41L179.65 114.75L256.72 159.25L257.32 159.48L258.02 159.56L258.73 159.48L259.32 159.25L261.05 158.25L261.45 157.91L261.59 157.5L261.59 159L261.45 159.41L261.05 159.75L259.32 160.75L258.73 160.98L258.02 161.06L257.32 160.98L256.72 160.75L179.65 116.25L179.25 115.91L179.11 115.5Z\"/>\n    <path class=\"mid\" d=\"M179.11 115.5L179.25 115.91L179.65 116.25L256.72 160.75L257.32 160.98L258.02 161.06L258.73 160.98L259.32 160.75L261.05 159.75L261.45 159.41L261.59 159\"/>\n    <path class=\"mid\" d=\"M179.11 114L179.11 115.5M261.59 157.5L261.59 159\"/>\n    <path class=\"fill front\" d=\"M261.05 156.75L261.45 157.09L261.59 157.5L261.45 157.91L261.05 158.25L259.32 159.25L258.73 159.48L258.02 159.56L257.32 159.48L256.72 159.25L179.65 114.75L179.25 114.41L179.11 114L179.25 113.59L179.65 113.25L181.38 112.25L181.98 112.02L182.68 111.94L183.38 112.02L183.98 112.25Z\"/>\n  </g></svg>\n<svg class=\"l line3\" viewBox=\"168 114 61 40\" style=\"left:42%;top:38%;width:15.25%;height:13.33%\"><g>\n    <path class=\"fill\" d=\"M170.45 119L170.59 119.41L170.99 119.75L222.08 149.25L222.68 149.48L223.38 149.56L224.09 149.48L224.68 149.25L226.41 148.25L226.81 147.91L226.95 147.5L226.95 149L226.81 149.41L226.41 149.75L224.68 150.75L224.09 150.98L223.38 151.06L222.68 150.98L222.08 150.75L170.99 121.25L170.59 120.91L170.45 120.5Z\"/>\n    <path class=\"mid\" d=\"M170.45 120.5L170.59 120.91L170.99 121.25L222.08 150.75L222.68 150.98L223.38 151.06L224.09 150.98L224.68 150.75L226.41 149.75L226.81 149.41L226.95 149\"/>\n    <path class=\"mid\" d=\"M170.45 119L170.45 120.5M226.95 147.5L226.95 149\"/>\n    <path class=\"fill front\" d=\"M226.41 146.75L226.81 147.09L226.95 147.5L226.81 147.91L226.41 148.25L224.68 149.25L224.09 149.48L223.38 149.56L222.68 149.48L222.08 149.25L170.99 119.75L170.59 119.41L170.45 119L170.59 118.59L170.99 118.25L172.72 117.25L173.32 117.02L174.02 116.94L174.72 117.02L175.32 117.25Z\"/>\n  </g></svg>\n<svg class=\"l image\" viewBox=\"131 113 72 53\" style=\"left:32.75%;top:37.67%;width:18%;height:17.67%\"><g>\n    <path class=\"fill\" d=\"M133.46 133L133.65 133.54L134.18 134L168.82 154L169.62 154.31L170.56 154.41L171.49 154.31L172.29 154L200 138L200.53 137.54L200.72 137L200.72 146L200.53 146.54L200 147L172.29 163L171.49 163.31L170.56 163.41L169.62 163.31L168.82 163L134.18 143L133.65 142.54L133.46 142Z\"/>\n    <path class=\"mid\" d=\"M133.46 142L133.65 142.54L134.18 143L168.82 163L169.62 163.31L170.56 163.41L171.49 163.31L172.29 163L200 147L200.53 146.54L200.72 146\"/>\n    <path class=\"mid\" d=\"M133.46 133L133.46 142M200.72 137L200.72 146\"/>\n    <path class=\"fill front\" d=\"M200 136L200.53 136.46L200.72 137L200.53 137.54L200 138L172.29 154L171.49 154.31L170.56 154.41L169.62 154.31L168.82 154L134.18 134L133.65 133.54L133.46 133L133.65 132.46L134.18 132L161.89 116L162.69 115.69L163.63 115.59L164.56 115.69L165.36 116Z\"/><ellipse class=\"mid\" cx=\"181.81\" cy=\"135.5\" rx=\"3.98\" ry=\"2.3\"/><path class=\"mid\" d=\"M141.98 132.5L166.23 130.5L165.36 140L176.62 140.5L172.29 150\"/>\n  </g></svg>\n<svg class=\"l col1\" viewBox=\"201 147 42 29\" style=\"left:50.25%;top:49%;width:10.5%;height:9.67%\"><g>\n    <path class=\"fill\" d=\"M203.36 152L203.5 152.41L203.9 152.75L235.94 171.25L236.54 171.48L237.24 171.56L237.94 171.48L238.54 171.25L240.27 170.25L240.67 169.91L240.81 169.5L240.81 171L240.67 171.41L240.27 171.75L238.54 172.75L237.94 172.98L237.24 173.06L236.54 172.98L235.94 172.75L203.9 154.25L203.5 153.91L203.36 153.5Z\"/>\n    <path class=\"mid\" d=\"M203.36 153.5L203.5 153.91L203.9 154.25L235.94 172.75L236.54 172.98L237.24 173.06L237.94 172.98L238.54 172.75L240.27 171.75L240.67 171.41L240.81 171\"/>\n    <path class=\"mid\" d=\"M203.36 152L203.36 153.5M240.81 169.5L240.81 171\"/>\n    <path class=\"fill front\" d=\"M240.27 168.75L240.67 169.09L240.81 169.5L240.67 169.91L240.27 170.25L238.54 171.25L237.94 171.48L237.24 171.56L236.54 171.48L235.94 171.25L203.9 152.75L203.5 152.41L203.36 152L203.5 151.59L203.9 151.25L205.63 150.25L206.23 150.02L206.93 149.94L207.63 150.02L208.23 150.25Z\"/>\n  </g></svg>\n<svg class=\"l col2\" viewBox=\"192 152 43 29\" style=\"left:48%;top:50.67%;width:10.75%;height:9.67%\"><g>\n    <path class=\"fill\" d=\"M194.7 157L194.84 157.41L195.24 157.75L227.28 176.25L227.88 176.48L228.58 176.56L229.28 176.48L229.88 176.25L231.61 175.25L232.01 174.91L232.15 174.5L232.15 176L232.01 176.41L231.61 176.75L229.88 177.75L229.28 177.98L228.58 178.06L227.88 177.98L227.28 177.75L195.24 159.25L194.84 158.91L194.7 158.5Z\"/>\n    <path class=\"mid\" d=\"M194.7 158.5L194.84 158.91L195.24 159.25L227.28 177.75L227.88 177.98L228.58 178.06L229.28 177.98L229.88 177.75L231.61 176.75L232.01 176.41L232.15 176\"/>\n    <path class=\"mid\" d=\"M194.7 157L194.7 158.5M232.15 174.5L232.15 176\"/>\n    <path class=\"fill front\" d=\"M231.61 173.75L232.01 174.09L232.15 174.5L232.01 174.91L231.61 175.25L229.88 176.25L229.28 176.48L228.58 176.56L227.88 176.48L227.28 176.25L195.24 157.75L194.84 157.41L194.7 157L194.84 156.59L195.24 156.25L196.97 155.25L197.56 155.02L198.27 154.94L198.97 155.02L199.57 155.25Z\"/>\n  </g></svg>\n<svg class=\"l col3\" viewBox=\"184 157 32 23\" style=\"left:46%;top:52.33%;width:8%;height:7.67%\"><g>\n    <path class=\"fill\" d=\"M186.04 162L186.18 162.41L186.58 162.75L208.23 175.25L208.82 175.48L209.53 175.56L210.23 175.48L210.83 175.25L212.56 174.25L212.96 173.91L213.1 173.5L213.1 175L212.96 175.41L212.56 175.75L210.83 176.75L210.23 176.98L209.53 177.06L208.82 176.98L208.23 176.75L186.58 164.25L186.18 163.91L186.04 163.5Z\"/>\n    <path class=\"mid\" d=\"M186.04 163.5L186.18 163.91L186.58 164.25L208.23 176.75L208.82 176.98L209.53 177.06L210.23 176.98L210.83 176.75L212.56 175.75L212.96 175.41L213.1 175\"/>\n    <path class=\"mid\" d=\"M186.04 162L186.04 163.5M213.1 173.5L213.1 175\"/>\n    <path class=\"fill front\" d=\"M212.56 172.75L212.96 173.09L213.1 173.5L212.96 173.91L212.56 174.25L210.83 175.25L210.23 175.48L209.53 175.56L208.82 175.48L208.23 175.25L186.58 162.75L186.18 162.41L186.04 162L186.18 161.59L186.58 161.25L188.31 160.25L188.9 160.02L189.61 159.94L190.31 160.02L190.91 160.25Z\"/>\n  </g></svg>\n<svg class=\"l line4\" viewBox=\"118 143 84 53\" style=\"left:29.5%;top:47.67%;width:21%;height:17.67%\"><g>\n    <path class=\"fill\" d=\"M120.22 148L120.36 148.41L120.76 148.75L194.37 191.25L194.97 191.48L195.67 191.56L196.37 191.48L196.97 191.25L198.7 190.25L199.1 189.91L199.24 189.5L199.24 191L199.1 191.41L198.7 191.75L196.97 192.75L196.37 192.98L195.67 193.06L194.97 192.98L194.37 192.75L120.76 150.25L120.36 149.91L120.22 149.5Z\"/>\n    <path class=\"mid\" d=\"M120.22 149.5L120.36 149.91L120.76 150.25L194.37 192.75L194.97 192.98L195.67 193.06L196.37 192.98L196.97 192.75L198.7 191.75L199.1 191.41L199.24 191\"/>\n    <path class=\"mid\" d=\"M120.22 148L120.22 149.5M199.24 189.5L199.24 191\"/>\n    <path class=\"fill front\" d=\"M198.7 188.75L199.1 189.09L199.24 189.5L199.1 189.91L198.7 190.25L196.97 191.25L196.37 191.48L195.67 191.56L194.97 191.48L194.37 191.25L120.76 148.75L120.36 148.41L120.22 148L120.36 147.59L120.76 147.25L122.49 146.25L123.09 146.02L123.79 145.94L124.49 146.02L125.09 146.25Z\"/>\n  </g></svg>\n<svg class=\"l line5\" viewBox=\"109 148 56 37\" style=\"left:27.25%;top:49.33%;width:14%;height:12.33%\"><g>\n    <path class=\"fill\" d=\"M111.56 153L111.7 153.41L112.1 153.75L158 180.25L158.59 180.48L159.3 180.56L160 180.48L160.6 180.25L162.33 179.25L162.73 178.91L162.87 178.5L162.87 180L162.73 180.41L162.33 180.75L160.6 181.75L160 181.98L159.3 182.06L158.59 181.98L158 181.75L112.1 155.25L111.7 154.91L111.56 154.5Z\"/>\n    <path class=\"mid\" d=\"M111.56 154.5L111.7 154.91L112.1 155.25L158 181.75L158.59 181.98L159.3 182.06L160 181.98L160.6 181.75L162.33 180.75L162.73 180.41L162.87 180\"/>\n    <path class=\"mid\" d=\"M111.56 153L111.56 154.5M162.87 178.5L162.87 180\"/>\n    <path class=\"fill front\" d=\"M162.33 177.75L162.73 178.09L162.87 178.5L162.73 178.91L162.33 179.25L160.6 180.25L160 180.48L159.3 180.56L158.59 180.48L158 180.25L112.1 153.75L111.7 153.41L111.56 153L111.7 152.59L112.1 152.25L113.83 151.25L114.43 151.02L115.13 150.94L115.83 151.02L116.43 151.25Z\"/>\n  </g></svg>\n<svg class=\"l caret\" viewBox=\"160 177 10 10\" style=\"left:40%;top:59%;width:2.5%;height:3.33%\"><ellipse class=\"caret\" cx=\"164.93\" cy=\"181.75\" rx=\"2.6\" ry=\"2.6\"/></svg>","pieces":{"header":62,"line1":51,"line2":55,"line3":40,"image":53,"col1":29,"col2":29,"col3":23,"line4":53,"line5":37}};
+/* figure:end */
+
+/* core:begin (the site's custom/src/loader/loader-core.js) */
+/**
+ * The loading figure's timing and behaviour, shared by the site
+ * (site-loader.js) and nu-hax/tools/loader-tuner.html, which carries a copy
+ * of this file (scripts/make-building-figure.mjs puts it there). No imports,
+ * so it can be copied as it is. Settings: loader-settings.js; all times ms.
+ */
+
+// the layers in the order they drop, in groups: the header; three lines of
+// text; the image; a column of three lines; two closing lines
+const LAYER_GROUPS = [["header"], ["line1", "line2", "line3"], ["image"], ["col1", "col2", "col3"], ["line4", "line5"]];
+
+/** When each part of one loop happens. */
+function timeline(s) {
+  const starts = {};
+  let t = s.firstMs;
+  LAYER_GROUPS.forEach((group, g) =>
+    group.forEach((name, i) => {
+      if (g || i) t += i ? s.gapMs : s.groupGapMs;
+      starts[name] = t;
+    }),
+  );
+  const landed = t + s.dropMs;
+  const caretOn = landed + s.caretDelayMs;
+  // after one blink the caret stays: the page is built
+  const built = caretOn + 2 * s.blinkMs;
+  const fadeAt = built + s.restMs;
+  return { starts, landed, caretOn, built, fadeAt, cycle: fadeAt + s.fadeMs };
+}
+
+/**
+ * The figure's animations as CSS: each layer drops in, everything rests once
+ * built, then fades and the loop starts again. Only opacity and transform
+ * move, so the browser animates them off the main thread. `pieces` holds
+ * each layer's height (figure units), so the drop can be a share of it.
+ */
+function figureCss(s, pieces) {
+  const T = timeline(s);
+  const at = (ms) => `${Math.min(100, (ms / T.cycle) * 100).toFixed(3)}%`;
+  const ease = `cubic-bezier(${s.easing.join(",")})`;
+  const tick = 0.5; // ms: a step, for the caret's blink
+  const layers = LAYER_GROUPS.flat().map((name) => {
+    const up = `translateY(${((-s.distance / (pieces[name] || 10)) * 100).toFixed(2)}%)`;
+    const start = T.starts[name];
+    return `@keyframes ${name}{0%{opacity:0;transform:${up}}${at(start)}{opacity:0;transform:${up};animation-timing-function:${ease}}${at(start + s.dropMs)}{opacity:1;transform:translateY(0)}${at(T.fadeAt)}{opacity:1;transform:translateY(0);animation-timing-function:ease-in}100%{opacity:0;transform:translateY(0)}}
+.${name}{animation:${name} ${T.cycle}ms linear infinite}`;
+  });
+  const blink = s.blinkMs
+    ? `${at(T.caretOn + tick)},${at(T.caretOn + s.blinkMs)}{opacity:1}${at(T.caretOn + s.blinkMs + tick)},${at(T.caretOn + 2 * s.blinkMs)}{opacity:0}${at(T.caretOn + 2 * s.blinkMs + tick)}{opacity:1}`
+    : `${at(T.caretOn + tick)}{opacity:1}`;
+  const caret = `@keyframes caret{0%,${at(T.caretOn)}{opacity:0}${blink}${at(T.fadeAt)}{opacity:1;animation-timing-function:ease-in}100%{opacity:0}}
+svg.caret{animation:caret ${T.cycle}ms linear infinite}`;
+  return [...layers, caret].join("\n");
+}
+
+/**
+ * Once the page is ready, at figure time t: how the figure gets to its
+ * built page. "speed" plays the rest faster (up to maxSpeed) so it's built
+ * within finishMs; "skip" jumps ahead to finishMs before built; "play"
+ * plays out at its own pace. Already built (resting or fading): now.
+ */
+function readyPlan(t, s) {
+  const T = timeline(s);
+  const phase = t % T.cycle;
+  if (phase >= T.built) return { rate: 1, waitMs: 0, skipTo: null, freezeAt: null };
+  const loop = t - phase;
+  const left = T.built - phase;
+  const plan = { rate: 1, waitMs: left, skipTo: null, freezeAt: loop + T.built };
+  if (s.ready === "skip" && left > s.finishMs) Object.assign(plan, { skipTo: loop + T.built - s.finishMs, waitMs: s.finishMs });
+  if (s.ready === "speed") {
+    plan.rate = Math.min(Math.max(left / Math.max(s.finishMs, 1), 1), Math.max(s.maxSpeed, 1));
+    plan.waitMs = left / plan.rate;
+  }
+  return plan;
+}
+
+/** How long after the page is ready, at figure time t, the screen starts to fade and is gone. */
+function revealTimes(t, s) {
+  const plan = readyPlan(t, s);
+  const start = plan.waitMs + s.holdMs;
+  return { fading: start + s.dissolveDelayMs, gone: start + s.dissolveDelayMs + s.dissolveMs };
+}
+
+/**
+ * Draw the figure in `host` (in a shadow root, so its styles stay its own)
+ * and start it. `figure` is { css, html, pieces } from
+ * building-figure.generated.js. Returns its controls.
+ */
+function drawFigure(host, figure, s) {
+  const shadow = host.shadowRoot || host.attachShadow({ mode: "open" });
+  shadow.innerHTML = `<style>${figure.css}\n${figureCss(s, figure.pieces)}</style>${figure.html}`;
+  const anims = () => shadow.getAnimations();
+  const timers = [];
+  const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+  return {
+    time: () => Number(anims()[0]?.currentTime) || 0,
+    stop() {
+      timers.forEach(clearTimeout);
+      for (const a of anims()) a.pause();
+    },
+    // the page is ready: on to the built page, a moment's pause, then done()
+    finish(done) {
+      const list = anims();
+      if (!list.length) return done();
+      const plan = readyPlan(Number(list[0].currentTime) || 0, s);
+      for (const a of list) {
+        if (plan.skipTo != null) a.currentTime = plan.skipTo;
+        if (plan.rate !== 1) a.updatePlaybackRate ? a.updatePlaybackRate(plan.rate) : (a.playbackRate = plan.rate);
+      }
+      later(() => {
+        for (const a of anims()) {
+          if (plan.freezeAt != null) a.currentTime = plan.freezeAt;
+          a.pause();
+        }
+        later(done, s.holdMs);
+      }, plan.waitMs);
+    },
+  };
+}
+
+/**
+ * Dissolve the loading screen: the figure and its words fade, then the
+ * screen (styles: theme/theme.css, keyed on .oer-dissolve). done() once
+ * it's gone.
+ */
+function dissolve(screen, s, done) {
+  screen.style.setProperty("--oer-figure-fade", `${s.figureFadeMs}ms`);
+  screen.style.setProperty("--oer-dissolve-delay", `${s.dissolveDelayMs}ms`);
+  screen.style.setProperty("--oer-dissolve", `${s.dissolveMs}ms`);
+  screen.classList.add("oer-dissolve");
+  setTimeout(done, s.dissolveDelayMs + s.dissolveMs + 50);
+}
+/* core:end */
+
+/* settings:begin (the site's custom/src/loader/loader-settings.js) */
+const SITE_SETTINGS = {
+  "firstMs": 220,
+  "gapMs": 336,
+  "groupGapMs": 500,
+  "dropMs": 392,
+  "distance": 14,
+  "easing": [
+    0.2,
+    0.7,
+    0.2,
+    1
+  ],
+  "caretDelayMs": 60,
+  "blinkMs": 220,
+  "restMs": 330,
+  "fadeMs": 450,
+  "ready": "speed",
+  "finishMs": 700,
+  "maxSpeed": 4,
+  "holdMs": 150,
+  "figureFadeMs": 350,
+  "dissolveDelayMs": 150,
+  "dissolveMs": 550
+};
+/* settings:end */
+
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const sec = (ms) => `${(ms / 1000).toFixed(ms < 10000 ? 2 : 1)} s`;
+  let state = clone(SITE_SETTINGS);
+  let unsaved = false;
+
+  // the preview always animates (the site's still figure for reduced motion
+  // is the reduced-motion rule, left out here)
+  const figure = { ...FIGURE, css: FIGURE.css.replace(/@media \(prefers-reduced-motion:reduce\)\{[\s\S]*\}\}\s*$/, "") };
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) $("motion-note").hidden = false;
+
+  function say(text, kind = "") {
+    $("status").textContent = text;
+    $("status").className = `status ${kind}`;
+  }
+
+  /* ---------- settings ---------- */
+  const EASINGS = [
+    ["Settle (site)", [0.2, 0.7, 0.2, 1]],
+    ["Ease out", [0, 0, 0.2, 1]],
+    ["Soft", [0.4, 0, 0.2, 1]],
+    ["Spring", [0.34, 1.56, 0.64, 1]],
+    ["Linear", [0, 0, 1, 1]],
+  ];
+  const ms = (v) => `${Math.round(v)} ms`;
+  const GROUPS = [
+    {
+      title: "Build",
+      note: "Each layer drops onto the page; layers in a group come closer together.",
+      rows: [
+        { key: "firstMs", label: "First layer after", min: 0, max: 800, step: 10, fmt: ms },
+        { key: "gapMs", label: "Between layers", min: 40, max: 700, step: 4, fmt: ms },
+        { key: "groupGapMs", label: "Between groups", min: 40, max: 1000, step: 10, fmt: ms },
+        { key: "dropMs", label: "Each drop takes", min: 80, max: 1000, step: 4, fmt: ms },
+        { key: "distance", label: "Drop height", min: 0, max: 40, step: 1, fmt: (v) => `${v} units` },
+        { type: "easing" },
+      ],
+    },
+    {
+      title: "Built page",
+      note: "The caret blinks once and stays: the page is built. Still loading, it rests, fades and builds again.",
+      rows: [
+        { key: "caretDelayMs", label: "Caret after last layer", min: 0, max: 800, step: 10, fmt: ms },
+        { key: "blinkMs", label: "Caret blink", min: 0, max: 500, step: 10, fmt: (v) => (v ? ms(v) : "No blink") },
+        { key: "restMs", label: "Rest while loading", min: 0, max: 2000, step: 10, fmt: ms },
+        { key: "fadeMs", label: "Fade before the next loop", min: 100, max: 1500, step: 10, fmt: ms },
+      ],
+    },
+    {
+      title: "When the page is ready",
+      rows: [
+        { type: "mode" },
+        { key: "finishMs", label: "Built within", min: 100, max: 3000, step: 50, fmt: ms, off: (s) => s.ready === "play" },
+        { key: "maxSpeed", label: "Top speed", min: 1, max: 10, step: 0.5, fmt: (v) => `×${v}`, off: (s) => s.ready !== "speed" },
+        { key: "holdMs", label: "Pause on the built page", min: 0, max: 1000, step: 10, fmt: ms },
+      ],
+    },
+    {
+      title: "Dissolve",
+      note: "The figure and its words fade, then the screen melts into the page.",
+      rows: [
+        { key: "figureFadeMs", label: "Figure fades over", min: 0, max: 1200, step: 10, fmt: ms },
+        { key: "dissolveDelayMs", label: "Screen waits", min: 0, max: 800, step: 10, fmt: ms },
+        { key: "dissolveMs", label: "Screen fades over", min: 100, max: 1500, step: 10, fmt: ms },
+      ],
+    },
+  ];
+  const MODES = [
+    ["speed", "Speed up", "Plays what's left faster, up to the top speed, to be built within the time below."],
+    ["skip", "Skip ahead", "Jumps to that long before the page is built and plays on; layers before the jump appear at once."],
+    ["play", "Play out", "Plays out at its own pace: up to a whole loop's wait."],
+  ];
+
+  function curvePath(e) {
+    const [x1, y1, x2, y2] = e;
+    const X = (x) => 8 + x * 56;
+    const Y = (y) => 64 - y * 48;
+    return `M${X(0)} ${Y(0)} C${X(x1)} ${Y(y1)} ${X(x2)} ${Y(y2)} ${X(1)} ${Y(1)}`;
+  }
+
+  function renderSettings() {
+    const el = $("settings");
+    el.innerHTML = "";
+    for (const g of GROUPS) {
+      if (g !== GROUPS[0]) el.append(document.createElement("hr"));
+      const fs = document.createElement("fieldset");
+      fs.innerHTML = `<legend>${g.title}</legend>${g.note ? `<p class="note">${g.note}</p>` : ""}`;
+      for (const r of g.rows) {
+        if (r.type === "easing") {
+          const preset = EASINGS.find(([, v]) => v.join() === state.easing.join());
+          const row = document.createElement("div");
+          row.className = "row";
+          row.innerHTML = `<div class="lab"><label for="easing">Drop easing</label></div>
+            <div class="easing">
+              <svg viewBox="0 0 72 72" aria-hidden="true"><path d="M8 64 L64 16" stroke="var(--line)" stroke-dasharray="3 3" fill="none"/><path id="curve" d="${curvePath(state.easing)}" stroke="var(--accent)" stroke-width="2" fill="none"/></svg>
+              <div class="pick">
+                <select id="easing">${EASINGS.map(([n], i) => `<option value="${i}" ${preset && preset[0] === n ? "selected" : ""}>${n}</option>`).join("")}<option value="custom" ${preset ? "" : "selected"}>Custom</option></select>
+                <div class="xy" role="group" aria-label="Curve points">${state.easing
+                  .map((v, i) => `<input type="number" step="0.01" min="${i % 2 ? -1 : 0}" max="${i % 2 ? 2 : 1}" value="${v}" id="ease-${i}" aria-label="${["x1", "y1", "x2", "y2"][i]}" />`)
+                  .join("")}</div>
+              </div>
+            </div>`;
+          fs.append(row);
+          row.querySelector("select").addEventListener("change", (e) => {
+            if (e.target.value === "custom") return;
+            state.easing = [...EASINGS[+e.target.value][1]];
+            changed(true);
+            renderSettings();
+          });
+          row.querySelectorAll(".xy input").forEach((inp, i) =>
+            inp.addEventListener("change", () => {
+              const v = Number(inp.value);
+              if (!Number.isFinite(v)) return;
+              state.easing[i] = i % 2 ? Math.min(2, Math.max(-1, v)) : Math.min(1, Math.max(0, v));
+              changed(true);
+              renderSettings();
+            }),
+          );
+          continue;
+        }
+        if (r.type === "mode") {
+          const row = document.createElement("div");
+          row.className = "row";
+          const hint = MODES.find(([v]) => v === state.ready)?.[2] || "";
+          row.innerHTML = `<div class="seg" role="group" aria-label="When the page is ready">${MODES.map(
+            ([v, label]) => `<button type="button" data-mode="${v}" aria-pressed="${state.ready === v}">${label}</button>`,
+          ).join("")}</div><p class="note">${hint}</p>`;
+          row.querySelectorAll("button").forEach((b) =>
+            b.addEventListener("click", () => {
+              state.ready = b.dataset.mode;
+              changed(true);
+              renderSettings();
+              el.querySelector(`[data-mode="${state.ready}"]`)?.focus();
+            }),
+          );
+          fs.append(row);
+          continue;
+        }
+        const row = document.createElement("div");
+        row.className = `row${r.off?.(state) ? " off" : ""}`;
+        row.innerHTML = `<div class="lab"><label for="s-${r.key}">${r.label}</label><output for="s-${r.key}" id="o-${r.key}">${r.fmt(state[r.key])}</output></div>
+          <input type="range" id="s-${r.key}" min="${r.min}" max="${r.max}" step="${r.step}" value="${state[r.key]}" ${r.off?.(state) ? "disabled" : ""} />`;
+        const input = row.querySelector("input");
+        input.setAttribute("aria-valuetext", r.fmt(state[r.key]));
+        input.addEventListener("input", () => {
+          state[r.key] = Number(input.value);
+          $(`o-${r.key}`).textContent = r.fmt(state[r.key]);
+          input.setAttribute("aria-valuetext", r.fmt(state[r.key]));
+          changed(false);
+        });
+        input.addEventListener("change", () => changed(true));
+        fs.append(row);
+      }
+      el.append(fs);
+    }
+  }
+
+  // a setting moved: redraw the numbers now, and replay once it's let go
+  function changed(replay) {
+    unsaved = true;
+    $("json").value = JSON.stringify(state, null, 2);
+    renderTimeline();
+    renderWait();
+    if (replay) play();
+  }
+
+  /* ---------- the timeline of one loop ---------- */
+  const NAMES = { header: "header", line1: "line 1", line2: "line 2", line3: "line 3", image: "image", col1: "col 1", col2: "col 2", col3: "col 3", line4: "line 4", line5: "line 5" };
+  function renderTimeline() {
+    const T = timeline(state);
+    const at = (t) => `${(Math.min(t, T.cycle) / T.cycle) * 100}%`;
+    const span = (cls, a, b) => `<span class="${cls}" style="left:${at(a)};width:calc(${at(b)} - ${at(a)})"></span>`;
+    const rows = LAYER_GROUPS.flat().map((n) => {
+      const s = T.starts[n];
+      return `<div class="name">${NAMES[n]}</div><div class="track">${span("present", s + state.dropMs, T.fadeAt)}${span("fade", T.fadeAt, T.cycle)}${span("drop", s, s + state.dropMs)}</div>`;
+    });
+    const on = state.blinkMs
+      ? span("on", T.caretOn, T.caretOn + state.blinkMs) + span("on", T.caretOn + 2 * state.blinkMs, T.fadeAt)
+      : span("on", T.caretOn, T.fadeAt);
+    rows.push(`<div class="name">caret</div><div class="track">${on}${span("fade", T.fadeAt, T.cycle)}</div>`);
+    const step = T.cycle > 4000 ? 1000 : 500;
+    let ticks = "";
+    for (let t = 0; t <= T.cycle; t += step) ticks += `<span class="tick" style="left:${at(t)}">${(t / 1000).toFixed(step < 1000 ? 1 : 0)}s</span>`;
+    rows.push(`<div></div><div class="axis">${ticks}</div>`);
+    $("tl").innerHTML = rows.join("");
+    $("loop-chips").innerHTML = `<span class="chip">built at <b class="num">${sec(T.built)}</b></span><span class="chip">one loop <b class="num">${sec(T.cycle)}</b></span>`;
+    placeMarker($("m-built"), T.built);
+    placeMarker($("m-loop"), T.fadeAt);
+  }
+  // markers sit over the tracks (the name column is 4.5em + 10px)
+  function placeMarker(el, t) {
+    const T = timeline(state);
+    el.style.left = `calc(4.5em + 10px + (100% - 4.5em - 10px) * ${Math.min(t, T.cycle) / T.cycle})`;
+  }
+
+  /* ---------- the wait table ---------- */
+  function renderWait() {
+    const T = timeline(state);
+    const rows = [300, 800, 1500, 3000, 6000].map((ready) => {
+      const r = revealTimes(ready, state);
+      const pct = Math.min(100, (r.fading / Math.max(T.cycle, 1)) * 100);
+      const cls = r.fading <= 1000 ? "good" : r.fading <= 2000 ? "fair" : "slow";
+      return `<tr><td class="n">${sec(ready)}</td><td class="n">${sec(ready + r.fading)}</td><td class="n">+${sec(r.fading)}</td><td><div class="waitbar"><span class="${cls}" style="width:${pct}%"></span></div></td></tr>`;
+    });
+    $("wait").innerHTML = rows.join("");
+  }
+
+  /* ---------- the preview run ---------- */
+  let run = null;
+  let runId = 0;
+  function stopRun() {
+    if (!run) return;
+    run.fig.stop();
+    run.timers.forEach(clearTimeout);
+    cancelAnimationFrame(run.frame);
+    run = null;
+  }
+  function play() {
+    stopRun();
+    const id = ++runId;
+    const screen = $("screen");
+    screen.classList.remove("oer-dissolve");
+    screen.hidden = false;
+    $("figure").toggleAttribute("dark", $("stage").dataset.scheme === "dark");
+    const settings = clone(state);
+    const fig = drawFigure($("figure"), figure, settings);
+    run = { id, fig, t0: performance.now(), timers: [], frame: 0, settings };
+    $("m-ready").hidden = true;
+    $("m-head").hidden = false;
+    $("ready-now").disabled = !$("manual").checked;
+    report();
+    if (!$("manual").checked) run.timers.push(setTimeout(() => ready(id), Number($("load").value) * 1000));
+    const tick = () => {
+      if (!run || run.id !== id) return;
+      const T = timeline(run.settings);
+      placeMarker($("m-head"), fig.time() % T.cycle);
+      if (!run.readyAt) report();
+      run.frame = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+  function ready(id) {
+    if (!run || run.id !== id || run.readyAt != null) return;
+    const s = run.settings;
+    const T = timeline(s);
+    const t = run.fig.time();
+    run.readyAt = performance.now() - run.t0;
+    run.plan = readyPlan(t, s);
+    run.readyPhase = t % T.cycle;
+    $("ready-now").disabled = true;
+    $("m-ready").hidden = false;
+    placeMarker($("m-ready"), run.readyPhase);
+    report();
+    run.fig.finish(() => {
+      if (!run || run.id !== id) return;
+      run.fadingAt = performance.now() - run.t0 + s.dissolveDelayMs;
+      report();
+      dissolve($("screen"), s, () => {
+        if (!run || run.id !== id) return;
+        $("screen").hidden = true;
+        run.goneAt = performance.now() - run.t0;
+        $("m-head").hidden = true;
+        cancelAnimationFrame(run.frame);
+        report();
+        if ($("repeat").checked) run.timers.push(setTimeout(() => run && run.id === id && play(), 1400));
+      });
+    });
+  }
+  function report() {
+    const out = $("result");
+    if (!run) return;
+    const s = run.settings;
+    const parts = [];
+    if (run.readyAt == null) {
+      parts.push(`Loading… <span class="num">${sec(performance.now() - run.t0)}</span>`);
+    } else {
+      const p = run.plan;
+      const how = p.waitMs === 0 ? "already built" : p.skipTo != null ? "skipped ahead" : p.rate > 1.01 ? `sped up ×${p.rate.toFixed(1)}` : "played out";
+      parts.push(`Ready at <span class="num">${sec(run.readyAt)}</span>`);
+      parts.push(`built at <span class="num">${sec(run.readyAt + p.waitMs)}</span> (${how})`);
+      parts.push(run.fadingAt != null ? `page shows at <span class="num">${sec(run.fadingAt)}</span>` : `page shows at <span class="num">${sec(run.readyAt + p.waitMs + s.holdMs + s.dissolveDelayMs)}</span>`);
+      if (run.goneAt != null) parts.push(`screen gone at <span class="num">${sec(run.goneAt)}</span>`);
+    }
+    out.innerHTML = parts.map((x) => `<span class="step">${x}</span>`).join('<span class="sep">·</span>');
+  }
+
+  /* ---------- wiring ---------- */
+  $("play").addEventListener("click", play);
+  $("ready-now").addEventListener("click", () => run && ready(run.id));
+  $("manual").addEventListener("change", () => {
+    if (run && run.readyAt == null) $("ready-now").disabled = !$("manual").checked;
+  });
+  $("load").addEventListener("input", () => ($("load-out").textContent = `${Number($("load").value).toFixed(1)} s`));
+  $("load").addEventListener("change", play);
+  document.querySelectorAll("[data-scheme]").forEach((b) => {
+    if (b.tagName !== "BUTTON") return;
+    b.addEventListener("click", () => {
+      $("stage").dataset.scheme = b.dataset.scheme;
+      document.querySelectorAll("button[data-scheme]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      play();
+    });
+  });
+  $("reset").addEventListener("click", () => {
+    state = clone(SITE_SETTINGS);
+    renderSettings();
+    changed(true);
+    unsaved = false;
+    say("Back to the values on the site now.");
+  });
+  $("copy").addEventListener("click", async () => {
+    const text = JSON.stringify(state, null, 2);
+    $("json").value = text;
+    try {
+      await navigator.clipboard.writeText(text);
+      say("Copied the settings as JSON.", "ok");
+    } catch {
+      $("json-box").open = true;
+      $("json").focus();
+      $("json").select();
+      say("Copying was blocked here: the JSON is selected below, copy it with ⌘C.");
+    }
+  });
+
+  /* ---------- saving for Claude (the artifact's db) ---------- */
+  let db = null;
+  const DOC = "config/loader";
+  async function connect() {
+    try {
+      db = window.claude && window.claude.use ? await window.claude.use("db") : null;
+    } catch {
+      db = null;
+    }
+    if (!db) {
+      say("Saving works in the claude.ai copy of this tool. Here, use Copy JSON.");
+      return;
+    }
+    $("save").disabled = false;
+    try {
+      const snap = await db.doc(DOC).get();
+      const saved = snap.exists ? snap.data() : null;
+      if (saved && saved.settings) {
+        for (const k of Object.keys(SITE_SETTINGS)) if (saved.settings[k] !== undefined) state[k] = clone(saved.settings[k]);
+        renderSettings();
+        changed(true);
+        unsaved = false;
+        const when = saved.savedAt ? new Date(saved.savedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "";
+        say(`Loaded your saved settings${when ? " from " + when : ""}.`);
+      } else {
+        say("Starting from the values on the site now. Save when it feels right.");
+      }
+    } catch {
+      say("Couldn't load saved settings; starting from the site's values.", "err");
+    }
+  }
+  $("save").addEventListener("click", async () => {
+    if (!db) return;
+    $("save").disabled = true;
+    try {
+      await db.doc(DOC).set({ settings: clone(state), savedAt: new Date().toISOString() });
+      unsaved = false;
+      say(`Saved at ${new Date().toLocaleTimeString([], { timeStyle: "short" })}. Tell Claude to apply them.`, "ok");
+    } catch (err) {
+      say(err && err.code === "not_granted" ? "You can try settings here but not save them." : "Saving failed; try again, or use Copy JSON.", "err");
+    } finally {
+      $("save").disabled = false;
+    }
+  });
+  addEventListener("beforeunload", (e) => {
+    if (unsaved && db) e.preventDefault();
+  });
+
+  renderSettings();
+  $("json").value = JSON.stringify(state, null, 2);
+  renderTimeline();
+  renderWait();
+  play();
+  connect();
+})();
+</script>
+</body>
+</html>
