@@ -41,6 +41,7 @@ These quietly change saved content, so they come first.
   - A three-row move in an outline tool re-saved 118 pages.
 - **Related, same cause:**
   - **New pages land mid-list.** Every add-page path takes `order` from the rank-numbered store: Merlin's create-page (`haxcms-site-editor-ui.js:1561-1568`), `haxcms-button-add.js:170-178`, `getLastChildItem` (`haxcms-site-store.js:1101-1114`) and `movePageUnderParent` (1644-1652). With gapped stored orders, a new last page lands in the middle of its siblings.
+  - **Saving a page in the editor moves it.** `haxcms-site-editor` `saveNode` serializes the page with `activeHaxBody.haxToContent()`, which writes the page-break's `order` from the store's renumbered item. The server writes that order (`saveNode.js:193-194`), so an ordinary page save can move the page among its siblings. Seen 2026-10-08: a save moved a page from stored order 49 to 38.
   - **Rank 0 counts as "no order".** `if (item2.order)` (`haxcms-site-editor-ui.js:1567`, `haxcms-button-add.js:176`) is false for rank 0, so a second child can also get 0.
   - **Server defaults:**
     - `saveOutline` gives an item without `order` its index in the posted array (`saveOutline.js:87-91`).
@@ -52,6 +53,7 @@ These quietly change saved content, so they come first.
 - **Our workaround:**
   - `custom/src/outline/outline-order.js` turns ranks back into stored numbers before every save, and moves only the siblings it has to.
   - `createPage` uses the stored maximum + 1.
+  - Page saves: the theme's capture listener on `haxcms-save-node` wraps that save's `haxToContent` once and puts site.json's stored order in the page-break (`custom-oer-docs-theme.js` `__beforeSave`).
   - The outline builder numbers each parent's children together with the pages it doesn't show.
   - Check: `node scripts/check-outline-order.mjs`.
 
