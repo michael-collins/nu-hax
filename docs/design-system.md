@@ -61,10 +61,13 @@ Each is a Lit component with its styles in its shadow root. Reuse these before w
 |---|---|---|
 | Button | per component (`.btn`, `.btn.primary/.outline/.ghost`, `.icon-btn`) | Heights 2.25rem (dialogs), 2rem (toolbars, sidebar). Primary once per view. |
 | Form controls | `ui/form-controls.js` | Checkbox (with indeterminate), Radio, Select trigger, Input/Textarea focus ring, placeholder, disabled, invalid, Slider accent. Add `formControls` first in `static get styles()`. |
-| Switch | `ui/oer-reader.js` (`.switch`), the course page's Course site switch (`.site-switch`), outline builder | A `button` with `role="switch"` and `aria-checked`, its visible label a `<label for>` so clicking the words toggles it too. While it saves, show the new state with "Turning on…" and `aria-disabled`. |
+| Switch | `ui/oer-reader.js` (`.switch`), the Course site card on course pages (`types/oer-page-header.js`), outline builder | A `button` with `role="switch"` and `aria-checked`, labelled by the visible words beside it. While it saves, show the new state with "Turning on…" and `aria-disabled`. |
+| Image field | `ui/oer-image-field.js` | Every image field: a preview, Upload (or drop a file), Choose from site (HAX's file list), Use an address, and the image's description (alt text) beside it, saved to the type's `<name>Alt` field. Says so when an image can't be found. |
+| Sectioned dialog | `types/oer-page-details.js` | A large dialog with its sections as a vertical tab list on the left (arrow keys move between them) and the open section on the right; a horizontal row on narrow screens. Use it when one thing has several kinds of settings and views. |
 | Segmented control | `.seg` / `.tabs` in several components | Track `--muted`, pressed item `--background`. |
 | Chip, badge | `.type-chip`, `.draft`, `.listed`, `.bc-status` | Pills, 0.6875–0.8125rem; status colours meet AA. |
 | Callout | New page summary (`.summary`) | Info: primary-tinted with an info icon. Use for "what will happen". |
+| Side sheet | `ui/oer-site-style.js` | A non-modal panel at the right for choices that preview live on the page behind it (Esc or Cancel puts it back). |
 | Dialog | `ui/oer-new-page.js`, `ui/oer-browse.js` | Native `<dialog>` with `showModal()`: focus stays inside, Esc closes, click outside closes. Header (title, one-line subtitle, close), scrolling body, footer with actions on the right. |
 | Menu | page menu and account menu in the theme | `role="menu"`, arrow keys, Esc returns focus. |
 | Table | `blocks/oer-collection.js` | Columns, sorting, filters, cards view, selection with a bulk bar. |
@@ -81,14 +84,20 @@ HAX's own components (its editor bar, tray, dialogs) get the same look from `edi
 - **Navigation editing.** Edit navigation shows exactly the sidebar (`oer-outline-builder` in navigation mode), with counts for what collections hold. The every-page tree is Site → Page tree.
 - **Bulk actions.** Select rows, then a bar appears with the actions and a confirmation that says exactly what changes ("Publish 58 drafts? Readers will see them.").
 - **Drafts.** New pages start as drafts. Draft blocks (`oer-draft`) hold text for review; publishing can release it. Readers never see drafts, on the editing site or the published copy.
+- **Page menu** (the caret beside a page's title): Edit content, Page details, Embed…, Versions…, Publish or Unpublish, Lock page, Delete page…. Everything else about a page lives in **Page details**: General (title, address, icon, type, description, tags), the type's details, Media, Structure, History and Report. Add new page settings there, not to the menu.
 - **Destructive actions** say how many things they affect, before they happen.
 - **Deleting pages** (`versions/versioning.js` `deletionPlan`, used by Delete page…, Browse pages and the outline builders): sub-pages go with the page; its versions nothing else uses go too unless the author unticks "Also delete its versions"; versions something uses stay, moved to where the page was with their address, and the dialog says what uses them. Browse pages → Orphaned versions lists versions whose page is gone, marked Unused or In use. Never delete a page with HAX's own delete, which leaves its versions behind.
-- **Course sites.** One per course at `/<course code>` (`types/course-site.js`, `blocks/oer-course-site.js`): a full-width microsite that pitches the course. Because there's only ever one, it's switched on and off (the Course site switch on the course page, and in the site's own bar), not created: on publishes it (making it the first time), off unpublishes it and keeps what it says. It isn't offered in New page. Facts, the semester and projects come from the course and its plan; the site's fields hold the pitch. It uses the same tokens and components with a larger type scale (hero up to 3.75rem), wide sections (72rem) and generous spacing; it scrolls in its own frame. Sections with nothing to show are left out for readers and say what to add for authors.
+- **Course sites.** One per course at `/<campus>/<code>` (`/up/dart-413`, `/wc/dmd-100`; `types/course-site.js`): a full-width microsite that pitches the course. Because there's only ever one, it's switched on and off from the Course site card on the course page, not created: on publishes it (making it the first time, with the standard sections), off unpublishes it and keeps what it says. It isn't offered in New page.
+  - **Made of section blocks** (`blocks/course-site/cs-sections.js`): hero, facts, what you'll learn, the semester, what you'll make, who teaches it, tools, questions, ready to start. Generated sections draw from the course and its plan; written ones hold what the author types inside them, shown arranged for readers (a list becomes cards or chips, headings and answers an accordion). Any block can go between sections. Sections are full width (`100cqw` of the theme's `<main>`, which is a container on course sites); other blocks keep a readable width.
+  - **Edit content edits it in place**, at the same width and in the same style, so it looks as readers will see it. Written sections show a dashed box to type in, with a line saying how it will be used. Empty sections tell authors what to add and disappear for readers.
+  - **Style** (`types/course-site-style.js`, the bar's Style panel): a colour scheme (all AA in light and dark) or a custom accent, adjusted until it passes, and a typeface pairing from Google Fonts. It's page metadata (`oerSiteStyle`) turned into custom properties (`--primary`, `--link`, `--ring`, `--cs-font-display`…) on the course site's `<main>`.
+  - The frame (`blocks/oer-course-site.js`) is the bar (sections, Enroll; Edit content, Edit details, Style for authors), the "off" notice and the footer, with light/dark mode. Facts, the semester and projects come from the course and its plan; the site's fields hold the pitch. It uses the same tokens and components with a larger type scale (hero up to 3.75rem), wide sections (72rem) and generous spacing; it scrolls in its own frame. Sections with nothing to show are left out for readers and say what to add for authors.
 - **Colour mixes** with `--primary` use `color-mix(in oklab, …)`: in `oklch`, mixing with white or black swings the hue (pale blue turned pink).
 - **Loading.** The loading screen builds a page (timing in `loader/loader-settings.js`, tuned with nu-hax `tools/loader-tuner.html`).
 
 ## Writing
 
+- **Edit content** is the action that opens the editor on a page's content (not "Edit page"); **Page details** is everything else about it.
 - **Name things by what people see.** "Address", not "slug"; "type", not "pageType"; "the navigation", not "the outline"; "draft" and "published".
 - **Sentence case** for everything: titles, buttons, labels.
 - **Buttons say what happens:** "Create and edit", "Publish 58", "Save outline". Not "OK" or "Submit".
@@ -123,7 +132,7 @@ The site's types (`types/content-types.js`, edited in Site → Content types) an
 
 - **Course materials:** Lesson, Lecture, Tutorial, Article, Resource.
 - **Assessed work:** Exercise, Reflection, Project, Activity (a step in a project), Quiz, Rubric.
-- **Courses and pathways:** Course, Course site (switched on from its course, not added), Course sequence, Pathway, Unit, Book, Specialization.
+- **Courses and pathways:** Course (with its Campus and Degree programs: the same code at two campuses is two course pages), Course site (switched on from its course, not added), Course sequence, Pathway, Unit, Book, Specialization.
 - **Site structure:** Section; Heading (navigation labels, added in Edit navigation).
 
 Add a type only when it needs its own fields or behaviour; a different genre with the same fields is a candidate for a "kind" instead (see the type consolidation sketch). A new type needs: its definition (fields, icon, description), a home page if it's listed (`HOME_TITLES`), a group (`TYPE_GROUPS`), and, if it's assessed, its place in sequences and the Canvas import (`lms/`).
