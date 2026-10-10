@@ -110,8 +110,11 @@ function waitUntil(value) {
   return all.includes("load") ? "load" : "domcontentloaded";
 }
 
+// the caret left as it is, as puppeteer's: Playwright hides it by setting
+// caret-color on every contenteditable and leaves style="" behind, which
+// changes the content being edited (and HAX's undo steps, and what's saved)
 function screenshotOptions({ path, type, quality, fullPage, clip, omitBackground } = {}) {
-  return { path, type, quality, fullPage, clip, omitBackground };
+  return { path, type, quality, fullPage, clip, omitBackground, caret: "initial" };
 }
 
 /** A JSHandle or ElementHandle, with puppeteer's spread arguments. */

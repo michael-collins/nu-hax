@@ -14,7 +14,7 @@
 // failing part doesn't hide the others. The sessions that save come last,
 // since they change the copy.
 import path from "node:path";
-import { readBaseline, newViolations } from "../lib/axe.mjs";
+import { readBaseline, newViolations, baselineFile } from "../lib/axe.mjs";
 
 const SITE = "/up/dart-413";
 const HUB = "/oer-courses";
@@ -52,9 +52,13 @@ export default async function stopgaps(ctx) {
   // whether the caret (or the selection's start) is inside el
   const caretIn = (el) =>
     el.evaluate((f) => {
-      const sel = f.getRootNode().getSelection?.() || getSelection();
+      const sel = __ec.selectionNodes(f);
       return !!sel.anchorNode && f.contains(sel.anchorNode);
     });
+  // the caret at the start or the end of el's text (on a Mac, Home and End
+  // scroll the page in Firefox and WebKit, as in Firefox and Safari there)
+  const caretAtStart = (el) => el.evaluate((p) => __ec.select(p, 0));
+  const caretAtEnd = (el) => el.evaluate((p) => __ec.select(p, p.childNodes.length));
   // the rail: its menu's items as "Label" or "Label (off: reason)"
   const railMenu = () =>
     page.evaluate(() =>
@@ -109,7 +113,7 @@ export default async function stopgaps(ctx) {
     for (const b of (await list.getProperties()).values()) names.push((await page.accessibility.snapshot({ root: b.asElement(), interestingOnly: false }))?.name || "");
     return names;
   };
-  const baseline = readBaseline(new URL("../axe-baseline.json", import.meta.url).pathname);
+  const baseline = readBaseline(baselineFile(ctx.engine));
   const compareAxe = async (pagePath, view) => {
     if (!baseline) return check(`${pagePath} ${view}: no new axe violations`, false, "No WP-00 baseline yet: run the smoke check first");
     const result = await ctx.axe();
@@ -173,6 +177,8 @@ export default async function stopgaps(ctx) {
     await ctx.sleep(500);
     const quiet = await page.evaluate(() => ({ editing: !!__ec.store().editMode, dialog: !!__ec.openDialog() }));
     check("Exit with no changes leaves at once", !quiet.editing && !quiet.dialog, json(quiet));
+    // when it asked anyway, the question mustn't cover the parts after this
+    if (quiet.dialog) await ctx.exitEdit({ discard: true });
     await ctx.enterEdit();
   });
 
@@ -192,14 +198,16 @@ export default async function stopgaps(ctx) {
     check("Backspace in an empty section keeps the section and its list", json(await sectionTags()) === json(before) && /<ul>\s*<li>/.test(learn), learn.slice(0, 90));
     // the start of the tagline, and the end of the last answer
     const hero = await outer("oer-cs-hero");
-    await ctx.clickAt(await field("oer-cs-hero > p"));
-    await ctx.press("Home");
+    const tagline = await field("oer-cs-hero > p");
+    await ctx.clickAt(tagline);
+    await caretAtStart(tagline);
     await ctx.press("Backspace");
     await ctx.press("Backspace");
-    await ctx.clickAt(await field("oer-cs-faq > p:last-of-type"));
+    const answer = await field("oer-cs-faq > p:last-of-type");
+    await ctx.clickAt(answer);
     await ctx.type("Yes");
     const faq = await outer("oer-cs-faq");
-    await ctx.press("End");
+    await caretAtEnd(answer);
     await ctx.press("Delete");
     await ctx.press("Delete");
     await ctx.sleep(300);
@@ -216,11 +224,13 @@ export default async function stopgaps(ctx) {
     await ctx.sleep(300);
     const around = async () => ({ sections: await sectionTags(), people: await outer("oer-cs-people"), tools: await outer("oer-cs-tools"), faq: await outer("oer-cs-faq") });
     const typed = await around();
-    await ctx.clickAt(await field("oer-cs-faq > h3"));
-    await ctx.press("Home");
+    const question = await field("oer-cs-faq > h3");
+    await ctx.clickAt(question);
+    await caretAtStart(question);
     await ctx.press("Backspace");
-    await ctx.clickAt(await field("oer-cs-people > p"));
-    await ctx.press("End");
+    const note = await field("oer-cs-people > p");
+    await ctx.clickAt(note);
+    await caretAtEnd(note);
     await ctx.press("Delete");
     await ctx.press("Delete");
     await ctx.sleep(300);
@@ -233,8 +243,9 @@ export default async function stopgaps(ctx) {
   });
 
   await part("rail keys", async () => {
-    await ctx.clickAt(await field("oer-cs-hero > p"));
-    await ctx.press("End");
+    const tagline = await field("oer-cs-hero > p");
+    await ctx.clickAt(tagline);
+    await caretAtEnd(tagline);
     await ctx.type(" Design it on screen");
     await ctx.sleep(300);
     const before = await outer("oer-cs-hero");
@@ -254,7 +265,7 @@ export default async function stopgaps(ctx) {
     await ctx.sleep(200);
     const back = await page.evaluate(() => {
       const p = __ec.haxBody().querySelector("oer-cs-hero > p");
-      const sel = p.getRootNode().getSelection?.() || getSelection();
+      const sel = __ec.selectionNodes(p);
       return { focus: __ec.describe(__ec.activeElement())?.path, caret: !!sel.anchorNode && p.contains(sel.anchorNode) };
     });
     check("…and Esc twice goes back to the hero's text", /hax-body$/.test(back.focus || "") && back.caret, json(back));
@@ -312,7 +323,13 @@ export default async function stopgaps(ctx) {
 
   await part("exit", async () => {
     const saved = ctx.savedHtml(SITE);
-    await ctx.clickAt(await ctx.control("Cancel"));
+    // WebKit, as Safari, doesn't focus a button that's clicked, so focus can
+    // only go back to Cancel when it was pressed from the keyboard
+    const cancel = await ctx.control("Cancel");
+    if (ctx.engine === "webkit") {
+      await cancel.focus();
+      await ctx.press("Enter");
+    } else await ctx.clickAt(cancel);
     await ctx.waitFor(() => !!__ec.openDialog(), { what: "the leave dialog", timeout: 5000 });
     const dialog = await page.evaluate(() => {
       const d = __ec.openDialog();
@@ -346,13 +363,7 @@ export default async function stopgaps(ctx) {
     await ctx.clickAt(heading);
     await ctx.sleep(300);
     // its words selected (headless Chrome on a Mac has no Mod+A in text)
-    await heading.evaluate((h) => {
-      const range = document.createRange();
-      range.selectNodeContents(h);
-      const sel = h.getRootNode().getSelection?.() || getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    });
+    await heading.evaluate((h) => __ec.select(h, 0, h, h.childNodes.length));
     await ctx.type("In the shop");
     await ctx.press("Enter");
     // HAX records an undo step 300 ms after the last change
@@ -630,7 +641,7 @@ export default async function stopgaps(ctx) {
     await ctx.sleep(400);
     const after = await page.evaluate(() => {
       const active = __ec.haxStore().activeNode;
-      const sel = active?.getRootNode().getSelection?.() || getSelection();
+      const sel = __ec.selectionNodes(active);
       return { focus: __ec.describe(__ec.activeElement())?.path, caret: !!sel.anchorNode && !!active?.contains(sel.anchorNode) };
     });
     check("Duplicate chosen from the rail by keyboard duplicates, and focus goes back to the text", (await count()) === before + 1 && /hax-body$/.test(after.focus || "") && after.caret, `${before} → ${await count()} paragraphs; ${json(after)}`);
@@ -641,14 +652,7 @@ export default async function stopgaps(ctx) {
     const text = () => page.evaluate(() => [...__ec.haxBody().querySelectorAll(":scope > p")].find((p) => p.textContent.trim().length > 20).textContent);
     const para = await handle(() => [...__ec.haxBody().querySelectorAll(":scope > p")].find((p) => p.textContent.trim().length > 20));
     await ctx.clickAt(para);
-    await para.evaluate((p) => {
-      const range = document.createRange();
-      range.selectNodeContents(p);
-      range.collapse(false);
-      const sel = p.getRootNode().getSelection?.() || getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    });
+    await caretAtEnd(para);
     const start = await text();
     // two undo steps (HAX records one 300 ms after the last change)
     await ctx.type(" One");
@@ -671,21 +675,14 @@ export default async function stopgaps(ctx) {
     const para = await handle(() => [...__ec.haxBody().querySelectorAll(":scope > p")].find((p) => p.textContent.trim().length > 20));
     await ctx.clickAt(para);
     // the end of the paragraph (End goes to the end of its line)
-    await para.evaluate((p) => {
-      const range = document.createRange();
-      range.selectNodeContents(p);
-      range.collapse(false);
-      const sel = p.getRootNode().getSelection?.() || getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    });
+    await caretAtEnd(para);
     await ctx.type(" Edited by the check.");
     await ctx.press("Enter");
     // HAX puts the caret in the new paragraph a moment after making it:
     // typed sooner, its first letter ends up last (as before these fixes)
     await ctx.waitFor(
       () => {
-        const sel = __ec.haxBody().getRootNode().getSelection();
+        const sel = __ec.selectionNodes(__ec.haxBody());
         const block = sel.anchorNode?.nodeType === 1 ? sel.anchorNode : sel.anchorNode?.parentElement;
         return block?.localName === "p" && !block.textContent.trim() && !!block.previousElementSibling?.textContent.endsWith("Edited by the check.");
       },
