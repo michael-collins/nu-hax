@@ -34,6 +34,14 @@ const toLab = (str) => {
 const MIXES = {
   // ui/oer-confirm.js .btn.destructive:hover
   "destructive-hover": ["destructive", "black", 12],
+  // information callouts: blocks/course-site/cs-shared.js .todo and .source
+  // (where a generated section's content comes from), ui/oer-new-page.js .summary
+  callout: ["primary", "background", 88],
+  // a callout's button's border (cs-shared.js .source .btn): --input-border
+  // is 2.85:1 on the callout's tint in light mode
+  "callout-control": ["input-border", "foreground", 20],
+  // a section of items' first Add cell (cs-sections.js .add-card.first, .add-chip.first, .add-row.first)
+  "add-first": ["primary", "background", 94],
 };
 for (const mode of ["light", "dark"]) {
   for (const [name, [base, other, share]] of Object.entries(MIXES)) {
@@ -95,6 +103,11 @@ const PAIRS = [
   ["input-border", "card", 3],
   ["input-border", "popover", 3],
   ["ring", "card", 3],
+  // an information callout's text and icon
+  ["foreground", "callout", 4.5],
+  ["primary", "callout", 3],
+  ["callout-control", "callout", 3],
+  ["foreground", "add-first", 4.5],
 ];
 
 let failures = 0;

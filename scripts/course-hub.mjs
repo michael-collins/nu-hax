@@ -16,6 +16,8 @@ const SITE = process.env.HAX_SITE || "learning-materials";
 const DRY = process.argv.includes("--dry-run");
 const HUB = "oer:course-hub";
 // mirrors COURSE_HUB_DEF and HUB_STARTER in custom/src/types/course-site.js
+// (the section and item model: no heading, so the intro shows the hub's own
+// until one is typed in it, scripts/course-site-structure.mjs)
 const DEF = {
   id: HUB,
   label: "Courses hub",

@@ -1,13 +1,16 @@
-// Smoke: the course site and the hub open for a signed-in author, who can
-// enter edit mode and leave it again without anything being saved. axe runs
-// on the reading and editing views of both. The first run (or a run with
+// Smoke: the course site, the hub and an ordinary page (a lesson, whose
+// theme rules every page shares) open for a signed-in author, who can enter
+// edit mode and leave it again without anything being saved. axe runs on the
+// reading and editing views of each. The first run (or a run with
 // --update-baseline) writes those counts to scripts/editor-check/axe-baseline.json (kept in git), the
 // baseline later checks compare against; other runs compare with it.
 import path from "node:path";
 import { writeFileSync } from "node:fs";
 import { countsOf, readBaseline, newViolations, AXE_VERSION, WCAG_AA } from "../lib/axe.mjs";
 
-const PAGES = ["/up/dart-413", "/oer-courses"];
+const PAGES = ["/up/dart-413", "/oer-courses", "/lessons/what-is-design"];
+// the pages drawn in the course-site frame
+const MICROSITES = ["/up/dart-413", "/oer-courses"];
 
 export default async function smoke(ctx) {
   const results = [];
@@ -17,6 +20,7 @@ export default async function smoke(ctx) {
 
   for (const pagePath of PAGES) {
     const shot = pagePath.replace(/^\//, "").replace(/\//g, "-");
+    const microsite = MICROSITES.includes(pagePath);
     const saved = ctx.savedHtml(pagePath);
 
     await ctx.open(pagePath);
@@ -27,7 +31,7 @@ export default async function smoke(ctx) {
     }));
     check(
       `${pagePath}: opens for a signed-in author`,
-      reading.signedIn && reading.frame && reading.blocks > 0,
+      reading.signedIn && reading.frame === microsite && reading.blocks > 0,
       `${reading.blocks} blocks, ${reading.frame ? "in" : "without"} the course-site frame${reading.signedIn ? "" : ", signed out"}`,
     );
     await ctx.screenshot(`${shot}-reading`);
@@ -41,7 +45,7 @@ export default async function smoke(ctx) {
 
     await ctx.exitEdit();
     const after = await ctx.page.evaluate(() => ({ editMode: !!__ec.store().editMode, frame: !!__ec.theme().shadowRoot.querySelector("oer-course-site") }));
-    check(`${pagePath}: leaves edit mode`, !after.editMode && after.frame, after.frame ? "back in the reading view" : "the course-site frame didn't come back");
+    check(`${pagePath}: leaves edit mode`, !after.editMode && after.frame === microsite, after.frame === microsite ? "back in the reading view" : "the course-site frame didn't come back");
     check(`${pagePath}: leaving without saving changes nothing on disk`, ctx.savedHtml(pagePath) === saved);
 
     axe[pagePath] = { reading: readingAxe, editing: editingAxe };

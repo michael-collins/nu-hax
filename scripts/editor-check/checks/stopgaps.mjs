@@ -13,6 +13,15 @@
 // mode is most of the time), and each records its own failure, so one
 // failing part doesn't hide the others. The sessions that save come last,
 // since they change the copy.
+//
+// The section model (WP-07) replaced what some parts tested on the old
+// one, so they test the same thing on the new: the typing boxes are gone
+// (a click on an empty field itself puts the caret in it), headings are
+// typed in the section's own h2 (not a heading attribute in its shadow
+// DOM), What you'll learn holds outcomes (not a list), and a section is
+// selected by a click on its own padding. Since WP-08 the tools and the
+// questions are items too (a tool's p, a question's h3 and answer), and the
+// hero's image field opens from Change image on its picture.
 import path from "node:path";
 import { readBaseline, newViolations } from "../lib/axe.mjs";
 
@@ -78,13 +87,17 @@ export default async function stopgaps(ctx) {
     if (!item.asElement()) throw new Error(`The rail's Block menu has no ${label}`);
     await ctx.clickAt(item);
   };
-  // select a section as a whole, by its own (shadow) part above the typing box
+  // select a section as a whole, by a click on its own padding, above what's in it
   const selectSection = async (tag) => {
-    const spot = await handle((tag) => {
+    const spot = await page.evaluate(async (tag) => {
       const s = __ec.haxBody().querySelector(tag);
-      return s.shadowRoot.querySelector(".typing-hint, h2, h1, .wrap") || s;
+      // (its top in view: a tall section's heading in the middle)
+      (s.querySelector(":scope > h1, :scope > h2") || s).scrollIntoView({ block: "center" });
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const r = s.getBoundingClientRect();
+      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 12) };
     }, tag);
-    await ctx.clickAt(spot, { covered: true });
+    await ctx.clickAt(spot);
     await ctx.waitFor((tag) => __ec.haxStore().activeNode?.localName === tag, { args: [tag], what: `${tag} to be selected`, timeout: 5000 });
     await ctx.sleep(150);
   };
@@ -127,26 +140,21 @@ export default async function stopgaps(ctx) {
       const b = r.getBoundingClientRect();
       return { x: b.left + b.width / 2, y: b.top + b.height / 2, word: m[0] };
     }, n);
-  // a click in a typing box's own padding, below its empty field, puts the
-  // caret in the field; typing fills it
-  const typeInBox = async (tag, selector, label) => {
+  // a click on an empty field, where the section shows what goes there,
+  // puts the caret in the field; typing fills it
+  const typeInField = async (tag, selector, label) => {
     const el = await field(`${tag} > ${selector}`);
     if (!el.asElement()) throw new Error(`No ${tag} > ${selector}`);
-    const height = await el.evaluate((f) => f.getBoundingClientRect().height);
-    const area = await handle((tag) => __ec.haxBody().querySelector(tag).shadowRoot.querySelector(".typing-area"), tag);
-    await area.evaluate((a) => a.scrollIntoView({ block: "center" }));
+    await el.evaluate((f) => f.scrollIntoView({ block: "center" }));
     await ctx.frames();
-    const point = await area.evaluate((a) => {
-      const r = a.getBoundingClientRect();
-      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.bottom - 4) };
-    });
-    await ctx.clickAt(point);
+    const height = await el.evaluate((f) => f.getBoundingClientRect().height);
+    await ctx.clickAt(el);
     await ctx.sleep(250);
     const inside = await caretIn(el);
     await ctx.type("Hello");
     await ctx.sleep(250);
     const text = await el.evaluate((f) => f.textContent);
-    check(`${label}: clicking its empty box puts the caret in its ${selector}`, inside, `${selector} ${Math.round(height)}px tall; caret ${inside ? "inside" : `at ${json((await ctx.selection()).anchor)}`}`);
+    check(`${label}: clicking its empty field puts the caret in its ${selector}`, inside, `${selector} ${Math.round(height)}px tall; caret ${inside ? "inside" : `at ${json((await ctx.selection()).anchor)}`}`);
     check(`${label}: typing fills it`, text === "Hello", `“${text}”`);
   };
 
@@ -177,26 +185,28 @@ export default async function stopgaps(ctx) {
   });
 
   await part("typing", async () => {
-    await typeInBox("oer-cs-hero", "p", "Hero tagline");
-    await typeInBox("oer-cs-people", "p", "Instructor's note");
-    await typeInBox("oer-cs-faq", "h3", "First question");
+    await typeInField("oer-cs-hero", "p", "Hero tagline");
+    await typeInField("oer-cs-people", "p", "Instructor's note");
+    await typeInField("oer-cs-faq oer-cs-question", "h3", "First question");
   });
 
   await part("edges", async () => {
     const before = await sectionTags();
-    // the empty outcome row: Backspace used to take the whole section
-    await ctx.clickAt(await field("oer-cs-learn li"));
+    // the empty outcome: Backspace used to take the whole section; now the
+    // empty outcome goes (as an empty item does), and its section and
+    // heading stay
+    await ctx.clickAt(await field("oer-cs-learn oer-cs-outcome > h3"));
     for (let i = 0; i < 3; i++) await ctx.press("Backspace");
     await ctx.sleep(300);
     const learn = await outer("oer-cs-learn");
-    check("Backspace in an empty section keeps the section and its list", json(await sectionTags()) === json(before) && /<ul>\s*<li>/.test(learn), learn.slice(0, 90));
+    check("Backspace in an empty section keeps the section and its heading", json(await sectionTags()) === json(before) && /^<oer-cs-learn[^>]*><h2><\/h2>/.test(learn), learn.slice(0, 90));
     // the start of the tagline, and the end of the last answer
     const hero = await outer("oer-cs-hero");
     await ctx.clickAt(await field("oer-cs-hero > p"));
     await ctx.press("Home");
     await ctx.press("Backspace");
     await ctx.press("Backspace");
-    await ctx.clickAt(await field("oer-cs-faq > p:last-of-type"));
+    await ctx.clickAt(await field("oer-cs-faq oer-cs-question:last-of-type > p:last-of-type"));
     await ctx.type("Yes");
     const faq = await outer("oer-cs-faq");
     await ctx.press("End");
@@ -210,13 +220,13 @@ export default async function stopgaps(ctx) {
       `hero ${after.hero}; questions …${after.faq.slice(-50)}`,
     );
     // between written sections: the start of the first question, after the
-    // tools list, and the end of the instructor's note, before it
-    await ctx.clickAt(await field("oer-cs-tools li"));
+    // tools, and the end of the instructor's note, before them
+    await ctx.clickAt(await field("oer-cs-tools oer-cs-tool > p"));
     await ctx.type("Laser cutter");
     await ctx.sleep(300);
     const around = async () => ({ sections: await sectionTags(), people: await outer("oer-cs-people"), tools: await outer("oer-cs-tools"), faq: await outer("oer-cs-faq") });
     const typed = await around();
-    await ctx.clickAt(await field("oer-cs-faq > h3"));
+    await ctx.clickAt(await field("oer-cs-faq oer-cs-question > h3"));
     await ctx.press("Home");
     await ctx.press("Backspace");
     await ctx.clickAt(await field("oer-cs-people > p"));
@@ -291,6 +301,9 @@ export default async function stopgaps(ctx) {
   });
 
   await part("image field", async () => {
+    // (Change image opens it, until the editor's image popover answers that)
+    await ctx.clickAt(await handle(() => __ec.haxBody().querySelector("oer-cs-hero").shadowRoot.querySelector(".change-image")));
+    await ctx.sleep(300);
     const imageField = await handle(() => __ec.haxBody().querySelector("oer-cs-hero").shadowRoot.querySelector("oer-image-field"));
     const byAddress = await imageField.evaluateHandle((f) => [...f.shadowRoot.querySelectorAll("button")].find((b) => b.textContent.includes("Use an address")));
     await byAddress.evaluate((b) => b.scrollIntoView({ block: "center" }));
@@ -342,22 +355,14 @@ export default async function stopgaps(ctx) {
   await part("undo", async () => {
     await ctx.open(SITE);
     await ctx.enterEdit();
-    const heading = await handle(() => __ec.haxBody().querySelector("oer-cs-tools").shadowRoot.querySelector(".edit-heading"));
+    // the section's own heading, empty (it shows the default under it)
+    const heading = await field("oer-cs-tools > h2");
     await ctx.clickAt(heading);
     await ctx.sleep(300);
-    // its words selected (headless Chrome on a Mac has no Mod+A in text)
-    await heading.evaluate((h) => {
-      const range = document.createRange();
-      range.selectNodeContents(h);
-      const sel = h.getRootNode().getSelection?.() || getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    });
     await ctx.type("In the shop");
-    await ctx.press("Enter");
     // HAX records an undo step 300 ms after the last change
     await ctx.sleep(700);
-    const typed = await page.evaluate(() => __ec.haxBody().querySelector("oer-cs-tools").getAttribute("heading"));
+    const typed = await page.evaluate(() => __ec.haxBody().querySelector("oer-cs-tools > h2").textContent);
     const order = await sectionTags();
     await selectSection("oer-cs-tools");
     await runRail("Move up");
@@ -368,11 +373,12 @@ export default async function stopgaps(ctx) {
     const undone = await sectionTags();
     const tools = await page.evaluate(() => {
       const el = __ec.haxBody().querySelector("oer-cs-tools");
-      return { attr: el.getAttribute("heading"), shown: el.shadowRoot.querySelector("h2")?.textContent.trim() };
+      const slot = el.shadowRoot.querySelector('slot[name="heading"]');
+      return { text: el.querySelector(":scope > h2")?.textContent, shown: slot?.assignedElements()[0]?.textContent.trim() ?? null };
     });
-    check("The tools heading typed in place is kept as its heading attribute", typed === "In the shop", `heading="${typed}"`);
+    check("The tools heading typed in place is kept in its h2", typed === "In the shop", `<h2>${typed}</h2>`);
     check("Move up moves the tools section", moved.indexOf("oer-cs-tools") === order.indexOf("oer-cs-tools") - 1, moved.join(" "));
-    check("One Undo restores the order and keeps the typed heading", json(undone) === json(order) && tools.attr === "In the shop" && tools.shown === "In the shop", `${undone.join(" ")}; heading="${tools.attr}", shown “${tools.shown}”`);
+    check("One Undo restores the order and keeps the typed heading", json(undone) === json(order) && tools.text === "In the shop" && tools.shown === "In the shop", `${undone.join(" ")}; <h2>${tools.text}</h2>, shown “${tools.shown}”`);
     // the hero's image is an attribute too, so Undo keeps it
     await page.evaluate(() => {
       const hero = __ec.haxBody().querySelector("oer-cs-hero");
@@ -409,21 +415,24 @@ export default async function stopgaps(ctx) {
   });
 
   await part("heading tab", async () => {
-    // Tab soon after clicking a heading: the heading used to take focus back
-    const heading = await handle(() => __ec.haxBody().querySelector("oer-cs-tools").shadowRoot.querySelector(".edit-heading"));
+    // Tab soon after clicking a heading: the heading used to take focus
+    // back; now it goes on to the next field
+    const heading = await field("oer-cs-tools > h2");
     await heading.evaluate((h) => h.scrollIntoView({ block: "center" }));
     await ctx.frames();
     await ctx.clickAt(await heading.evaluate((h) => {
-      const r = h.getBoundingClientRect();
-      return { x: r.right - 3, y: r.top + r.height / 2 };
+      const range = document.createRange();
+      range.selectNodeContents(h);
+      const r = range.getBoundingClientRect();
+      return { x: r.right - 2, y: r.top + r.height / 2 };
     }));
     await ctx.sleep(300);
     await ctx.type(" here", { delay: 60 });
     await ctx.press("Tab");
     await ctx.sleep(400);
-    const focus = await ctx.deepActiveElement();
-    const kept = await page.evaluate(() => __ec.haxBody().querySelector("oer-cs-tools").getAttribute("heading"));
-    check("Tab from a heading just clicked moves on, and keeps the heading", !/oer-cs-tools/.test(focus?.path || "") && kept === "In the shop here", `focus on ${focus?.path}; heading="${kept}"`);
+    const on = await caretIn(await field("oer-cs-tools oer-cs-tool > p"));
+    const kept = await page.evaluate(() => __ec.haxBody().querySelector("oer-cs-tools > h2").textContent);
+    check("Tab from a heading just clicked moves on to the next field, and keeps the heading", on && kept === "In the shop here", `caret ${on ? "in the first tool" : `at ${json((await ctx.selection()).anchor)}`}; <h2>${kept}</h2>`);
   });
 
   await part("insert from a section", async () => {
@@ -466,12 +475,16 @@ export default async function stopgaps(ctx) {
     await runRail("Edit HTML");
     await ctx.waitFor(() => __ec.haxBody().hasAttribute("viewsourcetoggle"), { what: "the source view", timeout: 5000 });
     await ctx.sleep(400);
-    await ctx.clickAt(await field("oer-cs-hero > p"));
+    // (clear of the editing bar, which stays at the top)
+    const tagline = await field("oer-cs-hero > p");
+    await tagline.evaluate((p) => p.scrollIntoView({ block: "center" }));
+    await ctx.frames();
+    await ctx.clickAt(tagline);
     await ctx.type("A paragraph");
     await ctx.sleep(400);
     const stuck = await page.evaluate(() => __ec.haxBody().hasAttribute("viewsourcetoggle"));
-    const learn = await page.evaluate(() => !!__ec.haxBody().querySelector("oer-cs-learn > ul"));
-    check("After Edit HTML on a section and selecting a paragraph, the source view has ended", !stuck && learn, `viewsourcetoggle ${stuck ? "still on" : "off"}; the section's list ${learn ? "kept" : "lost"}`);
+    const learn = await page.evaluate(() => !!__ec.haxBody().querySelector("oer-cs-learn > oer-cs-outcome"));
+    check("After Edit HTML on a section and selecting a paragraph, the source view has ended", !stuck && learn, `viewsourcetoggle ${stuck ? "still on" : "off"}; the section's outcome ${learn ? "kept" : "lost"}`);
     const menu = await openRail("Block");
     const count = () => page.evaluate(() => __ec.haxBody().querySelectorAll("oer-cs-hero > p").length);
     const before = await count();
@@ -529,7 +542,7 @@ export default async function stopgaps(ctx) {
     const reading = await page.evaluate(() => __ec.theme().querySelector("oer-courses-catalog")?.shadowRoot?.querySelectorAll(".card a[href]").length ?? 0);
     await ctx.enterEdit();
     await compareAxe(HUB, "editing");
-    await typeInBox("oer-courses-intro", "p", "Hub intro");
+    await typeInField("oer-courses-intro", "p", "Hub intro");
     const card = await handle(() => __ec.haxBody().querySelector("oer-courses-catalog")?.shadowRoot?.querySelector(".card") || null);
     if (!card.asElement()) throw new Error("The hub's catalog shows no course cards");
     const links = await card.evaluate((c) => c.querySelectorAll("a[href]").length);
@@ -696,7 +709,9 @@ export default async function stopgaps(ctx) {
     await ctx.sleep(300);
     const status = await ctx.save();
     const saved = ctx.savedHtml(id);
-    const shown = await page.evaluate(() => __ec.theme().textContent);
+    // (the stock save can show the page as it was for a few seconds more,
+    // which editor-redesign WP-11 ends: what's checked here is that it's saved)
+    const shown = await ctx.waitFor(() => __ec.theme().textContent.includes("A paragraph of its own.") && __ec.theme().textContent, { what: "the new paragraph in the reading view", timeout: 10000 }).catch(() => page.evaluate(() => __ec.theme().textContent));
     check(
       "A lesson still edits and saves: typed text, and Enter for a new paragraph",
       status === 200 && saved.includes("Edited by the check.") && /<p[^>]*>A paragraph of its own\.<\/p>/.test(saved) && shown.includes("A paragraph of its own."),

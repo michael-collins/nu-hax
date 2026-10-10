@@ -1,14 +1,22 @@
 // Minimal client for the HAXcms v1 APIs (system + per-site), as exercised by
 // scripts/api-smoke-test.mjs. Credentials come from the environment
 // (see .env.local); nothing here logs them.
+//
+// A scratch copy served with HAXCMS_DISABLE_JWT_CHECKS (scripts/editor-check)
+// hands out its own token, and with tokenless (HAX_TOKENLESS=1, which only
+// the editor checks set) that's used instead of a password. Never for the
+// dev server on port 3000, which hands one out too (haxcms-nodejs's
+// local.js turns the checks off): a script run there without a password
+// stops rather than writing to the real site.
+const DEV_SERVER = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:3000)?\/?$/;
+
 export async function connect({
   base = process.env.HAX_BASE || "http://localhost:3000",
   site = process.env.HAX_SITE || "learning-materials",
   username = process.env.HAX_USER || "admin",
   password = process.env.HAX_PASSWORD,
+  tokenless = process.env.HAX_TOKENLESS === "1",
 } = {}) {
-  if (!password) throw new Error("Set HAX_PASSWORD (see .env.local)");
-
   async function call(method, path, { body, headers = {} } = {}) {
     // Outline saves: send only new, changed and deleted items. HAXcms
     // rewrites site.json and rebuilds its feeds and search index once per
@@ -31,13 +39,23 @@ export async function connect({
     return { status: res.status, ok: res.ok, json };
   }
 
-  const login = await call("POST", "/system/api/v1/session/login", {
-    body: { username, password },
-  });
-  if (!login.ok || typeof login.json?.jwt !== "string") {
-    throw new Error(`login failed (${login.status})`);
+  let jwt;
+  if (password) {
+    const login = await call("POST", "/system/api/v1/session/login", {
+      body: { username, password },
+    });
+    if (!login.ok || typeof login.json?.jwt !== "string") {
+      throw new Error(`login failed (${login.status})`);
+    }
+    jwt = login.json.jwt;
+  } else {
+    if (!tokenless || DEV_SERVER.test(base)) throw new Error("Set HAX_PASSWORD (see .env.local)");
+    // only a server with JWT checks off puts a token in its connection settings
+    const open = await call("GET", `/system/api/v1/session/connection-settings?siteName=${site}`);
+    jwt = String(open.json).match(/appSettings\.jwt = "([^"]+)"/)?.[1];
+    if (!jwt) throw new Error("Set HAX_PASSWORD (see .env.local)");
   }
-  const auth = { Authorization: `Bearer ${login.json.jwt}` };
+  const auth = { Authorization: `Bearer ${jwt}` };
 
   // connection-settings is served as a JS snippet: window.appSettings = {...}
   const conn = await call(

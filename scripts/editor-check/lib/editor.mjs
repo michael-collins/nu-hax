@@ -6,7 +6,7 @@
 //   const ed = editor(page, { base, siteDir, reportDir });
 //   await ed.open("/up/dart-413");
 //   await ed.enterEdit();
-//   await ed.clickAt("oer-cs-learn li");
+//   await ed.clickAt("oer-cs-outcome h3");
 //   await ed.type("Hello");
 //   await ed.save();
 import { readFileSync, mkdirSync } from "node:fs";

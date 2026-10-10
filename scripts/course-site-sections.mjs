@@ -14,39 +14,54 @@ const SITE_DIR = process.env.SITE_DIR || new URL("../learning-materials/", impor
 const SITE = process.env.HAX_SITE || "learning-materials";
 const DRY = process.argv.includes("--dry-run");
 const GONE = ["heroImage", "heroImageAlt", "outcomes", "tools", "instructorNote", "faq"];
-// mirrors COURSE_SITE_STARTER in custom/src/types/course-site.js
+// mirrors COURSE_SITE_STARTER in custom/src/types/course-site.js: the
+// sections without headings, What you'll learn, the tools and the
+// questions with an empty item each (the section and item model, scripts/
+// course-site-structure.mjs)
 const STARTER = [
   "<oer-cs-hero><p></p></oer-cs-hero>",
   "<oer-cs-facts></oer-cs-facts>",
-  "<oer-cs-learn><ul><li></li></ul></oer-cs-learn>",
+  "<oer-cs-learn><oer-cs-outcome><h3></h3><p></p></oer-cs-outcome></oer-cs-learn>",
   "<oer-cs-semester></oer-cs-semester>",
   "<oer-cs-make></oer-cs-make>",
   "<oer-cs-books></oer-cs-books>",
   "<oer-cs-people><p></p></oer-cs-people>",
-  "<oer-cs-tools><ul><li></li></ul></oer-cs-tools>",
-  "<oer-cs-faq><h3></h3><p></p></oer-cs-faq>",
+  "<oer-cs-tools><oer-cs-tool><p></p></oer-cs-tool></oer-cs-tools>",
+  "<oer-cs-faq><oer-cs-question><h3></h3><p></p></oer-cs-question></oer-cs-faq>",
   "<oer-cs-closing></oer-cs-closing>",
 ];
 
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const list = (rows) => {
-  const r = (Array.isArray(rows) ? rows : []).map((x) => String(x).trim()).filter(Boolean);
-  return r.length ? `<ul>${r.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
-};
-const paras = (text) => String(text || "").split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean).map((t) => `<p>${esc(t)}</p>`).join("");
-// "Question?" on its own line, its answer under it, a blank line between each
-const faq = (text) =>
-  String(text || "")
-    .split(/\n\s*\n/)
-    .map((b) => b.split("\n").map((l) => l.trim()).filter(Boolean))
-    .filter((l) => l.length)
-    .map((l) => (/\?$/.test(l[0]) ? `<h3>${esc(l[0])}</h3>${l.length > 1 ? `<p>${esc(l.slice(1).join(" "))}</p>` : ""}` : `<p>${esc(l.join(" "))}</p>`))
+const rows = (list) => (Array.isArray(list) ? list : []).map((x) => String(x).trim()).filter(Boolean);
+// an outcome a row: its words before a colon or a dash its title, the rest
+// its sentence (as the editor splits a list's rows, cs-normalize.js)
+const outcomes = (list) =>
+  rows(list)
+    .map((row) => {
+      const at = row.search(/[:—–]\s|\s-\s/);
+      const [title, text] = at > 0 ? [row.slice(0, at).trim(), row.slice(at + 1).replace(/^[\s-]+/, "")] : [row, ""];
+      return `<oer-cs-outcome><h3>${esc(title)}</h3><p>${esc(text.charAt(0).toUpperCase() + text.slice(1))}</p></oer-cs-outcome>`;
+    })
     .join("");
+const tools = (list) => rows(list).map((row) => `<oer-cs-tool><p>${esc(row)}</p></oer-cs-tool>`).join("");
+const paras = (text) => String(text || "").split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean).map((t) => `<p>${esc(t)}</p>`).join("");
+// "Question?" on its own line, its answer under it, a blank line between
+// each: a question each, a block that asks nothing the answer's next paragraph
+const faq = (text) => {
+  const out = [];
+  for (const lines of String(text || "").split(/\n\s*\n/).map((b) => b.split("\n").map((l) => l.trim()).filter(Boolean))) {
+    if (!lines.length) continue;
+    if (/\?$/.test(lines[0])) out.push({ q: lines[0], a: lines.length > 1 ? [lines.slice(1).join(" ")] : [] });
+    else if (out.length) out.at(-1).a.push(lines.join(" "));
+    else out.push({ q: "", a: [lines.join(" ")] });
+  }
+  return out.map(({ q, a }) => `<oer-cs-question><h3>${esc(q)}</h3>${(a.length ? a : [""]).map((t) => `<p>${esc(t)}</p>`).join("")}</oer-cs-question>`).join("");
+};
 
 /** The starter sections, holding what the old fields had. */
 function sections(f) {
   const hero = `<oer-cs-hero${f.heroImage ? ` image="${esc(f.heroImage)}"` : ""}${f.heroImageAlt ? ` alt="${esc(f.heroImageAlt)}"` : ""}><p></p></oer-cs-hero>`;
-  const fill = { "oer-cs-learn": list(f.outcomes), "oer-cs-people": paras(f.instructorNote), "oer-cs-tools": list(f.tools), "oer-cs-faq": faq(f.faq) };
+  const fill = { "oer-cs-learn": outcomes(f.outcomes), "oer-cs-people": paras(f.instructorNote), "oer-cs-tools": tools(f.tools), "oer-cs-faq": faq(f.faq) };
   return [hero, ...STARTER.slice(1)].map((tag) => {
     const name = tag.match(/^<([a-z-]+)/)[1];
     return fill[name] ? `<${name}>${fill[name]}</${name}>` : tag;

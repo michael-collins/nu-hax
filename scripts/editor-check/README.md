@@ -38,10 +38,10 @@ A check is `checks/<name>.mjs` exporting a default async function that gets a co
 export default async function (ctx) {
   await ctx.open("/up/dart-413");
   await ctx.enterEdit();
-  await ctx.clickAt("oer-cs-learn li");
+  await ctx.clickAt("oer-cs-outcome h3");
   await ctx.type("Hello");
   const html = await ctx.normalizedHtml();
-  return [{ name: "typing fills the outcome", pass: html.includes("<li>Hello</li>"), detail: html.slice(0, 120) }];
+  return [{ name: "typing fills the outcome's title", pass: html.includes("<h3>Hello</h3>"), detail: html.slice(0, 120) }];
 }
 ```
 
@@ -70,13 +70,17 @@ Helpers:
 | `setViewport(1440 \| 390 \| 320)`, `screenshot(name)` | Resize (no reload); save a screenshot in the check's report folder. |
 | `state()`, `waitFor(fn, { what })`, `settle()`, `frames()`, `sleep(ms)` | The editor's state at a glance; waiting for a condition in the page (a timeout says what was awaited and the state then); waiting for animations and layout to stop. |
 
-Inside `page.evaluate`, the same helpers are on `globalThis.__ec` (`__ec.deep()`, `__ec.store()`, `__ec.haxBody()`, `__ec.theme()`, `__ec.activeElement()`, `__ec.normalize()`…).
+Inside `page.evaluate`, the same helpers are on `globalThis.__ec` (`__ec.deep()`, `__ec.store()`, `__ec.haxBody()`, `__ec.theme()`, `__ec.activeElement()`, `__ec.normalize()`…). The editor's own state and operations are on `globalThis.OerEditor` (`state`, `ops`, `announce`; set by the theme's `editor/index.js`), so a check can read `OerEditor.state.dirty` or run `await OerEditor.ops.move(el, -1)`.
+
+A check can run a nu-hax script against the copy with `HAX_BASE=http://localhost:<port>`, `SITE_DIR=<siteDir>` and `HAX_TOKENLESS=1`: the copy's server hands out its own token, and with `HAX_TOKENLESS=1` `scripts/lib/hax-api.mjs` `connect()` takes it instead of a password (`sections.mjs` runs `scripts/course-site-structure.mjs` this way). It never does for port 3000: the dev server hands out a token too.
+
+A check can define throwaway blocks in the page itself, with `page.evaluateOnNewDocument` defining the elements and registering them with HAX once its app store has loaded, and write a fixture page that uses them into the copy: `core.mjs` does this for a test section of items.
 
 ### Accessibility
 
 `ctx.axe()` runs axe-core over the whole document, open shadow roots included, with the WCAG 2.2 A and AA rules. It returns `{ violations, nodes, counts, byImpact, rules }`. Options: `context` (an axe context; arrays of selectors reach into shadow roots, e.g. `{ include: [["custom-oer-docs-theme", "oer-course-site"]] }`), `tags`, and `forcedColors: true` to run with forced colours.
 
-The smoke check records the counts for the reading and editing views of `/up/dart-413` and `/oer-courses` at 1440 in `axe-baseline.json` (kept in git) the first time it runs; later runs fail on a rule that's new or affects more nodes. After a change that's meant to alter them, run it with `--update-baseline`. Other checks can compare the same way with `readBaseline` and `newViolations` from `lib/axe.mjs`.
+The smoke check records the counts for the reading and editing views of `/up/dart-413`, `/oer-courses` and a lesson (`/lessons/what-is-design`, for the theme rules every page shares) at 1440 in `axe-baseline.json` (kept in git) the first time it runs; later runs fail on a rule that's new or affects more nodes. After a change that's meant to alter them, run it with `--update-baseline`. Other checks can compare the same way with `readBaseline` and `newViolations` from `lib/axe.mjs`.
 
 ## Spikes
 
@@ -98,4 +102,6 @@ The smoke check records the counts for the reading and editing views of `/up/dar
 - An empty paragraph has no height, so it can't be clicked until a section gives it one; `clickAt` says so rather than clicking somewhere else.
 - hax-body sits in a shadow root, so `document.getSelection()` reports `haxcms-site-builder` at offset 0 whatever is selected. Read the selection from the content's own root: `el.getRootNode().getSelection()` (as `selection()` and `caretIn` in the checks do).
 - Keys typed in the content are sent to hax-body (the element being edited), not to the paragraph or section the caret is in, so a listener on a block never hears them.
+- Headless Chrome hides scrollbars (puppeteer's default), so a scrolling `main` is as wide as the window and overflow a scrollbar would cause doesn't show. The geometry check measures widths in a Chrome of its own that draws them.
+- Below 768px the document scrolls, not `main`, and DDD scrolls it smoothly. The theme turns that off under reduced motion, which the harness asks for, so `clickAt`'s scrolling lands at once (smooth, the element would still be moving when it looks).
 - HAX's Undo puts back a copy of the whole content, so element handles taken before it point at removed elements; look them up again afterwards.

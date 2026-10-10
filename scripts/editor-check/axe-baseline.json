@@ -76,6 +76,44 @@
         },
         "rules": {}
       }
+    },
+    "/lessons/what-is-design": {
+      "reading": {
+        "violations": 1,
+        "nodes": 1,
+        "counts": {
+          "critical": 1,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0
+        },
+        "rules": {
+          "button-name": {
+            "impact": "critical",
+            "nodes": 1
+          }
+        }
+      },
+      "editing": {
+        "violations": 2,
+        "nodes": 3,
+        "counts": {
+          "critical": 0,
+          "serious": 2,
+          "moderate": 0,
+          "minor": 0
+        },
+        "rules": {
+          "aria-input-field-name": {
+            "impact": "serious",
+            "nodes": 1
+          },
+          "target-size": {
+            "impact": "serious",
+            "nodes": 2
+          }
+        }
+      }
     }
   }
 }
