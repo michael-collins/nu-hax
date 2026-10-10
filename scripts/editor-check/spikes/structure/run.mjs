@@ -1,27 +1,32 @@
 // Spike A (WP-01 in docs/editor-redesign/work-packages.md): measures, in
-// Chrome, the structural primitives the editor redesign rests on.
+// Chrome, Firefox and WebKit, the structural primitives the editor redesign
+// rests on.
 //   S1  items as nested HAX grids (haxInsert, duplicate, delete), and keys
 //       stopped before hax-body's window handlers
 //   S2  manual slot assignment with HAX, and the slot="heading" fallback
 //   S7  controls in shadow DOM inside contentEditable grid hosts
+//   bare the same caret checks on a bare page, without HAX or the site
+//   sel reading and setting the selection inside shadow roots
 // It copies the site (the last commit by default), adds spike-blocks.js and
 // a page of spike sections (page.html) to the copy only, builds and serves
 // it, and prints a JSON table of {check, variant, engine, pass, detail}.
+// The engines take turns on the one copy, which the spike never saves to.
 // A failing check is a result (a no-go), not a failure of the run: it exits
 // 0 when every check was measured, and 1 when one couldn't be.
 //
 //   node scripts/editor-check/spikes/structure/run.mjs [--port 3104] [--source head|worktree]
-//        [--only s1,keys,s2,s7,sel] [--keep] [--evidence docs/editor-spikes/structure]
-// --evidence copies results.json and the screenshots to that folder.
-import puppeteer from "puppeteer-core";
+//        [--engines chrome,firefox,webkit] [--only s1,keys,s2,bare,s7,sel] [--keep]
+//        [--evidence docs/editor-spikes/structure]
+// --engines defaults to chrome. --evidence copies each engine's results.json
+// and screenshots to that folder (Chrome's) or a folder per engine in it.
 import { copyFileSync, readFileSync, writeFileSync, appendFileSync, mkdirSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { startScratch, WORK_DIR } from "../../lib/scratch.mjs";
 import { editor } from "../../lib/editor.mjs";
 import { runAxe } from "../../lib/axe.mjs";
+import { ENGINES, launch } from "../../lib/engines.mjs";
 
 const HERE = new URL("./", import.meta.url).pathname;
-const CHROME = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 // the scratch page the spike sections go on: a short article, in the copy only
 const SLUG = "articles/end-of-lesson-discussion";
 const PAGE = `/${SLUG}`;
@@ -29,7 +34,7 @@ const VARIANTS = {
   manual: { section: "oer-spike-learn", item: "oer-spike-outcome" },
   fallback: { section: "oer-spike-learn-fb", item: "oer-spike-outcome-fb" },
 };
-const GROUPS = ["s1", "keys", "s2", "s7", "sel"];
+const GROUPS = ["s1", "keys", "s2", "bare", "s7", "sel"];
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
@@ -38,6 +43,12 @@ const source = opt("--source", "head");
 const keep = args.includes("--keep");
 const only = opt("--only", GROUPS.join(",")).split(",");
 const evidence = opt("--evidence", null);
+const engines = [...new Set(opt("--engines", "chrome").split(",").map((e) => e.trim()).filter(Boolean))];
+const strange = engines.filter((e) => !ENGINES.includes(e));
+if (strange.length || !engines.length) {
+  console.error(`No such engine: ${strange.join(", ") || "(none)"} (there are: ${ENGINES.join(", ")})`);
+  process.exit(2);
+}
 
 const stamp = new Date().toISOString().replace(/\.\d+Z$/, "").replace(/[-:]/g, "").replace("T", "-");
 const reportDir = path.join(WORK_DIR, "reports", `structure-${port}-${stamp}`);
@@ -45,7 +56,10 @@ mkdirSync(reportDir, { recursive: true });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rows = [];
-const record = (check, variant, pass, detail) => rows.push({ check, variant, engine: "chrome", pass: !!pass, measured: true, detail });
+// the engine being measured, and its folder in the report (screenshots, evidence)
+let engine = null;
+let dir = null;
+const record = (check, variant, pass, detail) => rows.push({ check, variant, engine, pass: !!pass, measured: true, detail });
 
 /** The copy gets the spike blocks (imported from custom.js) and the spike page. */
 function prepare(site) {
@@ -88,32 +102,94 @@ function spikeHelpers() {
       }
       return null;
     },
-    selectionObject() {
-      const root = sp.body()?.getRootNode() ?? document;
-      return root.getSelection?.() ?? document.getSelection();
-    },
-    /** The caret as hax-body's shadow root reports it (Chrome's ShadowRoot.getSelection). */
+    /**
+     * The caret inside hax-body's shadow root, in any engine (the harness's
+     * __ec.selectionNodes: Chrome's ShadowRoot.getSelection, Firefox's
+     * document selection, WebKit's composed range).
+     */
     caret() {
-      const sel = sp.selectionObject();
-      if (!sel?.rangeCount) return null;
+      const body = sp.body();
+      if (!body) return null;
+      const sel = globalThis.__ec.selectionNodes(body);
+      if (!sel.anchorNode) return null;
       const f = sp.field(sel.anchorNode);
-      const el = sel.anchorNode?.nodeType === 1 ? sel.anchorNode : sel.anchorNode?.parentElement;
-      return { field: f ? sp.path(f) : null, node: sp.path(el), offset: sel.anchorOffset, collapsed: sel.isCollapsed };
+      const el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+      return { field: f ? sp.path(f) : null, node: sp.path(el), offset: sel.anchorOffset, collapsed: sel.collapsed };
     },
-    /** Put the caret at the start or end of an element's text (in the element itself when it's empty). */
+    /**
+     * Put the caret at the start or end of an element's text (in the element
+     * itself when it's empty), with setBaseAndExtent, which takes nodes in
+     * shadow roots in every engine (WebKit ignores addRange with them), with
+     * focus on hax-body.
+     */
     placeCaret(el, at = "end") {
-      const sel = sp.selectionObject();
-      const range = document.createRange();
+      // as when the caret is already in the content (a key can throw focus out of it)
+      const body = sp.body();
+      if (body && !globalThis.__ec.within(globalThis.__ec.activeElement(), body)) body.focus({ preventScroll: true });
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
       const texts = [];
       while (walker.nextNode()) texts.push(walker.currentNode);
-      if (!texts.length) range.setStart(el, 0);
-      else if (at === "start") range.setStart(texts[0], 0);
-      else range.setStart(texts.at(-1), texts.at(-1).length);
-      range.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(range);
+      if (!texts.length) globalThis.__ec.select(el, 0);
+      else if (at === "start") globalThis.__ec.select(texts[0], 0);
+      else globalThis.__ec.select(texts.at(-1), texts.at(-1).length);
       return sp.caret();
+    },
+    /**
+     * Make HAXStore.getSelection() read the caret in WebKit, as hax-fixes.js
+     * could: there it returns the document's selection, which stops at the
+     * outermost shadow host. The patch hands HAX a stand-in whose nodes come
+     * from the composed range, and whose addRange() is setBaseAndExtent()
+     * (WebKit ignores addRange with a range inside a shadow root). Where
+     * HAX's own reading works (Chrome's ShadowRoot.getSelection, Firefox's
+     * document selection) it changes nothing.
+     */
+    patchHaxSelection() {
+      const hs = globalThis.__ec.haxStore();
+      if (hs.__patched) return;
+      hs.__patched = true;
+      const original = hs.getSelection.bind(hs);
+      hs.getSelection = function () {
+        const sel = original();
+        const body = this.activeHaxBody;
+        const root = body?.getRootNode();
+        if (!sel?.rangeCount || !root || root.getSelection || sel.anchorNode?.getRootNode() === root) return sel;
+        const s = globalThis.__ec.selectionNodes(body);
+        if (!s.anchorNode || s.anchorNode.getRootNode() !== root) return sel;
+        const range = document.createRange();
+        range.setStart(s.anchorNode, s.anchorOffset);
+        range.setEnd(s.focusNode, s.focusOffset);
+        if (range.collapsed && !s.collapsed) range.setStart(s.focusNode, s.focusOffset);
+        const own = {
+          anchorNode: s.anchorNode,
+          anchorOffset: s.anchorOffset,
+          focusNode: s.focusNode,
+          focusOffset: s.focusOffset,
+          rangeCount: 1,
+          isCollapsed: s.collapsed,
+          type: s.collapsed ? "Caret" : "Range",
+          getRangeAt: () => range,
+          toString: () => range.toString(),
+          addRange: (r) => sel.setBaseAndExtent(r.startContainer, r.startOffset, r.endContainer, r.endOffset),
+        };
+        return new Proxy(sel, { get: (target, key) => (key in own ? own[key] : typeof target[key] === "function" ? target[key].bind(target) : target[key]) });
+      };
+    },
+    /**
+     * True once HAX has imported the page into hax-body and its blocks have
+     * stopped changing for 300 ms. In Firefox and WebKit the import lands
+     * after edit mode starts, replacing what was there. (Not isContentBusy():
+     * HAX's editModeTransitioning never clears, in any engine, since
+     * updated() waits for every busy state, its own included.)
+     */
+    imported() {
+      const body = sp.body();
+      if (!body || body._contentState?.getState?.("importing") || !body.querySelector(":scope > oer-spike-learn-ce0")) return false;
+      if (sp.__importWatch !== body) {
+        sp.__importWatch = body;
+        sp.__changed = performance.now();
+        new MutationObserver(() => (sp.__changed = performance.now())).observe(body, { childList: true });
+      }
+      return performance.now() - sp.__changed >= 300;
     },
     activeNode() {
       const n = globalThis.__ec?.haxStore()?.activeNode;
@@ -242,10 +318,13 @@ async function fresh({ signedOut = false, edit = !signedOut } = {}) {
   page.on("pageerror", (e) => console.log(`  page error: ${e.message.split("\n")[0]}`));
   await page.evaluateOnNewDocument(spikeHelpers);
   await page.evaluateOnNewDocument(wrapHaxKeys);
-  const ed = editor(page, { base: scratch.base, siteDir: scratch.dir, reportDir });
+  const ed = editor(page, { base: scratch.base, siteDir: scratch.dir, reportDir: dir });
   await ed.setViewport(1440);
   await ed.open(PAGE, { signedOut });
-  if (edit) await ed.enterEdit();
+  if (edit) {
+    await ed.enterEdit();
+    await ed.waitFor(() => __spike.imported(), { what: "HAX's import of the spike page into hax-body" });
+  }
   return { ed, page, close: () => context.close().catch(() => {}) };
 }
 
@@ -274,11 +353,22 @@ async function caretIn(ed, el, at = "end") {
 }
 
 /**
- * The accessibility tree under an element, from Chrome's own tree (DevTools
- * protocol). The element is an expression run in the page, since handles
- * belong to puppeteer's own session.
+ * The accessibility tree under an element, from the engine's own tree:
+ * Chrome's through the DevTools protocol, Firefox's and WebKit's through
+ * Playwright's snapshot, which reads theirs. The element is an expression
+ * run in the page, since in Chrome handles belong to puppeteer's own session.
  */
 async function axTree(page, expression) {
+  if (page.playwright) {
+    const root = await page.evaluateHandle(expression);
+    try {
+      const build = (n) => ({ role: n.role, name: n.name || "", level: n.level, ignored: false, children: (n.children || []).map(build) });
+      const tree = await page.accessibility.snapshot({ root, interestingOnly: false });
+      return tree ? build(tree) : null;
+    } finally {
+      await root.dispose();
+    }
+  }
   const client = await page.createCDPSession();
   try {
     await client.send("Accessibility.enable");
@@ -300,32 +390,46 @@ async function axTree(page, expression) {
   }
 }
 
-/** What the tree says: headings (and whether they're in a list), lists and their items, and all the text. */
+/**
+ * What the tree says: headings (and whether they're in a list), lists and
+ * their items, and all the text. Each engine names roles its own way:
+ * Chrome's StaticText, Firefox's "text leaf", WebKit's text. WebKit's tree,
+ * as Playwright reads it, lists the elements it ignores (slots, aria-hidden
+ * spans) as Unknown: they're passed through, and text right under one is
+ * the ignored element's own (a plain aria-hidden span's text shows the same
+ * way on a bare page). In WebKit an element with contenteditable of its own,
+ * as HAX gives every field while editing, is a text area that keeps its
+ * heading level: counted as a heading, and reported.
+ */
 function axSummary(tree) {
   const headings = [];
   const lists = [];
   const text = [];
-  const walk = (n, inList, list) => {
+  const isText = (n) => ["StaticText", "text", "text leaf"].includes(n.role);
+  const isHeading = (n) => n.role === "heading" || (n.role === "textbox" && !!n.level);
+  const nameOf = (n) => n.name || n.children.filter(isText).map((c) => c.name).join("");
+  const hasHeading = (n) => isHeading(n) || n.children.some(hasHeading);
+  const walk = (n, inList, list, parent) => {
     if (!n.ignored) {
-      if (n.role === "heading") headings.push({ level: n.level, name: n.name, inList });
-      if (n.role === "StaticText" || n.role === "text") text.push(n.name);
+      if (isHeading(n)) headings.push({ level: n.level, name: nameOf(n), inList, role: n.role });
+      if (isText(n) && parent?.role !== "Unknown") text.push(n.name);
       if (n.role === "list") {
         list = { items: 0, itemHeadings: 0, others: [] };
         lists.push(list);
         inList = true;
       } else if (list && n.role === "listitem") {
         list.items++;
-        if (JSON.stringify(n).includes('"role":"heading"')) list.itemHeadings++;
+        if (hasHeading(n)) list.itemHeadings++;
         list = null;
-      } else if (list && !["generic", "none", "StaticText", "InlineTextBox", "LineBreak"].includes(n.role)) {
+      } else if (list && !["generic", "none", "Unknown", "StaticText", "InlineTextBox", "LineBreak"].includes(n.role)) {
         // something other than an item directly in the list
         list.others.push(n.role);
         list = null;
       }
     }
-    for (const c of n.children) walk(c, inList, list);
+    for (const c of n.children) walk(c, inList, list, n);
   };
-  if (tree) walk(tree, false, null);
+  if (tree) walk(tree, false, null, null);
   return { headings, lists, text: text.join(" ").replace(/\s+/g, " ").trim() };
 }
 
@@ -357,7 +461,9 @@ async function s2Render() {
         await ed.screenshot(`s2-${variant}-${view}`);
         const h = await section.evaluate((e) => __spike.health(e));
         record("S2 renders the reader layout", `${variant}, ${view}`, healthy(h), `${brief(h)}. Children: ${h.children.join("; ")}`);
-        const ax = axSummary(await axTree(page, `__spike.section(${JSON.stringify(v.section)})`));
+        const tree = await axTree(page, `__spike.section(${JSON.stringify(v.section)})`);
+        writeFileSync(path.join(dir, `ax-${variant}-${view}.json`), JSON.stringify(tree, null, 1));
+        const ax = axSummary(tree);
         const h2 = ax.headings.find((x) => x.level === 2);
         const list = ax.lists[0];
         const placeholders = /Outcome title|What students will be able to do/.test(ax.text);
@@ -365,7 +471,7 @@ async function s2Render() {
           "S2 accessibility tree: heading outside the list, N listitems",
           `${variant}, ${view}`,
           !!h2 && !h2.inList && list?.items === h.items && list.itemHeadings === h.items && !list.others.length && !placeholders,
-          `h2 "${h2?.name ?? "none"}"${h2?.inList ? " inside the list" : " outside the list"}; ${ax.lists.length} list(s), ${list?.items ?? 0} listitems (${list?.itemHeadings ?? 0} with an h3)${list?.others.length ? `, also ${list.others.join(", ")} in the list` : ""}; placeholder text ${placeholders ? "IN" : "not in"} the tree`,
+          `h2 "${h2?.name ?? "none"}"${h2?.inList ? " inside the list" : " outside the list"}; ${ax.lists.length} list(s), ${list?.items ?? 0} listitems (${list?.itemHeadings ?? 0} with an h3)${list?.others.length ? `, also ${list.others.join(", ")} in the list` : ""}; placeholder text ${placeholders ? "IN" : "not in"} the tree${ax.headings.some((x) => x.role === "textbox") ? "; the headings are exposed as text areas with their level (contenteditable on each field)" : ""}`,
         );
         const axe = await runAxe(page, { context: await section.evaluate((e) => __spike.axeContext(e)) });
         record("S2 axe on the section (WCAG 2.2 AA)", `${variant}, ${view}`, axe.violations === 0, axe.violations ? axe.rules.map((r) => `${r.id} (${r.impact}, ${r.nodes})`).join("; ") : "no violations");
@@ -376,49 +482,98 @@ async function s2Render() {
   }
 }
 
-/**
- * Undo (on) or restore (off) the blocks' user-select: none on what they
- * draw in shadow DOM, in a section and its items, to measure caret movement
- * as the spec drew it (shadow controls between fields).
- */
-const selectableChrome = (page, tag, on) =>
+// where the shadow chrome's user-select: none goes, as a sheet over the blocks' own
+const CHROME_RULES = {
+  // as the spec drew it: everything selectable
+  selectable: { label: "shadow chrome selectable (as drawn in the spec)", css: ".editing, .editing * { user-select: auto !important; }" },
+  // the first (Chrome-only) spike's rule: the wrapper and everything in it
+  wrapper: { label: "user-select: none on the shadow wrapper (.editing *)", css: ".editing, .editing * { user-select: none; }" },
+  // the wrapper's rule, with the slotted fields made selectable again
+  slotted: { label: "user-select: none on the wrapper, ::slotted(*) text", css: ".editing, .editing * { user-select: none; } ::slotted(*) { user-select: text; }" },
+  // the blocks' own: only the chrome (placeholders, tiles, controls, the stray message)
+  chrome: { label: "user-select: none on the chrome only", css: "" },
+};
+
+/** Put one of CHROME_RULES on every section with this tag and their items (over the blocks' own styles). */
+const chromeRule = (page, tag, rule) =>
   page.evaluate(
-    (tag, on) => {
-      const s = __spike.section(tag);
-      for (const host of [s, ...s.children]) {
-        if (!host.shadowRoot) continue;
-        host.__selectable ??= new CSSStyleSheet();
-        host.__selectable.replaceSync(".editing, .editing * { user-select: auto; }");
-        const others = host.shadowRoot.adoptedStyleSheets.filter((x) => x !== host.__selectable);
-        host.shadowRoot.adoptedStyleSheets = on ? [...others, host.__selectable] : others;
+    (tag, css) => {
+      for (let n = 0, s; (s = __spike.section(tag, n)); n++) {
+        for (const host of [s, ...s.children]) {
+          if (!host.shadowRoot) continue;
+          host.__chromeRule ??= new CSSStyleSheet();
+          host.__chromeRule.replaceSync(css);
+          const others = host.shadowRoot.adoptedStyleSheets.filter((x) => x !== host.__chromeRule);
+          host.shadowRoot.adoptedStyleSheets = [...others, host.__chromeRule];
+        }
       }
     },
     tag,
-    on,
+    CHROME_RULES[rule].css,
   );
 
-/** Arrow keys across slotted fields, and clicking into empty fields. */
-async function s2Caret() {
-  const { ed, page, close } = await fresh();
-  try {
-    for (const [variant, v] of Object.entries(VARIANTS)) {
-      const f = (sel, n = 0) => fieldEl(page, v.section, n, sel);
-      const items = `:scope > ${v.item}`;
-      const sec = v.section;
-      const it = (n, field) => `${sec} > ${v.item}[${n}] > ${field}`;
-      const after = await handle(page, (tag) => __spike.section(tag).nextElementSibling, sec);
-      const afterPath = await after.evaluate((e) => __spike.path(e));
-      // as the spec drew it first, then with the blocks' user-select: none
-      for (const selectable of [true, false]) {
-        await selectableChrome(page, sec, selectable);
-        const label = `${variant}, ${selectable ? "shadow chrome selectable (as drawn in the spec)" : "shadow chrome user-select: none"}`;
+/**
+ * Let arrow keys reach HAX's window keydown handler (on), or stop them in a
+ * capture listener on hax-body (off), as the editor's key listener could.
+ * That handler reads the caret with HAXStore.getSelection(), which in
+ * WebKit is the document's selection at the outermost shadow host, and
+ * gives that host focus.
+ */
+const haxArrows = (page, on) =>
+  page.evaluate((on) => {
+    const body = __spike.body();
+    body.__arrowStop ??= (e) => e.key.startsWith("Arrow") && e.stopPropagation();
+    if (on) body.removeEventListener("keydown", body.__arrowStop, true);
+    else body.addEventListener("keydown", body.__arrowStop, true);
+  }, on);
+
+// who handles arrow keys: HAX (as now), the browser alone (kept from HAX), or the section (field to field)
+const ARROWS = {
+  hax: "",
+  patched: ", HAXStore.getSelection() patched to read WebKit's composed range",
+  kept: ", arrow keydown kept from HAX",
+  controller: ", arrows kept from HAX and moved field to field at a field's edge by the section",
+};
+
+/**
+ * Arrow keys across slotted fields, with each of CHROME_RULES, and with the
+ * blocks' rule and the arrows kept from HAX, or handled by the section at
+ * field edges. Each on a fresh page, since a caret thrown out of the
+ * content (HAX's arrow handler in WebKit) leaves HAX in a state the next
+ * pass would inherit.
+ */
+async function s2Arrows() {
+  for (const [variant, v] of Object.entries(VARIANTS)) {
+    for (const [rule, arrows] of [
+      ["selectable", "hax"],
+      ["wrapper", "hax"],
+      ["slotted", "hax"],
+      ["chrome", "hax"],
+      ["chrome", "kept"],
+      ["chrome", "patched"],
+      ["chrome", "controller"],
+    ]) {
+      const { ed, page, close } = await fresh();
+      try {
+        const f = (sel, n = 0) => fieldEl(page, v.section, n, sel);
+        const items = `:scope > ${v.item}`;
+        const sec = v.section;
+        const it = (n, field) => `${sec} > ${v.item}[${n}] > ${field}`;
+        const after = await handle(page, (tag) => __spike.section(tag).nextElementSibling, sec);
+        const afterPath = await after.evaluate((e) => __spike.path(e));
+        await chromeRule(page, sec, rule);
+        await haxArrows(page, arrows !== "kept");
+        await page.evaluate((on) => (globalThis.__spikeKeys.arrows = on), arrows === "controller");
+        if (arrows === "patched") await page.evaluate(() => __spike.patchHaxSelection());
+        const label = `${variant}, ${CHROME_RULES[rule].label}${ARROWS[arrows]}`;
         const steps = [];
         const step = async (name, el, at, key, expect) => {
           await el.evaluate((e, at) => __spike.placeCaret(e, at), at);
           await ed.press(key);
           await sleep(80);
           const got = (await page.evaluate(() => __spike.caret()))?.field ?? null;
-          steps.push({ name, got, expect, ok: expect ? got === expect : !!got });
+          const focus = await page.evaluate(() => __ec.describe(__ec.activeElement())?.tag);
+          steps.push({ name, got, expect, focus, ok: expect ? got === expect : !!got });
         };
         const heading = await f(":scope > h2");
         await caretIn(ed, heading, "end");
@@ -454,15 +609,41 @@ async function s2Caret() {
         const order = [it(1, "h3"), it(1, "p"), it(2, "h3"), it(2, "p"), it(3, "h3"), it(3, "p"), afterPath];
         const walked = JSON.stringify(visited) === JSON.stringify(order);
         const wrong = steps.filter((x) => !x.ok);
+        const lostFocus = steps.filter((x) => x.focus !== "hax-body").length;
         record(
           "S2 arrow keys move the caret across slotted fields",
           label,
           !wrong.length && walked,
           `ArrowRight from the heading ${walked ? "visits every field in order and leaves the section" : `goes ${visited.map((x) => x.replace(`${sec} > `, "")).join(" → ")}`}. ` +
-            steps.map((x) => `${x.name}: ${x.got?.replace(`${sec} > `, "") ?? "nowhere"}${x.ok ? "" : ` (expected ${x.expect?.replace(`${sec} > `, "") ?? "a field"})`}`).join("; "),
+            steps.map((x) => `${x.name}: ${x.got?.replace(`${sec} > `, "") ?? "nowhere"}${x.ok ? "" : ` (expected ${x.expect?.replace(`${sec} > `, "") ?? "a field"})`}`).join("; ") +
+            (lostFocus ? `; focus had left hax-body after ${steps.filter((x) => x.focus !== "hax-body").map((x) => `"${x.name}" (for ${x.focus})`).join(", ")}` : ""),
         );
+      } finally {
+        await close();
       }
+    }
+  }
+}
 
+/**
+ * A click on an empty field (an item's title and text, a section's heading)
+ * puts the caret in it: with the first spike's user-select rule on the
+ * wrapper, and with the blocks' own on the chrome only.
+ */
+async function s2Click() {
+  for (const rule of ["wrapper", "chrome"]) {
+    await s2ClickWith(rule);
+  }
+}
+
+async function s2ClickWith(rule) {
+  const { ed, page, close } = await fresh();
+  try {
+    for (const tag of ["oer-spike-learn", "oer-spike-learn-fb", "oer-spike-note"]) await chromeRule(page, tag, rule);
+    for (const [variant, v] of Object.entries(VARIANTS)) {
+      const f = (sel, n = 0) => fieldEl(page, v.section, n, sel);
+      const items = `:scope > ${v.item}`;
+      const it = (n, field) => `${v.section} > ${v.item}[${n}] > ${field}`;
       // the third item's title and text are empty: click where the placeholder is drawn, and type
       const typed = [];
       for (const [field, text] of [
@@ -480,7 +661,7 @@ async function s2Caret() {
       }
       record(
         "S2 a click on an empty field puts the caret in it",
-        variant,
+        `${variant}, ${CHROME_RULES[rule].label}`,
         typed.every((t) => t.ok && t.placeholderHidden),
         typed.map((t) => `empty ${t.field}: caret in ${t.caretField ?? "nothing"}, typed text "${t.text}", placeholder ${t.placeholderHidden ? "hidden" : "STILL SHOWN"}, active node ${t.active}`).join("; "),
       );
@@ -493,10 +674,155 @@ async function s2Caret() {
     await ed.type("Typed heading");
     await sleep(150);
     const text = await h2.evaluate((e) => e.textContent);
-    record("S2 a click on an empty heading puts the caret in it", "manual (note section)", text === "Typed heading", `caret in ${caret?.field ?? "nothing"}, typed text "${text}"`);
-    await ed.screenshot("s2-typed-empty-fields");
+    record("S2 a click on an empty heading puts the caret in it", `manual (note section), ${CHROME_RULES[rule].label}`, text === "Typed heading", `caret in ${caret?.field ?? "nothing"}, typed text "${text}"`);
+    if (rule === "chrome") await ed.screenshot("s2-typed-empty-fields");
   } finally {
     await close();
+  }
+}
+
+/**
+ * A bare page for s2Bare: an editing host in a shadow root (as hax-body is
+ * in h-a-x's), a section and items with manual slots and contenteditable on
+ * the section and every field (as HAX sets them), and the section's
+ * placeholder and the items' tiles in shadow DOM. css is the user-select
+ * rule; br puts a <br> in the empty item's fields.
+ */
+function barePage(css, br) {
+  const ce = ' contenteditable="true"';
+  const item = (title, text) => `<x-item><h3${ce}>${title}</h3><p${ce}>${text}</p></x-item>`;
+  const empty = br ? "<br>" : "";
+  const content = `<div id="body" contenteditable="true" style="padding:1rem"><p>Before paragraph</p><x-sec${ce}><h2${ce}>Heading text</h2>${item("Title one", "Text one")}${item("Title two", "Text two")}${item(empty, empty)}</x-sec><p>After paragraph</p></div>`;
+  const section = `<style>:host{display:block;margin:1rem 0;padding:1rem;border:1px solid #ccc} .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(14rem,1fr));gap:1rem} ::slotted(h2){margin:0;min-block-size:1lh} ${css}</style><div class="editing"><span class="ph">Placeholder</span><div><slot name="heading"></slot></div><div class="cards" role="list"><slot name="items"></slot></div></div>`;
+  const card = `<style>:host{display:block;padding:1rem;border:1px solid #ddd} .card{display:grid;gap:.5rem} .tile{width:2.5rem;height:2.5rem} ::slotted(h3),::slotted(p){margin:0;min-block-size:1lh} ${css}</style><div class="card editing"><button class="tile">t</button><slot name="title"></slot><slot name="text"></slot></div>`;
+  return `<!doctype html><body style="margin:0;font:16px/1.5 sans-serif"><x-outer></x-outer><script>
+const define = (tag, html, slots) => customElements.define(tag, class extends HTMLElement {
+  constructor() { super(); this.attachShadow({ mode: "open", slotAssignment: "manual" }).innerHTML = html; }
+  assignSlots() { for (const [name, selector] of slots) this.shadowRoot.querySelector('slot[name="' + name + '"]').assign(...this.querySelectorAll(selector)); }
+});
+define("x-sec", ${JSON.stringify(section)}, [["heading", ":scope > h2"], ["items", ":scope > x-item"]]);
+define("x-item", ${JSON.stringify(card)}, [["title", ":scope > h3"], ["text", ":scope > p"]]);
+const outer = document.querySelector("x-outer").attachShadow({ mode: "open" });
+outer.innerHTML = ${JSON.stringify(content)};
+for (const el of outer.querySelectorAll("x-sec, x-item")) el.assignSlots();
+</script></body>`;
+}
+
+/**
+ * The caret checks again on a bare page (barePage), without HAX or the
+ * site, to tell each engine's own behaviour from HAX's: clicks into slotted
+ * fields, → through every field (empty ones too), ↓ from the heading and ↑
+ * from the second title, with each place for user-select: none, and with a
+ * <br> in the empty fields.
+ */
+async function s2Bare() {
+  for (const [rule, css, br] of [
+    ["wrapper", ".editing, .editing * { user-select: none; }", false],
+    ["slotted", ".editing, .editing * { user-select: none; } ::slotted(*) { user-select: text; }", false],
+    ["chrome", ".ph, .tile { user-select: none; }", false],
+    ["chrome", ".ph, .tile { user-select: none; }", true],
+  ]) {
+    const context = await browser.createBrowserContext();
+    try {
+      const page = await context.newPage();
+      await page.setViewport({ width: 1440, height: 900 });
+      await page.setContent(barePage(css, br));
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      // where the caret is: the field (item n's title or text, the heading, a paragraph) and offset
+      const where = () =>
+        page.evaluate(() => {
+          const root = document.querySelector("x-outer").shadowRoot;
+          const sel = document.getSelection();
+          let node = sel.anchorNode;
+          let offset = sel.anchorOffset;
+          if (node && node.getRootNode() !== root && sel.getComposedRanges) {
+            let range = null;
+            try {
+              [range] = sel.getComposedRanges({ shadowRoots: [root] });
+            } catch {
+              [range] = sel.getComposedRanges(root);
+            }
+            node = range?.startContainer;
+            offset = range?.startOffset;
+          }
+          if (!node || node.getRootNode() !== root) return "nothing";
+          const el = node.nodeType === 3 ? node.parentElement : node;
+          const item = el.closest("x-item");
+          const n = item ? [...root.querySelectorAll("x-item")].indexOf(item) + 1 : 0;
+          const name = item ? `item ${n} ${el.localName === "h3" ? "title" : "text"}` : el.localName === "h2" ? "heading" : el.textContent.startsWith("Before") ? "the paragraph before" : "the paragraph after";
+          return `${name}@${offset}`;
+        });
+      const field = (selector, n = 0) => page.evaluateHandle((s, n) => document.querySelector("x-outer").shadowRoot.querySelectorAll(s)[n], selector, n);
+      const put = (selector, n, atEnd) =>
+        page.evaluate(
+          (s, n, atEnd) => {
+            const root = document.querySelector("x-outer").shadowRoot;
+            const el = root.querySelectorAll(s)[n];
+            root.getElementById("body").focus();
+            const text = el.firstChild?.nodeType === 3 ? el.firstChild : null;
+            (root.getSelection?.() || document.getSelection()).collapse(text || el, text && atEnd ? text.length : 0);
+          },
+          selector,
+          n,
+          atEnd,
+        );
+      // clicks: into the first title's text, the heading's, and the empty title
+      const clicks = [];
+      for (const [label, selector, n, expect] of [
+        ["the first title", "x-item > h3", 0, "item 1 title"],
+        ["the heading", "x-sec > h2", 0, "heading"],
+        ["the empty title", "x-item > h3", 2, "item 3 title"],
+      ]) {
+        const el = await field(selector, n);
+        const at = await el.evaluate((e) => {
+          const r = e.getBoundingClientRect();
+          if (!e.firstChild || e.firstChild.nodeType !== 3) return { x: r.left + 4, y: r.top + r.height / 2 };
+          const range = document.createRange();
+          range.setStart(e.firstChild, 3);
+          range.setEnd(e.firstChild, 4);
+          const c = range.getBoundingClientRect();
+          return { x: c.left + 1, y: c.top + c.height / 2 };
+        });
+        await page.mouse.click(at.x, at.y);
+        await sleep(100);
+        const got = await where();
+        clicks.push({ label, got, ok: got.startsWith(expect) });
+      }
+      // → from the heading's end to the paragraph after
+      await put("x-sec > h2", 0, true);
+      const walk = [];
+      for (let i = 0; i < 80; i++) {
+        await page.keyboard.press("ArrowRight");
+        const at = (await where()).replace(/@\d+$/, "");
+        if (at !== walk.at(-1)) walk.push(at);
+        if (at === "the paragraph after" || at === "nothing") break;
+      }
+      const order = ["item 1 title", "item 1 text", "item 2 title", "item 2 text", "item 3 title", "item 3 text", "the paragraph after"];
+      const walked = JSON.stringify(walk) === JSON.stringify(order);
+      await put("x-sec > h2", 0, true);
+      await page.keyboard.press("ArrowDown");
+      const down = await where();
+      await put("x-item > h3", 1, false);
+      await page.keyboard.press("ArrowUp");
+      const up = await where();
+      const label = `${CHROME_RULES[rule].label}${br ? ", <br> in the empty fields" : ""}`;
+      if (!br) {
+        record(
+          "S2 on a bare page (no HAX): a click puts the caret in a slotted field",
+          label,
+          clicks.every((c) => c.ok),
+          clicks.map((c) => `${c.label}: ${c.got}`).join("; "),
+        );
+      }
+      record(
+        "S2 on a bare page (no HAX): arrow keys move through slotted fields",
+        label,
+        walked && down.startsWith("item 1") && up.startsWith("item 1"),
+        `→ from the heading's end ${walked ? "visits every field in order and leaves the section" : `goes ${walk.join(" → ")}`}; ↓ from the heading's end: ${down}; ↑ from the second title's start: ${up}`,
+      );
+    } finally {
+      await context.close().catch(() => {});
+    }
   }
 }
 
@@ -551,7 +877,7 @@ async function s2Html() {
       const html = await __spike.body().haxToContent();
       return { html, health: Object.fromEntries(Object.entries(variants).map(([k, v]) => [k, __spike.health(__spike.section(v.section))])) };
     }, VARIANTS);
-    writeFileSync(path.join(reportDir, "s2-saved.html"), before.html);
+    writeFileSync(path.join(dir, "s2-saved.html"), before.html);
     for (const [variant, v] of Object.entries(VARIANTS)) {
       const m = before.html.match(new RegExp(`<${v.section}[\\s\\S]*?</${v.section}>`));
       const saved = m?.[0] ?? "";
@@ -757,7 +1083,7 @@ async function s1Ops() {
           const item = [...s.children].find((c) => __spike.path(c) === p);
           return { title: item?.querySelector("h3")?.textContent ?? null, health: __spike.health(s) };
         }, r.path);
-        writeFileSync(path.join(reportDir, `s1-insert-${variant}${rehydrate ? "-rehydrate" : ""}.json`), JSON.stringify(r, null, 2));
+        writeFileSync(path.join(dir, `s1-insert-${variant}${rehydrate ? "-rehydrate" : ""}.json`), JSON.stringify(r, null, 2));
         const h3Path = `${r.path} > h3`;
         const actives = r.events.filter((e) => "active" in e).map((e) => `${e.t} ms ${e.active}`);
         const survived = r.caret.every((c) => c === h3Path);
@@ -890,12 +1216,16 @@ async function s1Keys() {
           return { blocks: body.children.length, section: __ec.normalize(__spike.section(tag).innerHTML), body: __ec.normalize(body.innerHTML) };
         }, sec);
 
-      // which listeners see a key, in what order, with the caret in an item's title
+      // which listeners see a key, in what order, with the caret in an item's title (Shift:
+      // a key HAX does nothing with, where an arrow would throw the caret out in WebKit)
       await caretIn(ed, await fieldEl(page, sec, 0, `:scope > ${item} > h3`), "end");
       await page.evaluate(() => __spike.clearLog());
-      await ed.press("ArrowLeft");
+      await ed.press("Shift");
       await sleep(100);
-      r.order = (await page.evaluate(() => __spike.log())).filter((e) => e.listener).map((e) => `${e.type} ${e.listener}${e.phase ? ` (phase ${e.phase}, target ${e.target})` : ""}`);
+      const heard = (await page.evaluate(() => __spike.log())).filter((e) => e.listener);
+      r.order = heard.map((e) => `${e.type} ${e.listener}${e.phase ? ` (phase ${e.phase}, target ${e.target})` : ""}`);
+      // how the section's listener found the field (getEditRange in spike-blocks.js)
+      r.how = [...new Set(heard.map((e) => e.how).filter(Boolean))].join(", ") || null;
       r.target = await page.evaluate(() => __ec.describe(__ec.activeElement())?.path);
 
       // Enter at the end of a title
@@ -956,13 +1286,13 @@ async function s1Keys() {
       await close();
     }
   }
-  writeFileSync(path.join(reportDir, "s1-keys.json"), JSON.stringify(results, null, 2));
+  writeFileSync(path.join(dir, "s1-keys.json"), JSON.stringify(results, null, 2));
   const off = results.off;
   record(
     "S1 keys: which listeners a key reaches, in order",
     "caret in an item title",
     true,
-    `${off.order.join(" → ")}; focus is on ${off.target}`,
+    `${off.order.join(" → ")}; focus is on ${off.target}; the section's listeners found the caret's field with ${off.how ?? "nothing"}`,
   );
   const hostSaw = off.order.some((o) => o.includes("host"));
   record("S1 keys: a keydown listener on the section host runs before hax-body's window handler", "host", hostSaw, hostSaw ? "it does" : `the section host never hears it: the key's target is the editing host (hax-body), which contains the section`);
@@ -991,86 +1321,115 @@ async function s1Keys() {
 
 /* ---------- S7: shadow controls in contentEditable grid hosts ---------- */
 
-async function s7() {
+// hax-body's HTML without HAX's editing attributes, nor the element-visible
+// that page-break sets on itself when it scrolls into view
+const bodyHtml = (page) => page.evaluate(() => __ec.normalize(__spike.body().innerHTML).replace(/ element-visible=""/g, ""));
+
+/** Where two HTML strings first differ, with a little of each around it. */
+function firstDifference(a, b) {
+  let i = 0;
+  while (i < a.length && a[i] === b[i]) i++;
+  return `…${a.slice(Math.max(0, i - 30), i + 40)}… became …${b.slice(Math.max(0, i - 30), i + 40)}…`;
+}
+
+/** Whether focus is on el at 0, 50, 100, 200, 400 and 700 ms. */
+const focusSamples = (el) =>
+  el.evaluate(async (e) => {
+    const out = [];
+    for (const t of [0, 50, 100, 200, 400, 700]) {
+      await new Promise((r) => setTimeout(r, t - (out.at(-1)?.t ?? 0)));
+      out.push({ t, on: __ec.activeElement() === e });
+    }
+    return out;
+  });
+const kept = (samples) => samples.every((x) => x.on);
+const lost = (samples) => (kept(samples) ? "kept" : `LOST at ${samples.find((x) => !x.on).t} ms`);
+const controlEl = (page, tag, cls) => handle(page, (tag, cls) => __spike.section(tag)?.shadowRoot.querySelector(cls), tag, cls);
+
+/**
+ * An ordinary paragraph away from the section, so another block is active
+ * (HAX's hidden context menu sits over the block above the active one: see
+ * s7Menu).
+ */
+async function elsewhere(ed, page, tag) {
+  const p = await handle(page, (tag) => [...__spike.body().querySelectorAll(":scope > p")].find((p) => p.previousElementSibling !== __spike.section(tag)), tag);
+  await caretIn(ed, p, "end");
+}
+
+/** The section itself selected, as clicking its padding beside the heading does. */
+async function selectSection(ed, page, tag) {
+  const at = await page.evaluate((tag) => {
+    const s = __spike.section(tag);
+    const h = s.querySelector(":scope > h2");
+    h.scrollIntoView({ block: "center" });
+    const r = s.getBoundingClientRect();
+    const hr = h.getBoundingClientRect();
+    return { x: r.left + 6, y: hr.top + hr.height / 2 };
+  }, tag);
+  await sleep(100);
+  await ed.clickAt(at);
+  await sleep(300);
+  return page.evaluate(() => __spike.activeNode());
+}
+
+/** HAX's own (hidden) context menu container over the content. */
+async function s7Menu() {
   const { ed, page, close } = await fresh();
   try {
-    const bodyHtml = () => page.evaluate(() => __ec.normalize(__spike.body().innerHTML));
-    const focusSamples = (el) =>
-      el.evaluate(async (e) => {
-        const out = [];
-        for (const t of [0, 50, 100, 200, 400, 700]) {
-          await new Promise((r) => setTimeout(r, t - (out.at(-1)?.t ?? 0)));
-          out.push({ t, on: __ec.activeElement() === e });
-        }
-        return out;
-      });
-    const kept = (samples) => samples.every((x) => x.on);
-    const lost = (samples) => (kept(samples) ? "kept" : `LOST at ${samples.find((x) => !x.on).t} ms`);
-    const controlEl = (tag, cls) => handle(page, (tag, cls) => __spike.section(tag)?.shadowRoot.querySelector(cls), tag, cls);
-    // an ordinary paragraph away from the section, so another block is active (HAX's hidden
-    // context menu sits over the block above the active one: see the next check)
-    const elsewhere = async (tag) => {
-      const p = await handle(page, (tag) => [...__spike.body().querySelectorAll(":scope > p")].find((p) => p.previousElementSibling !== __spike.section(tag)), tag);
-      await caretIn(ed, p, "end");
-    };
-    // the section itself selected, as clicking its padding beside the heading does
-    const selectSection = async (tag) => {
-      const at = await page.evaluate((tag) => {
-        const s = __spike.section(tag);
-        const h = s.querySelector(":scope > h2");
-        h.scrollIntoView({ block: "center" });
-        const r = s.getBoundingClientRect();
-        const hr = h.getBoundingClientRect();
-        return { x: r.left + 6, y: hr.top + hr.height / 2 };
-      }, tag);
+    const above = await handle(page, () => __spike.section("oer-spike-learn").nextElementSibling);
+    await caretIn(ed, above, "end");
+    await sleep(300);
+    const hit = async () => {
+      const input = await controlEl(page, "oer-spike-learn", ".full-input");
+      await input.evaluate((e) => e.scrollIntoView({ block: "center" }));
       await sleep(100);
-      await ed.clickAt(at);
-      await sleep(300);
-      return page.evaluate(() => __spike.activeNode());
+      const at = await ed.centre(input, { covered: true });
+      return page.evaluate((x, y) => {
+        const el = __ec.elementAt(x, y);
+        return el ? `${el.localName}${el.id ? `#${el.id}` : ""} in ${el.getRootNode().host?.localName ?? "document"}` : "nothing";
+      }, at.x, at.y);
     };
+    const before = await hit();
+    await page.evaluate(() => {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync("#topcontextmenu { pointer-events: none !important; }");
+      const root = __spike.body().shadowRoot;
+      root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+    });
+    const after = await hit();
+    record(
+      "S7 clicks on content just above the active block reach it",
+      "HAX's #topcontextmenu",
+      !/topcontextmenu/.test(before),
+      `with an ordinary paragraph active, a click on the field at the bottom of the section above it lands on ${before}; with #topcontextmenu { pointer-events: none } in hax-body's shadow root it lands on ${after}`,
+    );
+  } finally {
+    await close();
+  }
+}
 
-    // HAX's own (hidden) context menu container over the content
-    {
-      const above = await handle(page, () => __spike.section("oer-spike-learn").nextElementSibling);
-      await caretIn(ed, above, "end");
-      await sleep(300);
-      const hit = async () => {
-        const input = await controlEl("oer-spike-learn", ".full-input");
-        await input.evaluate((e) => e.scrollIntoView({ block: "center" }));
-        await sleep(100);
-        const at = await ed.centre(input, { covered: true });
-        return page.evaluate((x, y) => {
-          const el = __ec.elementAt(x, y);
-          return el ? `${el.localName}${el.id ? `#${el.id}` : ""} in ${el.getRootNode().host?.localName ?? "document"}` : "nothing";
-        }, at.x, at.y);
-      };
-      const before = await hit();
-      await page.evaluate(() => {
-        const sheet = new CSSStyleSheet();
-        sheet.replaceSync("#topcontextmenu { pointer-events: none !important; }");
-        const root = __spike.body().shadowRoot;
-        root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
-      });
-      const after = await hit();
-      record(
-        "S7 clicks on content just above the active block reach it",
-        "HAX's #topcontextmenu",
-        !/topcontextmenu/.test(before),
-        `with an ordinary paragraph active, a click on the field at the bottom of the section above it lands on ${before}; with #topcontextmenu { pointer-events: none } in hax-body's shadow root it lands on ${after}`,
-      );
-    }
-
-    for (const [tag, ce] of [
-      ["oer-spike-learn", "contentEditable: true"],
-      ["oer-spike-learn-ce0", "contentEditable: false"],
-    ]) {
-      for (const kind of ["plain", "spec", "spec+focus", "spec+click", "full"]) {
-        const input = await controlEl(tag, `.${kind.replace("+", "-")}-input`);
-        const button = await controlEl(tag, `.${kind.replace("+", "-")}-button`);
+/**
+ * Each pair of a shadow field and button, with each guard, in a section
+ * with contentEditable true and false; each on a fresh page. WebKit, like
+ * Safari, doesn't focus a button that's clicked, so there a click on a
+ * button keeps focus if its handler runs and HAX does nothing: no change to
+ * the content or the active block, and focus not in the content.
+ */
+async function s7Controls() {
+  for (const [tag, ce] of [
+    ["oer-spike-learn", "contentEditable: true"],
+    ["oer-spike-learn-ce0", "contentEditable: false"],
+  ]) {
+    for (const kind of ["plain", "spec", "spec+focus", "spec+click", "full"]) {
+      const { ed, page, close } = await fresh();
+      try {
+        const input = await controlEl(page, tag, `.${kind.replace("+", "-")}-input`);
+        const button = await controlEl(page, tag, `.${kind.replace("+", "-")}-button`);
+        const clicks = async () => (await page.evaluate((tag) => __spike.section(tag).__clicks, tag))[kind] || 0;
         const r = {};
         // from another block: click the field, type into it, paste
-        await elsewhere(tag);
-        let html0 = await bodyHtml();
+        await elsewhere(ed, page, tag);
+        let html0 = await bodyHtml(page);
         await clickCentred(ed, input);
         r.clickInput = await focusSamples(input);
         r.activeAfterClick = await page.evaluate(() => __spike.activeNode());
@@ -1079,45 +1438,63 @@ async function s7() {
         await ed.press("Enter");
         await sleep(300);
         r.value = await input.evaluate((e) => e.value);
+        let html1 = await bodyHtml(page);
+        r.typedChange = html1 === html0 ? null : firstDifference(html0, html1);
         await input.evaluate((e) => {
           const data = new DataTransfer();
           data.setData("text/plain", "pasted");
           e.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, composed: true, cancelable: true }));
         });
         await sleep(400);
-        r.bodyUnchanged = (await bodyHtml()) === html0;
+        const html2 = await bodyHtml(page);
+        r.pasteChange = html2 === html1 ? null : firstDifference(html1, html2);
         // Tab from the field to its button, then Enter and Space on it
         await input.evaluate((e) => e.focus());
         await ed.press("Tab");
         r.tabToButton = await focusSamples(button);
-        html0 = await bodyHtml();
-        const clicks0 = (await page.evaluate((tag) => __spike.section(tag).__clicks, tag))[kind] || 0;
+        r.tabFocus = await page.evaluate(() => __ec.describe(__ec.activeElement())?.path);
+        html0 = await bodyHtml(page);
+        let clicks0 = await clicks();
         await ed.press("Enter");
         await ed.press("Space");
         await sleep(300);
-        r.keysOnButton = { clicks: ((await page.evaluate((tag) => __spike.section(tag).__clicks, tag))[kind] || 0) - clicks0, bodyUnchanged: (await bodyHtml()) === html0 };
+        html1 = await bodyHtml(page);
+        r.keysOnButton = { clicks: (await clicks()) - clicks0, change: html1 === html0 ? null : firstDifference(html0, html1) };
         // click the button
-        await elsewhere(tag);
+        await elsewhere(ed, page, tag);
+        const active0 = await page.evaluate(() => __spike.activeNode());
+        html0 = await bodyHtml(page);
+        clicks0 = await clicks();
         await clickCentred(ed, button);
         r.clickButton = await focusSamples(button);
+        r.buttonClick = {
+          clicks: (await clicks()) - clicks0,
+          focus: await page.evaluate(() => __ec.describe(__ec.activeElement())?.path),
+          inContent: await page.evaluate(() => __ec.within(__ec.activeElement(), __spike.body()) && __ec.activeElement() !== __spike.body()),
+          active: await page.evaluate(() => __spike.activeNode()),
+          active0,
+          change: (await bodyHtml(page)) === html0 ? null : "CHANGED",
+        };
+        // WebKit doesn't focus clicked buttons: there, nothing taken from it is what counts
+        const buttonOk = kept(r.clickButton) || (engine === "webkit" && r.buttonClick.clicks === 1 && !r.buttonClick.change && !r.buttonClick.inContent && r.buttonClick.active === active0);
         // focus arriving by keyboard, as Tab from outside brings it
-        await elsewhere(tag);
+        await elsewhere(ed, page, tag);
         await input.evaluate((e) => e.focus());
         r.focusInput = await focusSamples(input);
         // with the section already selected
-        r.selected = await selectSection(tag);
+        r.selected = await selectSection(ed, page, tag);
         await clickCentred(ed, input);
         r.clickSelected = await focusSamples(input);
         // a double-click selects a word in the field
         await input.evaluate((e) => (e.value = "two words"));
-        await elsewhere(tag);
+        await elsewhere(ed, page, tag);
         await clickCentred(ed, input, { clickCount: 1 });
         await ed.clickAt(input, { clickCount: 2 });
         r.dblclick = await focusSamples(input);
         r.dblclickSelection = await input.evaluate((e) => e.value.slice(e.selectionStart, e.selectionEnd));
 
         const pass =
-          kept(r.clickInput) && kept(r.tabToButton) && kept(r.clickButton) && kept(r.focusInput) && kept(r.clickSelected) && kept(r.dblclick) && r.value === "ab" && r.bodyUnchanged && r.keysOnButton.bodyUnchanged;
+          kept(r.clickInput) && kept(r.tabToButton) && buttonOk && kept(r.focusInput) && kept(r.clickSelected) && kept(r.dblclick) && r.value === "ab" && !r.typedChange && !r.pasteChange && !r.keysOnButton.change;
         record(
           "S7 a shadow field and button keep focus, and typing stays in them",
           `${ce}, ${{ plain: "no guard", spec: "the spec's guard (6 events)", "spec+focus": "the spec's guard + focus", "spec+click": "the spec's guard + click, dblclick", full: "full guard (+ click, dblclick, focus)" }[kind]}`,
@@ -1125,25 +1502,44 @@ async function s7() {
           [
             `click the field from another block: ${lost(r.clickInput)} (active then ${r.activeAfterClick})`,
             `typed "abc", Backspace, Enter: "${r.value}"`,
-            `content ${r.bodyUnchanged ? "unchanged" : "CHANGED"} by typing and a paste`,
-            `Tab to the button: ${lost(r.tabToButton)}`,
-            `Enter and Space on it: ${r.keysOnButton.clicks} click(s), content ${r.keysOnButton.bodyUnchanged ? "unchanged" : "CHANGED"}`,
-            `click the button: ${lost(r.clickButton)}`,
+            `content ${r.typedChange ? `CHANGED by typing (${r.typedChange})` : "unchanged by typing"}, ${r.pasteChange ? `CHANGED by a paste (${r.pasteChange})` : "unchanged by a paste"}`,
+            `Tab to the button: ${lost(r.tabToButton)}${kept(r.tabToButton) ? "" : ` (focus on ${r.tabFocus})`}`,
+            `Enter and Space on it: ${r.keysOnButton.clicks} click(s), content ${r.keysOnButton.change ? `CHANGED (${r.keysOnButton.change})` : "unchanged"}`,
+            `click the button: ${lost(r.clickButton)}${kept(r.clickButton) ? "" : ` (focus then on ${r.buttonClick.focus}; ${r.buttonClick.clicks} click(s) handled; content ${r.buttonClick.change ? "CHANGED" : "unchanged"}; active block ${r.buttonClick.active === active0 ? "unchanged" : `${active0} → ${r.buttonClick.active}`})`}`,
             `focus() on the field: ${lost(r.focusInput)}`,
             `click the field with the section selected (${r.selected}): ${lost(r.clickSelected)}`,
             `double-click a word in it: ${lost(r.dblclick)}, selection "${r.dblclickSelection}"`,
           ].join("; "),
         );
+      } finally {
+        await close();
       }
     }
-    // the item's own control (its icon tile), with the full guard
-    await elsewhere("oer-spike-learn");
+  }
+}
+
+/** The item's own control (its icon tile), with the full guard. */
+async function s7Tile() {
+  const { ed, page, close } = await fresh();
+  try {
+    await elsewhere(ed, page, "oer-spike-learn");
+    const active0 = await page.evaluate(() => __spike.activeNode());
+    const html0 = await bodyHtml(page);
     const tile = await handle(page, () => __spike.section("oer-spike-learn").querySelector("oer-spike-outcome").shadowRoot.querySelector(".tile"));
     await page.evaluate(() => __spike.clearLog());
     await clickCentred(ed, tile);
     const tileFocus = await focusSamples(tile);
     const clicked = (await page.evaluate(() => __spike.log())).some((e) => e.clicked === "icon");
-    record("S7 an item's shadow button (icon tile) keeps focus and works", "contentEditable: true, full guard", kept(tileFocus) && clicked, `focus ${lost(tileFocus)} for 700 ms; its click handler ${clicked ? "ran" : "DIDN'T run"}`);
+    const after = await page.evaluate(() => ({ focus: __ec.describe(__ec.activeElement())?.path, inContent: __ec.within(__ec.activeElement(), __spike.body()) && __ec.activeElement() !== __spike.body(), active: __spike.activeNode() }));
+    const unchanged = (await bodyHtml(page)) === html0;
+    // WebKit doesn't focus clicked buttons (as s7Controls)
+    const ok = clicked && (kept(tileFocus) || (engine === "webkit" && unchanged && !after.inContent && after.active === active0));
+    record(
+      "S7 an item's shadow button (icon tile) keeps focus and works",
+      "contentEditable: true, full guard",
+      ok,
+      `focus ${lost(tileFocus)} for 700 ms${kept(tileFocus) ? "" : ` (then on ${after.focus}; content ${unchanged ? "unchanged" : "CHANGED"}; active block ${after.active === active0 ? "unchanged" : `${active0} → ${after.active}`})`}; its click handler ${clicked ? "ran" : "DIDN'T run"}`,
+    );
     await (await sectionEl(page, "oer-spike-learn")).evaluate((e) => e.scrollIntoView({ block: "start" }));
     await ed.settle();
     await ed.screenshot("s7-controls");
@@ -1152,61 +1548,151 @@ async function s7() {
   }
 }
 
-/* ---------- selection reading in Chrome ---------- */
+/* ---------- the selection inside shadow roots ---------- */
 
+/**
+ * The caret inside hax-body's shadow root, read each way an engine might
+ * offer it; then set each way, and checked by where a typed letter lands.
+ */
 async function sel() {
   const { ed, page, close } = await fresh();
   try {
+    // a click between the last two characters of a title, as a person puts the caret there
     const title = await fieldEl(page, VARIANTS.manual.section, 0, `:scope > ${VARIANTS.manual.item} > h3`);
-    await caretIn(ed, title, "end");
-    await ed.press("ArrowLeft");
-    await ed.press("ArrowLeft");
+    await title.evaluate((e) => e.scrollIntoView({ block: "center" }));
+    await ed.frames();
+    const between = await title.evaluate((e) => {
+      const range = document.createRange();
+      range.setStart(e.firstChild, e.firstChild.length - 2);
+      range.setEnd(e.firstChild, e.firstChild.length - 1);
+      const r = range.getBoundingClientRect();
+      return { x: r.left + 1, y: r.top + r.height / 2 };
+    });
+    await ed.clickAt(between);
+    await sleep(300);
     const r = await page.evaluate(() => {
       const describe = (n) => (n ? (n.nodeType === 3 ? `text in ${__spike.path(n.parentElement)}` : n.localName) : null);
+      const at = (node, offset) => ({ node: describe(node), offset });
+      const attempt = (fn) => {
+        try {
+          return fn();
+        } catch (e) {
+          return { error: e.message.split("\n")[0] };
+        }
+      };
       const body = __spike.body();
       const root = body.getRootNode();
-      const shadow = root.getSelection?.();
       const doc = document.getSelection();
       const roots = [];
-      for (let n = body; n; n = n.getRootNode().host || null) if (n.getRootNode() instanceof ShadowRoot) roots.push(n.getRootNode());
-      let composed = null;
-      try {
-        const [range] = doc.getComposedRanges({ shadowRoots: roots });
-        composed = range ? { node: describe(range.startContainer), offset: range.startOffset } : null;
-      } catch (e) {
-        composed = { error: e.message };
-      }
-      let composedNoRoots = null;
-      try {
-        const [range] = doc.getComposedRanges();
-        composedNoRoots = range ? { node: describe(range.startContainer), offset: range.startOffset } : null;
-      } catch (e) {
-        composedNoRoots = { error: e.message };
-      }
+      for (let n = root; n instanceof ShadowRoot; n = n.host.getRootNode()) roots.push(n);
+      const composed = (...a) => {
+        const [range] = doc.getComposedRanges(...a);
+        return range ? at(range.startContainer, range.startOffset) : null;
+      };
+      const h3 = __spike.section("oer-spike-learn").querySelector(":scope > oer-spike-outcome > h3");
+      const edit = globalThis.__spikeEditRange(body);
       return {
-        shadowRootGetSelection: shadow ? { node: describe(shadow.anchorNode), offset: shadow.anchorOffset } : "not available",
-        documentGetSelection: { node: describe(doc.anchorNode), offset: doc.anchorOffset },
-        getComposedRanges: composed,
-        getComposedRangesWithoutRoots: composedNoRoots,
-        roots: roots.map((r) => r.host.localName),
+        expected: { node: describe(h3.firstChild), offset: h3.textContent.length - 2 },
+        roots: roots.map((x) => x.host.localName),
+        ways: {
+          "ShadowRoot.getSelection()": root.getSelection ? attempt(() => at(root.getSelection().anchorNode, root.getSelection().anchorOffset)) : "not available",
+          "document.getSelection()": at(doc.anchorNode, doc.anchorOffset),
+          "getComposedRanges({shadowRoots})": doc.getComposedRanges ? attempt(() => composed({ shadowRoots: roots })) : "not available",
+          "getComposedRanges(...shadowRoots), WebKit 18's form": doc.getComposedRanges ? attempt(() => composed(...roots)) : "not available",
+          "getComposedRanges() without roots": doc.getComposedRanges ? attempt(() => composed()) : "not available",
+          "HAXStore.getSelection(), what HAX reads": attempt(() => at(__ec.haxStore().getSelection().anchorNode, __ec.haxStore().getSelection().anchorOffset)),
+          "getEditRange(), one function for every engine": edit ? { ...at(edit.range.startContainer, edit.range.startOffset), how: edit.how } : null,
+        },
       };
     });
-    const real = (x) => typeof x?.node === "string" && x.node.startsWith("text in");
-    record(
-      "Selection reading in Chrome",
-      "caret 2 characters before the end of a title",
-      real(r.shadowRootGetSelection) && real(r.getComposedRanges),
-      `ShadowRoot.getSelection(): ${JSON.stringify(r.shadowRootGetSelection)}; document.getSelection(): ${JSON.stringify(r.documentGetSelection)}; getComposedRanges({shadowRoots: ${r.roots.join(", ")}}): ${JSON.stringify(r.getComposedRanges)}; getComposedRanges() without roots: ${JSON.stringify(r.getComposedRangesWithoutRoots)}`,
-    );
+    const real = (x) => x?.node === r.expected.node && x.offset === r.expected.offset;
+    for (const [way, got] of Object.entries(r.ways)) {
+      record(
+        `Selection reading: ${way}`,
+        "caret 2 characters before the end of a title",
+        real(got),
+        `${typeof got === "string" ? got : JSON.stringify(got)}${real(got) ? "" : ` (the caret was put at ${JSON.stringify(r.expected)})`}; shadow roots from hax-body up: ${r.roots.join(", ")}`,
+      );
+    }
+
+    // setting it, as the key controller moves the caret: with the caret in a field (clicked), each
+    // way on the selection getEditRange() reads, 3 characters into another field, then typing "X"
+    const fields = [`:scope > ${VARIANTS.manual.item}:nth-of-type(1) > p`, `:scope > ${VARIANTS.manual.item}:nth-of-type(2) > h3`, `:scope > ${VARIANTS.manual.item}:nth-of-type(2) > p`];
+    for (const [i, way] of ["collapse", "setBaseAndExtent", "addRange"].entries()) {
+      const field = await fieldEl(page, VARIANTS.manual.section, 0, fields[i]);
+      await clickCentred(ed, await fieldEl(page, VARIANTS.manual.section, 0, `:scope > ${VARIANTS.manual.item}:nth-of-type(1) > h3`));
+      await sleep(200);
+      const before = await field.evaluate((e) => e.textContent);
+      const set = await field.evaluate((e, way) => {
+        const text = e.firstChild;
+        const s = e.getRootNode().getSelection?.() || document.getSelection();
+        if (way === "addRange") {
+          const range = document.createRange();
+          range.setStart(text, 3);
+          range.collapse(true);
+          s.removeAllRanges();
+          s.addRange(range);
+        } else if (way === "setBaseAndExtent") s.setBaseAndExtent(text, 3, text, 3);
+        else s.collapse(text, 3);
+        const now = __ec.selectionNodes(e);
+        return { reads: now.anchorNode === text && now.anchorOffset === 3, rangeCount: s.rangeCount };
+      }, way);
+      await ed.type("X");
+      await sleep(150);
+      const after = await field.evaluate((e) => ({ text: e.textContent, caret: __spike.caret() }));
+      const expected = `${before.slice(0, 3)}X${before.slice(3)}`;
+      record(
+        `Selection setting: ${way}`,
+        "the caret 3 characters into a field, then typing X",
+        set.reads && after.text === expected,
+        `read back ${set.reads ? "where it was put" : "ELSEWHERE"} (rangeCount ${set.rangeCount}); the field now reads "${after.text}"${after.text === expected ? "" : ` (expected "${expected}"; the caret is in ${after.caret?.field ?? after.caret?.node ?? "nothing"})`}`,
+      );
+    }
   } finally {
     await close();
   }
 }
 
+/**
+ * HAX's own keys in an ordinary paragraph (two ← and Enter, which HAX
+ * handles from HAXStore.getSelection()), as HAX has it and with
+ * patchHaxSelection().
+ */
+async function selHax() {
+  for (const patched of [false, true]) {
+    const { ed, page, close } = await fresh();
+    try {
+      if (patched) await page.evaluate(() => __spike.patchHaxSelection());
+      const p = await handle(page, () => __spike.body().querySelector(":scope > p"));
+      await clickCentred(ed, p);
+      await sleep(200);
+      const start = await page.evaluate(() => __spike.caret());
+      await ed.press("ArrowLeft");
+      await ed.press("ArrowLeft");
+      await sleep(200);
+      const moved = await page.evaluate(() => ({ caret: __spike.caret(), focus: __ec.describe(__ec.activeElement())?.tag }));
+      const blocks0 = await page.evaluate(() => __spike.body().children.length);
+      await ed.press("Enter");
+      await sleep(400);
+      const entered = await page.evaluate(() => ({ blocks: __spike.body().children.length, caret: __spike.caret(), focus: __ec.describe(__ec.activeElement())?.tag }));
+      const arrowsOk = moved.caret?.node === start?.node && moved.caret.offset === start.offset - 2 && moved.focus === "hax-body";
+      const enterOk = entered.blocks === blocks0 + 1 && entered.caret?.offset === 0 && /^p\[\d+\]$/.test(entered.caret.node) && entered.caret.node !== start.node;
+      record(
+        "HAX's own arrow keys and Enter in an ordinary paragraph",
+        patched ? "HAXStore.getSelection() patched to read WebKit's composed range" : "as HAX has it",
+        arrowsOk && enterOk,
+        `caret clicked in at ${start?.node}@${start?.offset}; two ← put it at ${moved.caret ? `${moved.caret.node}@${moved.caret.offset}` : "nothing"}, focus on ${moved.focus}; Enter made ${entered.blocks - blocks0} block(s), caret then at ${entered.caret ? `${entered.caret.node}@${entered.caret.offset}` : "nothing"}, focus on ${entered.focus}`,
+      );
+    } finally {
+      await close();
+    }
+  }
+}
+
 /* ---------- main ---------- */
 
-const RUN = { s1: [s1Ops], keys: [s1Keys], s2: [s2Render, s2Caret, s2Undo, s2Html, s2Vanish], s7: [s7], sel: [sel] };
-// stop the server by its port on Ctrl+C too (puppeteer's own handlers are off)
+const RUN = { s1: [s1Ops], keys: [s1Keys], s2: [s2Render, s2Arrows, s2Click, s2Undo, s2Html, s2Vanish], bare: [s2Bare], s7: [s7Menu, s7Controls, s7Tile], sel: [sel, selHax] };
+// stop the server by its port on Ctrl+C too (the browsers' own handlers are off)
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.once(signal, async () => {
     console.error(`\n${signal}: stopping the server on port ${port}…`);
@@ -1216,23 +1702,35 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   });
 }
 let unmeasured = 0;
-let chrome = null;
+const browsers = {};
 try {
   scratch = await startScratch({ port, source, keep, prepare });
-  browser = await puppeteer.launch({ executablePath: CHROME, headless: "new", handleSIGINT: false, handleSIGTERM: false, handleSIGHUP: false });
-  chrome = await browser.version();
-  for (const group of only) {
-    for (const fn of RUN[group] || []) {
-      console.log(`Measuring ${fn.name}…`);
-      const before = rows.length;
-      try {
-        await fn();
-      } catch (e) {
-        const where = (e.stack || "").split("\n").find((l) => l.includes("/structure/run.mjs"))?.trim();
-        rows.push({ check: fn.name, variant: "", engine: "chrome", pass: false, measured: false, detail: `Couldn't measure: ${e.message}${where ? ` (${where})` : ""}` });
-      }
-      if (rows.length === before) rows.push({ check: fn.name, variant: "", engine: "chrome", pass: false, measured: false, detail: "Recorded nothing" });
+  for (engine of engines) {
+    dir = path.join(reportDir, engine);
+    mkdirSync(dir, { recursive: true });
+    try {
+      browser = await launch(engine);
+    } catch (e) {
+      rows.push({ check: "(browser)", variant: "", engine, pass: false, measured: false, detail: `${engine} didn't start: ${e.message}` });
+      continue;
     }
+    browsers[engine] = await browser.version();
+    for (const group of only) {
+      for (const fn of RUN[group] || []) {
+        console.log(`Measuring ${fn.name} in ${engine}…`);
+        const before = rows.length;
+        try {
+          await fn();
+        } catch (e) {
+          const where = (e.stack || "").split("\n").find((l) => l.includes("/structure/run.mjs"))?.trim();
+          rows.push({ check: fn.name, variant: "", engine, pass: false, measured: false, detail: `Couldn't measure: ${e.message}${where ? ` (${where})` : ""}` });
+        }
+        if (rows.length === before) rows.push({ check: fn.name, variant: "", engine, pass: false, measured: false, detail: "Recorded nothing" });
+      }
+    }
+    await browser.close().catch(() => {});
+    browser = null;
+    writeFileSync(path.join(dir, "results.json"), JSON.stringify({ started: stamp, port, source, browser: browsers[engine], rows: rows.filter((r) => r.engine === engine) }, null, 2));
   }
 } catch (e) {
   console.error(`The run stopped: ${e.message}`);
@@ -1243,14 +1741,18 @@ try {
 }
 
 unmeasured += rows.filter((r) => !r.measured).length;
-const report = { started: stamp, port, source, chrome, rows };
+const report = { started: stamp, port, source, browsers, rows };
 writeFileSync(path.join(reportDir, "results.json"), JSON.stringify(report, null, 2));
 console.log(JSON.stringify(rows.map(({ check, variant, engine, pass, measured }) => ({ check, variant, engine, pass, ...(measured ? {} : { measured }) })), null, 1));
-for (const r of rows) console.log(`${r.pass ? "PASS" : r.measured ? "FAIL" : "ERR "}  ${r.check} [${r.variant}]\n      ${r.detail}`);
+for (const r of rows) console.log(`${r.pass ? "PASS" : r.measured ? "FAIL" : "ERR "}  ${r.engine}  ${r.check} [${r.variant}]\n      ${r.detail}`);
 console.log(`\n${rows.filter((r) => r.pass).length} passed, ${rows.filter((r) => r.measured && !r.pass).length} failed (no-go results), ${unmeasured} not measured. Report: ${reportDir}`);
 if (evidence) {
-  mkdirSync(evidence, { recursive: true });
-  for (const f of readdirSync(reportDir)) copyFileSync(path.join(reportDir, f), path.join(evidence, f));
-  console.log(`Copied the evidence to ${evidence}`);
+  // Chrome's in the folder itself, as the first (Chrome-only) run left it; the others in a folder each
+  for (const e of Object.keys(browsers)) {
+    const to = e === "chrome" ? evidence : path.join(evidence, e);
+    mkdirSync(to, { recursive: true });
+    for (const f of readdirSync(path.join(reportDir, e))) copyFileSync(path.join(reportDir, e, f), path.join(to, f));
+    console.log(`Copied ${e}'s evidence to ${to}`);
+  }
 }
 process.exit(unmeasured ? 1 : 0);

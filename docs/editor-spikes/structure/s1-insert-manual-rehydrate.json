@@ -16,7 +16,7 @@
       "role": null
     }
   },
-  "settledMs": 45,
+  "settledMs": 54,
   "atSettled": {
     "active": "oer-spike-learn > oer-spike-outcome[3]",
     "h3": {
@@ -81,7 +81,7 @@
       "value": "Heading"
     },
     {
-      "t": 9,
+      "t": 10,
       "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
       "attr": "contenteditable",
       "value": "true"
@@ -123,84 +123,84 @@
       "value": "true"
     },
     {
-      "t": 15,
+      "t": 23,
       "active": "oer-spike-learn > oer-spike-outcome[3]"
     },
     {
-      "t": 15,
+      "t": 23,
       "inserting": false
     },
     {
-      "t": 46,
+      "t": 56,
       "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
       "attr": "data-hax-ray",
       "value": "Heading"
     },
     {
-      "t": 46,
+      "t": 56,
       "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
       "attr": "contenteditable",
       "value": "true"
     },
     {
-      "t": 46,
+      "t": 56,
       "el": "oer-spike-learn > oer-spike-outcome[3] > p",
       "attr": "data-hax-ray",
       "value": "Paragraph"
     },
     {
-      "t": 46,
+      "t": 56,
       "el": "oer-spike-learn > oer-spike-outcome[3] > p",
       "attr": "contenteditable",
       "value": "true"
     },
     {
-      "t": 49,
+      "t": 59,
       "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
       "attr": "contenteditable",
       "value": "true"
     },
     {
-      "t": 49,
+      "t": 59,
       "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
       "attr": "role",
       "value": "textbox"
     },
     {
-      "t": 49,
+      "t": 59,
       "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
       "attr": "contenteditable",
       "value": "true"
     },
     {
-      "t": 49,
+      "t": 59,
       "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
       "attr": "role",
       "value": "textbox"
     },
     {
-      "t": 49,
+      "t": 59,
       "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
       "attr": "role",
       "value": "textbox"
     },
     {
-      "t": 55,
+      "t": 67,
       "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
       "attr": "contenteditable",
       "value": "true"
     },
     {
-      "t": 73,
+      "t": 83,
       "active": "oer-spike-learn > oer-spike-outcome[3] > h3"
     },
     {
-      "t": 149,
+      "t": 159,
       "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
       "attr": "contenteditable",
       "value": "true"
     }
   ],
   "path": "oer-spike-learn > oer-spike-outcome[3]",
-  "took": 1734
+  "took": 1741
 }

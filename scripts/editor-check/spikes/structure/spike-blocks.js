@@ -22,8 +22,16 @@
  * and a button each): as they are ("plain"), stopping the events the spec's
  * editorControl() directive lists (§6.2 #5: "spec"), that list plus focus,
  * or plus click and dblclick, and all of them ("full"). An item's icon tile
- * uses "full". While editing, everything drawn in shadow DOM is
- * user-select: none, so the caret moves between fields past it.
+ * uses "full". While editing, what's drawn in shadow DOM (placeholders,
+ * tiles, controls, the stray box's message) is user-select: none, so the
+ * caret moves between fields past it. Only those, not a wrapper around the
+ * slots: in Firefox a slotted field under a user-select: none ancestor in
+ * the flat tree can't take the caret at all, editable or not.
+ *
+ * Arrow keys: with globalThis.__spikeKeys.arrows set, the capture listener
+ * on hax-body keeps them from HAX and moves the caret from field to field at
+ * a field's edge itself (arrow()), and into the section from the paragraph
+ * beside it (arrowInto()).
  *
  * Keys: globalThis.__spikeKeys.mode says where the section listens for the
  * keys it handles: "off", "host" (on the section, as spec §5.3 has it),
@@ -66,6 +74,34 @@ const fieldOf = (node, within) => {
   }
   return null;
 };
+
+/**
+ * The selection's range inside the shadow root that holds node, as spec
+ * §5.3's getEditRange() reads it in each engine, and how it was read:
+ * Chromium's ShadowRoot.getSelection(); Firefox's document selection, which
+ * already holds the nodes inside shadow roots; WebKit's composed range (its
+ * document selection stops at the outermost shadow host), given the shadow
+ * roots as {shadowRoots} (the standard) or one by one (WebKit 18).
+ */
+function getEditRange(node) {
+  const root = node.getRootNode();
+  const sel = root.getSelection?.() || globalThis.document.getSelection();
+  if (!sel?.rangeCount) return null;
+  const range = sel.getRangeAt(0);
+  if (range.startContainer.getRootNode() === root) return { range, how: root.getSelection ? "ShadowRoot.getSelection()" : "document.getSelection()" };
+  if (!sel.getComposedRanges) return null;
+  const roots = [];
+  for (let r = root; r instanceof ShadowRoot; r = r.host.getRootNode()) roots.push(r);
+  let composed = null;
+  try {
+    [composed] = sel.getComposedRanges({ shadowRoots: roots });
+  } catch {}
+  if (composed?.startContainer.getRootNode() === root) return { range: composed, how: "getComposedRanges({shadowRoots})" };
+  [composed] = sel.getComposedRanges(...roots);
+  return composed?.startContainer.getRootNode() === root ? { range: composed, how: "getComposedRanges(...shadowRoots)" } : null;
+}
+// for the runner's selection measurements
+globalThis.__spikeEditRange = getEditRange;
 
 const sectionStyles = css`
   :host {
@@ -133,10 +169,12 @@ const sectionStyles = css`
   [hidden] {
     display: none !important;
   }
-  /* while editing, what's drawn here can't hold the caret (the fields are
-     light DOM, which stays selectable as editable content) */
-  .editing,
-  .editing * {
+  /* while editing, what's drawn here can't hold the caret; the chrome
+     itself, never a wrapper of the slots (Firefox would make the slotted
+     fields unselectable too) */
+  .editing .ph,
+  .editing .controls,
+  .editing .stray > p {
     user-select: none;
   }
 `;
@@ -224,17 +262,22 @@ function sectionClass({ tag, item, manual, text, contentEditable, title }) {
       guard(this.renderRoot);
     }
 
-    /** Where the caret is, if it's in one of this section's fields. */
+    /** Where the caret is, if it's in one of this section's fields, and how the selection was read. */
     caretField() {
-      const root = this.getRootNode();
-      const sel = root.getSelection?.() || globalThis.document.getSelection();
-      return sel?.rangeCount && this.contains(sel.anchorNode) ? fieldOf(sel.anchorNode, this) : null;
+      const edit = getEditRange(this);
+      const node = edit?.range.startContainer;
+      return node && this.contains(node) ? { field: fieldOf(node, this), how: edit.how } : null;
     }
 
     onKey(e, where) {
-      const field = this.caretField();
+      if (globalThis.__spikeKeys.arrows && where === "body" && e.key.startsWith("Arrow") && this.arrowInto(e)) return;
+      const { field, how } = this.caretField() || {};
       if (!field) return;
-      log({ listener: where, type: e.type, key: e.key, phase: e.eventPhase, target: e.target.localName, section: tag, field: field.localName });
+      log({ listener: where, type: e.type, key: e.key, phase: e.eventPhase, target: e.target.localName, section: tag, field: field.localName, how });
+      if (globalThis.__spikeKeys.arrows && where === "body" && e.key.startsWith("Arrow")) {
+        this.arrow(e, field);
+        return;
+      }
       const mode = globalThis.__spikeKeys.mode;
       if (mode !== where && !(mode === "body-all" && where === "body")) return;
       const single = /^h[1-3]$/.test(field.localName);
@@ -258,6 +301,88 @@ function sectionClass({ tag, item, manual, text, contentEditable, title }) {
         e.stopPropagation();
         log({ handled: e.key, type: e.type, by: where, section: tag });
       }
+    }
+
+    /** The fields the caret moves through, in DOM order: the heading, then each item's. */
+    editFields() {
+      const { heading, items, texts } = this.sorted();
+      return [heading, ...items.flatMap((it) => [...it.children].filter((c) => /^(h3|p)$/.test(c.localName))), ...texts].filter(Boolean);
+    }
+
+    /** Whether a collapsed caret is at the edge of the block that the key leaves by: its start or first line, its end or last line. */
+    atEdge(key, block, range) {
+      const caret = globalThis.document.createRange();
+      caret.setStart(range.startContainer, range.startOffset);
+      const before = globalThis.document.createRange();
+      before.selectNodeContents(block);
+      before.setEnd(caret.startContainer, caret.startOffset);
+      const offset = before.toString().length;
+      const box = block.getBoundingClientRect();
+      const at = caret.getClientRects()[0] || box;
+      const line = parseFloat(getComputedStyle(block).lineHeight) || 24;
+      return {
+        ArrowLeft: offset === 0,
+        ArrowUp: at.top < box.top + line * 0.8,
+        ArrowRight: offset === block.textContent.length,
+        ArrowDown: at.bottom > box.bottom - line * 0.8,
+      }[key];
+    }
+
+    /** Put the caret at the start or end of a block's text (in the block when it's empty). */
+    place(block, atEnd) {
+      const walker = globalThis.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      const texts = [];
+      while (walker.nextNode()) texts.push(walker.currentNode);
+      const sel = this.getRootNode().getSelection?.() || globalThis.document.getSelection();
+      if (!texts.length) sel.collapse(block, 0);
+      else if (atEnd) sel.collapse(texts.at(-1), texts.at(-1).length);
+      else sel.collapse(texts[0], 0);
+    }
+
+    /**
+     * An arrow key with the caret in a field (__spikeKeys.arrows): kept from
+     * HAX's window handler, and at a field's edge (← at its start, → at its
+     * end, ↑ on its first line, ↓ on its last) the caret is moved to the
+     * field before or after, or the block before or after the section, with
+     * collapse(). Inside a field the browser moves it.
+     */
+    arrow(e, field) {
+      e.stopPropagation();
+      if (e.type !== "keydown" || e.shiftKey || e.altKey || e.metaKey || e.ctrlKey) return;
+      const edit = getEditRange(this);
+      if (!edit?.range.collapsed) return;
+      const back = e.key === "ArrowLeft" || e.key === "ArrowUp";
+      if (!this.atEdge(e.key, field, edit.range)) return;
+      const fields = this.editFields();
+      const outside = back ? this.previousElementSibling : this.nextElementSibling;
+      const target = fields[fields.indexOf(field) + (back ? -1 : 1)] || (/^(p|h[1-6])$/.test(outside?.localName) ? outside : null);
+      if (!target) return;
+      e.preventDefault();
+      this.place(target, back);
+      log({ handled: e.key, type: e.type, by: "arrow", section: tag, to: target.localName });
+    }
+
+    /**
+     * An arrow key in the paragraph just before or after the section, at the
+     * edge facing it: into the section's first or last field, kept from HAX.
+     */
+    arrowInto(e) {
+      const edit = getEditRange(this);
+      const node = edit?.range.startContainer;
+      const before = this.previousElementSibling;
+      const after = this.nextElementSibling;
+      const from = [before, after].find((b) => b && /^(p|h[1-6])$/.test(b.localName) && b.contains(node));
+      if (!from) return false;
+      const towards = from === after ? ["ArrowLeft", "ArrowUp"] : ["ArrowRight", "ArrowDown"];
+      if (!towards.includes(e.key)) return false;
+      e.stopPropagation();
+      if (e.type !== "keydown" || e.shiftKey || e.altKey || e.metaKey || e.ctrlKey || !edit.range.collapsed) return true;
+      if (!this.atEdge(e.key, from, edit.range)) return true;
+      const fields = this.editFields();
+      e.preventDefault();
+      this.place(from === after ? fields.at(-1) : fields[0], from === after);
+      log({ handled: e.key, type: e.type, by: "arrow", section: tag, into: true });
+      return true;
     }
 
     pressed(name) {
@@ -371,8 +496,8 @@ const itemStyles = css`
   [hidden] {
     display: none !important;
   }
-  .card.editing,
-  .card.editing * {
+  .card.editing .tile,
+  .card.editing .ph {
     user-select: none;
   }
 `;

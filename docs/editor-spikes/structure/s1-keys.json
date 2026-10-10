@@ -8,6 +8,7 @@
       "keyup body (phase 2, target hax-body)",
       "keyup hax"
     ],
+    "how": "ShadowRoot.getSelection()",
     "target": "custom-oer-docs-theme › h-a-x › hax-body",
     "enter": {
       "changed": true,
@@ -40,6 +41,7 @@
       "keyup body (phase 2, target hax-body)",
       "keyup hax"
     ],
+    "how": "ShadowRoot.getSelection()",
     "target": "custom-oer-docs-theme › h-a-x › hax-body",
     "enter": {
       "changed": true,
@@ -72,6 +74,7 @@
       "keyup body (phase 2, target hax-body)",
       "keyup hax"
     ],
+    "how": "ShadowRoot.getSelection()",
     "target": "custom-oer-docs-theme › h-a-x › hax-body",
     "enter": {
       "changed": false,
@@ -104,6 +107,7 @@
       "keyup body (phase 2, target hax-body)",
       "keyup hax"
     ],
+    "how": "ShadowRoot.getSelection()",
     "target": "custom-oer-docs-theme › h-a-x › hax-body",
     "enter": {
       "changed": false,
@@ -136,6 +140,7 @@
       "keyup body (phase 2, target hax-body)",
       "keyup hax"
     ],
+    "how": "ShadowRoot.getSelection()",
     "target": "custom-oer-docs-theme › h-a-x › hax-body",
     "enter": {
       "changed": false,

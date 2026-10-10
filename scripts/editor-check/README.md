@@ -136,9 +136,9 @@ A check that calls a Chrome-only API anyway stops there, and its row is SKIP "ru
 
 ## Spikes
 
-`spikes/` holds the redesign's throwaway experiments, each with its own runner (in Chrome only) that prints a JSON table of go/no-go results. They use `startScratch({ prepare })`, which runs after the copy is made and before it's built, to add spike blocks and pages to the copy only.
+`spikes/` holds the redesign's throwaway experiments, each with its own runner that prints a table of go/no-go results. They use `startScratch({ prepare })`, which runs after the copy is made and before it's built, to add spike blocks and pages to the copy only.
 
-- `spikes/structure/run.mjs` (WP-01): nested item grids, manual slots and shadow controls. Results in `docs/editor-spikes/structure.md`.
+- `spikes/structure/run.mjs` (WP-01): nested item grids, manual slots, shadow controls and the selection, in Chrome and with `--engines firefox,webkit` in those too (one copy for all, which the spike never saves to), plus the same caret checks on a bare page without HAX (`--only bare`). `--evidence` copies Chrome's results and screenshots to the folder given and the others' to a folder per engine in it. Results in `docs/editor-spikes/structure.md`.
 
 ## Rules
 

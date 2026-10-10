@@ -1,8 +1,8 @@
 {
-  "started": "20261010-003625",
-  "port": 3104,
+  "started": "20261010-104200",
+  "port": 3114,
   "source": "head",
-  "chrome": "Chrome/155.0.8059.40",
+  "browser": "Chrome/155.0.8059.40",
   "rows": [
     {
       "check": "S1 haxInsert of an item, caret placed after settled()",
@@ -10,7 +10,7 @@
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "body.__addAbove was true before (set to false); inserted right after the item passed; fields at insert: h3 ray false, contenteditable null; h3 data-hax-ray at 9 ms, contenteditable at 9 ms; settled after 47 ms (active then oer-spike-learn > oer-spike-outcome[3]); active node: 0 ms oer-spike-learn > oer-spike-outcome[2] > h3 → 15 ms oer-spike-learn > oer-spike-outcome[3] → 73 ms oer-spike-learn > oer-spike-outcome[3] > h3; after the caret: active oer-spike-learn > oer-spike-outcome[3] > h3, h3 contenteditable true; caret stayed in the new title for 1 s; typing gave \"Added\"; 4/4 items drawn, 4 in the list, heading heading, above the list, order 1,2,3,4"
+      "detail": "body.__addAbove was true before (set to false); inserted right after the item passed; fields at insert: h3 ray false, contenteditable null; h3 data-hax-ray at 13 ms, contenteditable at 13 ms; settled after 59 ms (active then oer-spike-learn > oer-spike-outcome[3]); active node: 0 ms oer-spike-learn > oer-spike-outcome[2] > h3 → 27 ms oer-spike-learn > oer-spike-outcome[3] → 86 ms oer-spike-learn > oer-spike-outcome[3] > h3; after the caret: active oer-spike-learn > oer-spike-outcome[3] > h3, h3 contenteditable true; caret stayed in the new title for 1 s; typing gave \"Added\"; 4/4 items drawn, 4 in the list, heading heading, above the list, order 1,2,3,4"
     },
     {
       "check": "S1 haxDuplicateNode of an item",
@@ -18,7 +18,7 @@
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "copy matches the original, apart from whitespace between tags; active after: oer-spike-learn > oer-spike-outcome[2]; copy's h3 data-hax-ray at 7 ms, contenteditable at 7 ms; caret in the copy's title stayed; 5/5 items drawn, 5 in the list, heading heading, above the list, order 1,2,3,4,5"
+      "detail": "copy matches the original, apart from whitespace between tags; active after: oer-spike-learn > oer-spike-outcome[2]; copy's h3 data-hax-ray at 4 ms, contenteditable at 4 ms; caret in the copy's title stayed; 5/5 items drawn, 5 in the list, heading heading, above the list, order 1,2,3,4,5"
     },
     {
       "check": "S1 haxDeleteNode of an item",
@@ -42,7 +42,7 @@
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "body.__addAbove was true before (set to false); inserted right after the item passed; fields at insert: h3 ray false, contenteditable null; h3 data-hax-ray at 9 ms, contenteditable at 9 ms; settled after 45 ms (active then oer-spike-learn > oer-spike-outcome[3]); active node: 0 ms oer-spike-learn > oer-spike-outcome[2] > h3 → 15 ms oer-spike-learn > oer-spike-outcome[3] → 73 ms oer-spike-learn > oer-spike-outcome[3] > h3; after the caret: active oer-spike-learn > oer-spike-outcome[3] > h3, h3 contenteditable true; caret stayed in the new title for 1 s; typing gave \"Added\"; 4/4 items drawn, 4 in the list, heading heading, above the list, order 1,2,3,4"
+      "detail": "body.__addAbove was true before (set to false); inserted right after the item passed; fields at insert: h3 ray false, contenteditable null; h3 data-hax-ray at 9 ms, contenteditable at 10 ms; settled after 54 ms (active then oer-spike-learn > oer-spike-outcome[3]); active node: 0 ms oer-spike-learn > oer-spike-outcome[2] > h3 → 23 ms oer-spike-learn > oer-spike-outcome[3] → 83 ms oer-spike-learn > oer-spike-outcome[3] > h3; after the caret: active oer-spike-learn > oer-spike-outcome[3] > h3, h3 contenteditable true; caret stayed in the new title for 1 s; typing gave \"Added\"; 4/4 items drawn, 4 in the list, heading heading, above the list, order 1,2,3,4"
     },
     {
       "check": "S1 haxInsert of an item, caret placed after settled()",
@@ -50,7 +50,7 @@
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "body.__addAbove was true before (set to false); inserted right after the item passed; fields at insert: h3 ray false, contenteditable null; h3 data-hax-ray at 10 ms, contenteditable at 10 ms; settled after 56 ms (active then oer-spike-learn-fb > oer-spike-outcome-fb[3]); active node: 0 ms oer-spike-learn-fb > oer-spike-outcome-fb[2] > h3 → 24 ms oer-spike-learn-fb > oer-spike-outcome-fb[3] → 84 ms oer-spike-learn-fb > oer-spike-outcome-fb[3] > h3; after the caret: active oer-spike-learn-fb > oer-spike-outcome-fb[3] > h3, h3 contenteditable true; caret stayed in the new title for 1 s; typing gave \"Added\"; 4/4 items drawn, 4 in the list, heading heading, above the list, order 1,2,3,4"
+      "detail": "body.__addAbove was true before (set to false); inserted right after the item passed; fields at insert: h3 ray false, contenteditable null; h3 data-hax-ray at 12 ms, contenteditable at 13 ms; settled after 57 ms (active then oer-spike-learn-fb > oer-spike-outcome-fb[3]); active node: 0 ms oer-spike-learn-fb > oer-spike-outcome-fb[2] > h3 → 25 ms oer-spike-learn-fb > oer-spike-outcome-fb[3] → 84 ms oer-spike-learn-fb > oer-spike-outcome-fb[3] > h3; after the caret: active oer-spike-learn-fb > oer-spike-outcome-fb[3] > h3, h3 contenteditable true; caret stayed in the new title for 1 s; typing gave \"Added\"; 4/4 items drawn, 4 in the list, heading heading, above the list, order 1,2,3,4"
     },
     {
       "check": "S1 haxDuplicateNode of an item",
@@ -82,7 +82,7 @@
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "body.__addAbove was true before (set to false); inserted right after the item passed; fields at insert: h3 ray false, contenteditable null; h3 data-hax-ray at 5 ms, contenteditable at 5 ms; settled after 52 ms (active then oer-spike-learn-fb > oer-spike-outcome-fb[3]); active node: 0 ms oer-spike-learn-fb > oer-spike-outcome-fb[2] > h3 → 13 ms oer-spike-learn-fb > oer-spike-outcome-fb[3] → 66 ms oer-spike-learn-fb > oer-spike-outcome-fb[3] > h3; after the caret: active oer-spike-learn-fb > oer-spike-outcome-fb[3] > h3, h3 contenteditable true; caret stayed in the new title for 1 s; typing gave \"Added\"; 4/4 items drawn, 4 in the list, heading heading, above the list, order 1,2,3,4"
+      "detail": "body.__addAbove was true before (set to false); inserted right after the item passed; fields at insert: h3 ray false, contenteditable null; h3 data-hax-ray at 5 ms, contenteditable at 5 ms; settled after 48 ms (active then oer-spike-learn-fb > oer-spike-outcome-fb[3]); active node: 0 ms oer-spike-learn-fb > oer-spike-outcome-fb[2] > h3 → 16 ms oer-spike-learn-fb > oer-spike-outcome-fb[3] → 66 ms oer-spike-learn-fb > oer-spike-outcome-fb[3] > h3; after the caret: active oer-spike-learn-fb > oer-spike-outcome-fb[3] > h3, h3 contenteditable true; caret stayed in the new title for 1 s; typing gave \"Added\"; 4/4 items drawn, 4 in the list, heading heading, above the list, order 1,2,3,4"
     },
     {
       "check": "S1 keys: which listeners a key reaches, in order",
@@ -90,7 +90,7 @@
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "keydown window (phase 1, target custom-oer-docs-theme) → keydown body (phase 2, target hax-body) → keydown hax → keyup window (phase 1, target custom-oer-docs-theme) → keyup body (phase 2, target hax-body) → keyup hax; focus is on custom-oer-docs-theme › h-a-x › hax-body"
+      "detail": "keydown window (phase 1, target custom-oer-docs-theme) → keydown body (phase 2, target hax-body) → keydown hax → keyup window (phase 1, target custom-oer-docs-theme) → keyup body (phase 2, target hax-body) → keyup hax; focus is on custom-oer-docs-theme › h-a-x › hax-body; the section's listeners found the caret's field with ShadowRoot.getSelection()"
     },
     {
       "check": "S1 keys: a keydown listener on the section host runs before hax-body's window handler",
@@ -202,7 +202,7 @@
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "h2 \"\" outside the list; 1 list(s), 3 listitems (3 with an h3); placeholder text not in the tree"
+      "detail": "h2 \"What you'll be able to do\" outside the list; 1 list(s), 3 listitems (3 with an h3); placeholder text not in the tree"
     },
     {
       "check": "S2 axe on the section (WCAG 2.2 AA)",
@@ -226,7 +226,7 @@
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "h2 \"\" outside the list; 1 list(s), 3 listitems (3 with an h3); placeholder text not in the tree"
+      "detail": "h2 \"Fallback: what you'll be able to do\" outside the list; 1 list(s), 3 listitems (3 with an h3); placeholder text not in the tree"
     },
     {
       "check": "S2 axe on the section (WCAG 2.2 AA)",
@@ -242,23 +242,55 @@
       "engine": "chrome",
       "pass": false,
       "measured": true,
-      "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome[1] > h3; item 1 title end → right: oer-spike-outcome[1] > p; item 1 text end → right: oer-spike-outcome[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome[3] > h3; empty item 3 text → right (out of the section): p[1]; item 2 title start → left: oer-spike-outcome[1] > p; next block's start → left (into the empty item 3 text): h2 (expected oer-spike-outcome[3] > p); h2 end → down: oer-spike-outcome[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome[2] > h3; item 2 title start → up: oer-spike-outcome[1] > p"
+      "detail": "ArrowRight from the heading goes oer-spike-outcome[1] > p → oer-spike-outcome[2] > p → STUCK (oer-spike-outcome[2] > p@30). h2 end → right: oer-spike-outcome[1] > p (expected oer-spike-outcome[1] > h3); item 1 title end → right: oer-spike-outcome[1] > p; item 1 text end → right: oer-spike-outcome[2] > p (expected oer-spike-outcome[2] > h3); item 2 text end → right (into the empty title): oer-spike-outcome[2] > p (expected oer-spike-outcome[3] > h3); empty item 3 text → right (out of the section): oer-spike-outcome[3] > p (expected p[1]); item 2 title start → left: oer-spike-outcome[1] > p; next block's start → left (into the empty item 3 text): h2 (expected oer-spike-outcome[3] > p); h2 end → down: oer-spike-outcome[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome[2] > h3; item 2 title start → up: oer-spike-outcome[1] > p"
     },
     {
       "check": "S2 arrow keys move the caret across slotted fields",
-      "variant": "manual, shadow chrome user-select: none",
+      "variant": "manual, user-select: none on the shadow wrapper (.editing *)",
       "engine": "chrome",
       "pass": true,
       "measured": true,
       "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome[1] > h3; item 1 title end → right: oer-spike-outcome[1] > p; item 1 text end → right: oer-spike-outcome[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome[3] > h3; empty item 3 text → right (out of the section): p[1]; item 2 title start → left: oer-spike-outcome[1] > p; next block's start → left (into the empty item 3 text): oer-spike-outcome[3] > p; h2 end → down: oer-spike-outcome[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome[2] > h3; item 2 title start → up: oer-spike-outcome[1] > p"
     },
     {
-      "check": "S2 a click on an empty field puts the caret in it",
-      "variant": "manual",
+      "check": "S2 arrow keys move the caret across slotted fields",
+      "variant": "manual, user-select: none on the wrapper, ::slotted(*) text",
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "empty h3: caret in oer-spike-learn > oer-spike-outcome[3] > h3, typed text \"Typed title\", placeholder hidden, active node oer-spike-learn > oer-spike-outcome[3] > h3; empty p: caret in oer-spike-learn > oer-spike-outcome[3] > p, typed text \"Typed sentence\", placeholder hidden, active node oer-spike-learn > oer-spike-outcome[3] > p"
+      "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome[1] > h3; item 1 title end → right: oer-spike-outcome[1] > p; item 1 text end → right: oer-spike-outcome[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome[3] > h3; empty item 3 text → right (out of the section): p[1]; item 2 title start → left: oer-spike-outcome[1] > p; next block's start → left (into the empty item 3 text): oer-spike-outcome[3] > p; h2 end → down: oer-spike-outcome[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome[2] > h3; item 2 title start → up: oer-spike-outcome[1] > p"
+    },
+    {
+      "check": "S2 arrow keys move the caret across slotted fields",
+      "variant": "manual, user-select: none on the chrome only",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome[1] > h3; item 1 title end → right: oer-spike-outcome[1] > p; item 1 text end → right: oer-spike-outcome[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome[3] > h3; empty item 3 text → right (out of the section): p[1]; item 2 title start → left: oer-spike-outcome[1] > p; next block's start → left (into the empty item 3 text): oer-spike-outcome[3] > p; h2 end → down: oer-spike-outcome[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome[2] > h3; item 2 title start → up: oer-spike-outcome[1] > p"
+    },
+    {
+      "check": "S2 arrow keys move the caret across slotted fields",
+      "variant": "manual, user-select: none on the chrome only, arrow keydown kept from HAX",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome[1] > h3; item 1 title end → right: oer-spike-outcome[1] > p; item 1 text end → right: oer-spike-outcome[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome[3] > h3; empty item 3 text → right (out of the section): p[1]; item 2 title start → left: oer-spike-outcome[1] > p; next block's start → left (into the empty item 3 text): oer-spike-outcome[3] > p; h2 end → down: oer-spike-outcome[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome[2] > h3; item 2 title start → up: oer-spike-outcome[1] > p"
+    },
+    {
+      "check": "S2 arrow keys move the caret across slotted fields",
+      "variant": "manual, user-select: none on the chrome only, HAXStore.getSelection() patched to read WebKit's composed range",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome[1] > h3; item 1 title end → right: oer-spike-outcome[1] > p; item 1 text end → right: oer-spike-outcome[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome[3] > h3; empty item 3 text → right (out of the section): p[1]; item 2 title start → left: oer-spike-outcome[1] > p; next block's start → left (into the empty item 3 text): oer-spike-outcome[3] > p; h2 end → down: oer-spike-outcome[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome[2] > h3; item 2 title start → up: oer-spike-outcome[1] > p"
+    },
+    {
+      "check": "S2 arrow keys move the caret across slotted fields",
+      "variant": "manual, user-select: none on the chrome only, arrows kept from HAX and moved field to field at a field's edge by the section",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome[1] > h3; item 1 title end → right: oer-spike-outcome[1] > p; item 1 text end → right: oer-spike-outcome[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome[3] > h3; empty item 3 text → right (out of the section): p[1]; item 2 title start → left: oer-spike-outcome[1] > p; next block's start → left (into the empty item 3 text): oer-spike-outcome[3] > p; h2 end → down: oer-spike-outcome[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome[2] > h3; item 2 title start → up: oer-spike-outcome[1] > p"
     },
     {
       "check": "S2 arrow keys move the caret across slotted fields",
@@ -266,11 +298,51 @@
       "engine": "chrome",
       "pass": false,
       "measured": true,
-      "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome-fb[1] > h3; item 1 title end → right: oer-spike-outcome-fb[1] > p; item 1 text end → right: oer-spike-outcome-fb[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome-fb[3] > h3; empty item 3 text → right (out of the section): p[2]; item 2 title start → left: oer-spike-outcome-fb[1] > p; next block's start → left (into the empty item 3 text): h2 (expected oer-spike-outcome-fb[3] > p); h2 end → down: oer-spike-outcome-fb[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome-fb[2] > h3; item 2 title start → up: oer-spike-outcome-fb[1] > p"
+      "detail": "ArrowRight from the heading goes oer-spike-outcome-fb[1] > p → oer-spike-outcome-fb[2] > p → STUCK (oer-spike-outcome-fb[2] > p@30). h2 end → right: oer-spike-outcome-fb[1] > p (expected oer-spike-outcome-fb[1] > h3); item 1 title end → right: oer-spike-outcome-fb[1] > p; item 1 text end → right: oer-spike-outcome-fb[2] > p (expected oer-spike-outcome-fb[2] > h3); item 2 text end → right (into the empty title): oer-spike-outcome-fb[2] > p (expected oer-spike-outcome-fb[3] > h3); empty item 3 text → right (out of the section): oer-spike-outcome-fb[3] > p (expected p[2]); item 2 title start → left: oer-spike-outcome-fb[1] > p; next block's start → left (into the empty item 3 text): h2 (expected oer-spike-outcome-fb[3] > p); h2 end → down: oer-spike-outcome-fb[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome-fb[2] > h3; item 2 title start → up: oer-spike-outcome-fb[1] > p"
     },
     {
       "check": "S2 arrow keys move the caret across slotted fields",
-      "variant": "fallback, shadow chrome user-select: none",
+      "variant": "fallback, user-select: none on the shadow wrapper (.editing *)",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome-fb[1] > h3; item 1 title end → right: oer-spike-outcome-fb[1] > p; item 1 text end → right: oer-spike-outcome-fb[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome-fb[3] > h3; empty item 3 text → right (out of the section): p[2]; item 2 title start → left: oer-spike-outcome-fb[1] > p; next block's start → left (into the empty item 3 text): oer-spike-outcome-fb[3] > p; h2 end → down: oer-spike-outcome-fb[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome-fb[2] > h3; item 2 title start → up: oer-spike-outcome-fb[1] > p"
+    },
+    {
+      "check": "S2 arrow keys move the caret across slotted fields",
+      "variant": "fallback, user-select: none on the wrapper, ::slotted(*) text",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome-fb[1] > h3; item 1 title end → right: oer-spike-outcome-fb[1] > p; item 1 text end → right: oer-spike-outcome-fb[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome-fb[3] > h3; empty item 3 text → right (out of the section): p[2]; item 2 title start → left: oer-spike-outcome-fb[1] > p; next block's start → left (into the empty item 3 text): oer-spike-outcome-fb[3] > p; h2 end → down: oer-spike-outcome-fb[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome-fb[2] > h3; item 2 title start → up: oer-spike-outcome-fb[1] > p"
+    },
+    {
+      "check": "S2 arrow keys move the caret across slotted fields",
+      "variant": "fallback, user-select: none on the chrome only",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome-fb[1] > h3; item 1 title end → right: oer-spike-outcome-fb[1] > p; item 1 text end → right: oer-spike-outcome-fb[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome-fb[3] > h3; empty item 3 text → right (out of the section): p[2]; item 2 title start → left: oer-spike-outcome-fb[1] > p; next block's start → left (into the empty item 3 text): oer-spike-outcome-fb[3] > p; h2 end → down: oer-spike-outcome-fb[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome-fb[2] > h3; item 2 title start → up: oer-spike-outcome-fb[1] > p"
+    },
+    {
+      "check": "S2 arrow keys move the caret across slotted fields",
+      "variant": "fallback, user-select: none on the chrome only, arrow keydown kept from HAX",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome-fb[1] > h3; item 1 title end → right: oer-spike-outcome-fb[1] > p; item 1 text end → right: oer-spike-outcome-fb[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome-fb[3] > h3; empty item 3 text → right (out of the section): p[2]; item 2 title start → left: oer-spike-outcome-fb[1] > p; next block's start → left (into the empty item 3 text): oer-spike-outcome-fb[3] > p; h2 end → down: oer-spike-outcome-fb[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome-fb[2] > h3; item 2 title start → up: oer-spike-outcome-fb[1] > p"
+    },
+    {
+      "check": "S2 arrow keys move the caret across slotted fields",
+      "variant": "fallback, user-select: none on the chrome only, HAXStore.getSelection() patched to read WebKit's composed range",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "ArrowRight from the heading visits every field in order and leaves the section. h2 end → right: oer-spike-outcome-fb[1] > h3; item 1 title end → right: oer-spike-outcome-fb[1] > p; item 1 text end → right: oer-spike-outcome-fb[2] > h3; item 2 text end → right (into the empty title): oer-spike-outcome-fb[3] > h3; empty item 3 text → right (out of the section): p[2]; item 2 title start → left: oer-spike-outcome-fb[1] > p; next block's start → left (into the empty item 3 text): oer-spike-outcome-fb[3] > p; h2 end → down: oer-spike-outcome-fb[1] > h3; item 1 text end → down (cards side by side): oer-spike-outcome-fb[2] > h3; item 2 title start → up: oer-spike-outcome-fb[1] > p"
+    },
+    {
+      "check": "S2 arrow keys move the caret across slotted fields",
+      "variant": "fallback, user-select: none on the chrome only, arrows kept from HAX and moved field to field at a field's edge by the section",
       "engine": "chrome",
       "pass": true,
       "measured": true,
@@ -278,7 +350,15 @@
     },
     {
       "check": "S2 a click on an empty field puts the caret in it",
-      "variant": "fallback",
+      "variant": "manual, user-select: none on the shadow wrapper (.editing *)",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "empty h3: caret in oer-spike-learn > oer-spike-outcome[3] > h3, typed text \"Typed title\", placeholder hidden, active node oer-spike-learn > oer-spike-outcome[3] > h3; empty p: caret in oer-spike-learn > oer-spike-outcome[3] > p, typed text \"Typed sentence\", placeholder hidden, active node oer-spike-learn > oer-spike-outcome[3] > p"
+    },
+    {
+      "check": "S2 a click on an empty field puts the caret in it",
+      "variant": "fallback, user-select: none on the shadow wrapper (.editing *)",
       "engine": "chrome",
       "pass": true,
       "measured": true,
@@ -286,7 +366,31 @@
     },
     {
       "check": "S2 a click on an empty heading puts the caret in it",
-      "variant": "manual (note section)",
+      "variant": "manual (note section), user-select: none on the shadow wrapper (.editing *)",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "caret in oer-spike-note[2] > h2, typed text \"Typed heading\""
+    },
+    {
+      "check": "S2 a click on an empty field puts the caret in it",
+      "variant": "manual, user-select: none on the chrome only",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "empty h3: caret in oer-spike-learn > oer-spike-outcome[3] > h3, typed text \"Typed title\", placeholder hidden, active node oer-spike-learn > oer-spike-outcome[3] > h3; empty p: caret in oer-spike-learn > oer-spike-outcome[3] > p, typed text \"Typed sentence\", placeholder hidden, active node oer-spike-learn > oer-spike-outcome[3] > p"
+    },
+    {
+      "check": "S2 a click on an empty field puts the caret in it",
+      "variant": "fallback, user-select: none on the chrome only",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "empty h3: caret in oer-spike-learn-fb > oer-spike-outcome-fb[3] > h3, typed text \"Typed title\", placeholder hidden, active node oer-spike-learn-fb > oer-spike-outcome-fb[3] > h3; empty p: caret in oer-spike-learn-fb > oer-spike-outcome-fb[3] > p, typed text \"Typed sentence\", placeholder hidden, active node oer-spike-learn-fb > oer-spike-outcome-fb[3] > p"
+    },
+    {
+      "check": "S2 a click on an empty heading puts the caret in it",
+      "variant": "manual (note section), user-select: none on the chrome only",
       "engine": "chrome",
       "pass": true,
       "measured": true,
@@ -405,6 +509,62 @@
       "detail": "with nothing re-assigning: an added paragraph isn't drawn, and after swapping items 1 and 2 the cards are drawn in order 2,1,3 (DOM order now 1,2 = old 2,1); after assignSlots(): paragraph in \"stray\", order 1,2,3"
     },
     {
+      "check": "S2 on a bare page (no HAX): a click puts the caret in a slotted field",
+      "variant": "user-select: none on the shadow wrapper (.editing *)",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "the first title: item 1 title@3; the heading: heading@3; the empty title: item 3 title@0"
+    },
+    {
+      "check": "S2 on a bare page (no HAX): arrow keys move through slotted fields",
+      "variant": "user-select: none on the shadow wrapper (.editing *)",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "→ from the heading's end visits every field in order and leaves the section; ↓ from the heading's end: item 1 title@9; ↑ from the second title's start: item 1 text@8"
+    },
+    {
+      "check": "S2 on a bare page (no HAX): a click puts the caret in a slotted field",
+      "variant": "user-select: none on the wrapper, ::slotted(*) text",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "the first title: item 1 title@3; the heading: heading@3; the empty title: item 3 title@0"
+    },
+    {
+      "check": "S2 on a bare page (no HAX): arrow keys move through slotted fields",
+      "variant": "user-select: none on the wrapper, ::slotted(*) text",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "→ from the heading's end visits every field in order and leaves the section; ↓ from the heading's end: item 1 title@9; ↑ from the second title's start: item 1 text@8"
+    },
+    {
+      "check": "S2 on a bare page (no HAX): a click puts the caret in a slotted field",
+      "variant": "user-select: none on the chrome only",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "the first title: item 1 title@3; the heading: heading@3; the empty title: item 3 title@0"
+    },
+    {
+      "check": "S2 on a bare page (no HAX): arrow keys move through slotted fields",
+      "variant": "user-select: none on the chrome only",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "→ from the heading's end visits every field in order and leaves the section; ↓ from the heading's end: item 1 title@9; ↑ from the second title's start: item 1 text@8"
+    },
+    {
+      "check": "S2 on a bare page (no HAX): arrow keys move through slotted fields",
+      "variant": "user-select: none on the chrome only, <br> in the empty fields",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "→ from the heading's end visits every field in order and leaves the section; ↓ from the heading's end: item 1 title@9; ↑ from the second title's start: item 1 text@8"
+    },
+    {
       "check": "S7 clicks on content just above the active block reach it",
       "variant": "HAX's #topcontextmenu",
       "engine": "chrome",
@@ -418,7 +578,7 @@
       "engine": "chrome",
       "pass": false,
       "measured": true,
-      "detail": "click the field from another block: LOST at 0 ms (active then oer-spike-learn); typed \"abc\", Backspace, Enter: \"\"; content unchanged by typing and a paste; Tab to the button: LOST at 0 ms; Enter and Space on it: 0 click(s), content unchanged; click the button: LOST at 0 ms; focus() on the field: LOST at 0 ms; click the field with the section selected (oer-spike-learn): LOST at 0 ms; double-click a word in it: LOST at 0 ms, selection \"words\""
+      "detail": "click the field from another block: LOST at 0 ms (active then oer-spike-learn); typed \"abc\", Backspace, Enter: \"\"; content unchanged by typing, unchanged by a paste; Tab to the button: LOST at 0 ms (focus on body); Enter and Space on it: 0 click(s), content unchanged; click the button: LOST at 0 ms (focus then on body; 1 click(s) handled; content unchanged; active block p[2] → oer-spike-learn); focus() on the field: LOST at 0 ms; click the field with the section selected (oer-spike-learn): LOST at 0 ms; double-click a word in it: LOST at 0 ms, selection \"words\""
     },
     {
       "check": "S7 a shadow field and button keep focus, and typing stays in them",
@@ -426,7 +586,7 @@
       "engine": "chrome",
       "pass": false,
       "measured": true,
-      "detail": "click the field from another block: LOST at 0 ms (active then p[2]); typed \"abc\", Backspace, Enter: \"\"; content unchanged by typing and a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn): LOST at 0 ms; double-click a word in it: kept, selection \"words\""
+      "detail": "click the field from another block: kept (active then p[2]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing, unchanged by a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn): LOST at 0 ms; double-click a word in it: kept, selection \"words\""
     },
     {
       "check": "S7 a shadow field and button keep focus, and typing stays in them",
@@ -434,15 +594,15 @@
       "engine": "chrome",
       "pass": false,
       "measured": true,
-      "detail": "click the field from another block: kept (active then p[2]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing and a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn): LOST at 0 ms; double-click a word in it: LOST at 0 ms, selection \"words\""
+      "detail": "click the field from another block: kept (active then p[2]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing, unchanged by a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn): LOST at 0 ms; double-click a word in it: LOST at 0 ms, selection \"words\""
     },
     {
       "check": "S7 a shadow field and button keep focus, and typing stays in them",
       "variant": "contentEditable: true, the spec's guard + click, dblclick",
       "engine": "chrome",
-      "pass": true,
+      "pass": false,
       "measured": true,
-      "detail": "click the field from another block: kept (active then p[2]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing and a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn): kept; double-click a word in it: kept, selection \"words\""
+      "detail": "click the field from another block: LOST at 0 ms (active then p[2]); typed \"abc\", Backspace, Enter: \"\"; content unchanged by typing, unchanged by a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn): kept; double-click a word in it: kept, selection \"words\""
     },
     {
       "check": "S7 a shadow field and button keep focus, and typing stays in them",
@@ -450,7 +610,7 @@
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "click the field from another block: kept (active then p[2]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing and a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn): kept; double-click a word in it: kept, selection \"words\""
+      "detail": "click the field from another block: kept (active then p[2]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing, unchanged by a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn): kept; double-click a word in it: kept, selection \"words\""
     },
     {
       "check": "S7 a shadow field and button keep focus, and typing stays in them",
@@ -458,15 +618,15 @@
       "engine": "chrome",
       "pass": false,
       "measured": true,
-      "detail": "click the field from another block: LOST at 0 ms (active then oer-spike-learn-ce0); typed \"abc\", Backspace, Enter: \"\"; content unchanged by typing and a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: LOST at 0 ms; focus() on the field: LOST at 0 ms; click the field with the section selected (oer-spike-learn-ce0): kept; double-click a word in it: kept, selection \"words\""
+      "detail": "click the field from another block: LOST at 0 ms (active then oer-spike-learn-ce0); typed \"abc\", Backspace, Enter: \"\"; content unchanged by typing, unchanged by a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: LOST at 0 ms (focus then on body; 1 click(s) handled; content unchanged; active block p[1] → oer-spike-learn-ce0); focus() on the field: LOST at 0 ms; click the field with the section selected (oer-spike-learn-ce0): kept; double-click a word in it: kept, selection \"words\""
     },
     {
       "check": "S7 a shadow field and button keep focus, and typing stays in them",
       "variant": "contentEditable: false, the spec's guard (6 events)",
       "engine": "chrome",
-      "pass": false,
+      "pass": true,
       "measured": true,
-      "detail": "click the field from another block: LOST at 0 ms (active then p[1]); typed \"abc\", Backspace, Enter: \"\"; content unchanged by typing and a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn-ce0): kept; double-click a word in it: kept, selection \"words\""
+      "detail": "click the field from another block: kept (active then p[1]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing, unchanged by a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn-ce0): kept; double-click a word in it: kept, selection \"words\""
     },
     {
       "check": "S7 a shadow field and button keep focus, and typing stays in them",
@@ -474,7 +634,7 @@
       "engine": "chrome",
       "pass": false,
       "measured": true,
-      "detail": "click the field from another block: kept (active then p[1]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing and a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn-ce0): kept; double-click a word in it: LOST at 0 ms, selection \"words\""
+      "detail": "click the field from another block: kept (active then p[1]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing, unchanged by a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn-ce0): kept; double-click a word in it: LOST at 0 ms, selection \"words\""
     },
     {
       "check": "S7 a shadow field and button keep focus, and typing stays in them",
@@ -482,7 +642,7 @@
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "click the field from another block: kept (active then p[1]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing and a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn-ce0): kept; double-click a word in it: kept, selection \"words\""
+      "detail": "click the field from another block: kept (active then p[1]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing, unchanged by a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn-ce0): kept; double-click a word in it: kept, selection \"words\""
     },
     {
       "check": "S7 a shadow field and button keep focus, and typing stays in them",
@@ -490,7 +650,7 @@
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "click the field from another block: kept (active then p[1]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing and a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn-ce0): kept; double-click a word in it: kept, selection \"words\""
+      "detail": "click the field from another block: kept (active then p[1]); typed \"abc\", Backspace, Enter: \"ab\"; content unchanged by typing, unchanged by a paste; Tab to the button: kept; Enter and Space on it: 2 click(s), content unchanged; click the button: kept; focus() on the field: kept; click the field with the section selected (oer-spike-learn-ce0): kept; double-click a word in it: kept, selection \"words\""
     },
     {
       "check": "S7 an item's shadow button (icon tile) keeps focus and works",
@@ -501,12 +661,100 @@
       "detail": "focus kept for 700 ms; its click handler ran"
     },
     {
-      "check": "Selection reading in Chrome",
+      "check": "Selection reading: ShadowRoot.getSelection()",
       "variant": "caret 2 characters before the end of a title",
       "engine": "chrome",
       "pass": true,
       "measured": true,
-      "detail": "ShadowRoot.getSelection(): {\"node\":\"text in oer-spike-learn > oer-spike-outcome[1] > h3\",\"offset\":17}; document.getSelection(): {\"node\":\"haxcms-site-builder\",\"offset\":0}; getComposedRanges({shadowRoots: h-a-x, custom-oer-docs-theme}): {\"node\":\"text in oer-spike-learn > oer-spike-outcome[1] > h3\",\"offset\":17}; getComposedRanges() without roots: {\"node\":\"haxcms-site-builder\",\"offset\":0}"
+      "detail": "{\"node\":\"text in oer-spike-learn > oer-spike-outcome[1] > h3\",\"offset\":17}; shadow roots from hax-body up: h-a-x, custom-oer-docs-theme"
+    },
+    {
+      "check": "Selection reading: document.getSelection()",
+      "variant": "caret 2 characters before the end of a title",
+      "engine": "chrome",
+      "pass": false,
+      "measured": true,
+      "detail": "{\"node\":\"haxcms-site-builder\",\"offset\":0} (the caret was put at {\"node\":\"text in oer-spike-learn > oer-spike-outcome[1] > h3\",\"offset\":17}); shadow roots from hax-body up: h-a-x, custom-oer-docs-theme"
+    },
+    {
+      "check": "Selection reading: getComposedRanges({shadowRoots})",
+      "variant": "caret 2 characters before the end of a title",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "{\"node\":\"text in oer-spike-learn > oer-spike-outcome[1] > h3\",\"offset\":17}; shadow roots from hax-body up: h-a-x, custom-oer-docs-theme"
+    },
+    {
+      "check": "Selection reading: getComposedRanges(...shadowRoots), WebKit 18's form",
+      "variant": "caret 2 characters before the end of a title",
+      "engine": "chrome",
+      "pass": false,
+      "measured": true,
+      "detail": "{\"node\":\"haxcms-site-builder\",\"offset\":0} (the caret was put at {\"node\":\"text in oer-spike-learn > oer-spike-outcome[1] > h3\",\"offset\":17}); shadow roots from hax-body up: h-a-x, custom-oer-docs-theme"
+    },
+    {
+      "check": "Selection reading: getComposedRanges() without roots",
+      "variant": "caret 2 characters before the end of a title",
+      "engine": "chrome",
+      "pass": false,
+      "measured": true,
+      "detail": "{\"node\":\"haxcms-site-builder\",\"offset\":0} (the caret was put at {\"node\":\"text in oer-spike-learn > oer-spike-outcome[1] > h3\",\"offset\":17}); shadow roots from hax-body up: h-a-x, custom-oer-docs-theme"
+    },
+    {
+      "check": "Selection reading: HAXStore.getSelection(), what HAX reads",
+      "variant": "caret 2 characters before the end of a title",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "{\"node\":\"text in oer-spike-learn > oer-spike-outcome[1] > h3\",\"offset\":17}; shadow roots from hax-body up: h-a-x, custom-oer-docs-theme"
+    },
+    {
+      "check": "Selection reading: getEditRange(), one function for every engine",
+      "variant": "caret 2 characters before the end of a title",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "{\"node\":\"text in oer-spike-learn > oer-spike-outcome[1] > h3\",\"offset\":17,\"how\":\"ShadowRoot.getSelection()\"}; shadow roots from hax-body up: h-a-x, custom-oer-docs-theme"
+    },
+    {
+      "check": "Selection setting: collapse",
+      "variant": "the caret 3 characters into a field, then typing X",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "read back where it was put (rangeCount 1); the field now reads \"PlaXn, cut and finish parts on the laser cutter.\""
+    },
+    {
+      "check": "Selection setting: setBaseAndExtent",
+      "variant": "the caret 3 characters into a field, then typing X",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "read back where it was put (rangeCount 1); the field now reads \"PriXnt what you model\""
+    },
+    {
+      "check": "Selection setting: addRange",
+      "variant": "the caret 3 characters into a field, then typing X",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "read back where it was put (rangeCount 1); the field now reads \"SliXce meshes for FDM printing.\""
+    },
+    {
+      "check": "HAX's own arrow keys and Enter in an ordinary paragraph",
+      "variant": "as HAX has it",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "caret clicked in at p[1]@29; two ← put it at p[1]@27, focus on hax-body; Enter made 1 block(s), caret then at p[2]@0, focus on hax-body"
+    },
+    {
+      "check": "HAX's own arrow keys and Enter in an ordinary paragraph",
+      "variant": "HAXStore.getSelection() patched to read WebKit's composed range",
+      "engine": "chrome",
+      "pass": true,
+      "measured": true,
+      "detail": "caret clicked in at p[1]@29; two ← put it at p[1]@27, focus on hax-body; Enter made 1 block(s), caret then at p[2]@0, focus on hax-body"
     }
   ]
 }

@@ -1,0 +1,427 @@
+{
+ "role": "Unknown",
+ "name": "",
+ "ignored": false,
+ "children": [
+  {
+   "role": "generic",
+   "name": "",
+   "ignored": false,
+   "children": [
+    {
+     "role": "generic",
+     "name": "",
+     "ignored": false,
+     "children": [
+      {
+       "role": "Unknown",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "textbox",
+         "name": "",
+         "level": 2,
+         "ignored": false,
+         "children": [
+          {
+           "role": "text",
+           "name": "Fallback: what you'll be able to do",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "role": "list",
+     "name": "",
+     "ignored": false,
+     "children": [
+      {
+       "role": "Unknown",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "listitem",
+         "name": "",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": [
+            {
+             "role": "button",
+             "name": "Change icon: Target",
+             "ignored": false,
+             "children": []
+            },
+            {
+             "role": "Unknown",
+             "name": "",
+             "ignored": false,
+             "children": [
+              {
+               "role": "textbox",
+               "name": "",
+               "level": 3,
+               "ignored": false,
+               "children": [
+                {
+                 "role": "text",
+                 "name": "Cut with confidence",
+                 "ignored": false,
+                 "children": []
+                }
+               ]
+              },
+              {
+               "role": "textbox",
+               "name": "",
+               "ignored": false,
+               "children": [
+                {
+                 "role": "text",
+                 "name": "Plan, cut and finish parts on the laser cutter.",
+                 "ignored": false,
+                 "children": []
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "role": "listitem",
+         "name": "",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": [
+            {
+             "role": "button",
+             "name": "Change icon: Target",
+             "ignored": false,
+             "children": []
+            },
+            {
+             "role": "Unknown",
+             "name": "",
+             "ignored": false,
+             "children": [
+              {
+               "role": "textbox",
+               "name": "",
+               "level": 3,
+               "ignored": false,
+               "children": [
+                {
+                 "role": "text",
+                 "name": "Print what you model",
+                 "ignored": false,
+                 "children": []
+                }
+               ]
+              },
+              {
+               "role": "textbox",
+               "name": "",
+               "ignored": false,
+               "children": [
+                {
+                 "role": "text",
+                 "name": "Slice meshes for FDM printing.",
+                 "ignored": false,
+                 "children": []
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "role": "listitem",
+         "name": "",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": [
+            {
+             "role": "button",
+             "name": "Change icon: Target",
+             "ignored": false,
+             "children": []
+            },
+            {
+             "role": "Unknown",
+             "name": "",
+             "ignored": false,
+             "children": [
+              {
+               "role": "textbox",
+               "name": "",
+               "level": 3,
+               "ignored": false,
+               "children": []
+              },
+              {
+               "role": "textbox",
+               "name": "",
+               "ignored": false,
+               "children": []
+              }
+             ]
+            },
+            {
+             "role": "Unknown",
+             "name": "",
+             "ignored": false,
+             "children": [
+              {
+               "role": "text",
+               "name": "Outcome title",
+               "ignored": false,
+               "children": []
+              }
+             ]
+            },
+            {
+             "role": "Unknown",
+             "name": "",
+             "ignored": false,
+             "children": [
+              {
+               "role": "text",
+               "name": "What students will be able to do",
+               "ignored": false,
+               "children": []
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "role": "generic",
+     "name": "",
+     "ignored": false,
+     "children": [
+      {
+       "role": "Label",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "text",
+         "name": "plain",
+         "ignored": false,
+         "children": []
+        },
+        {
+         "role": "text",
+         "name": " ",
+         "ignored": false,
+         "children": []
+        },
+        {
+         "role": "textbox",
+         "name": "plain field",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "button",
+       "name": "plain button",
+       "ignored": false,
+       "children": []
+      },
+      {
+       "role": "Label",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "text",
+         "name": "spec",
+         "ignored": false,
+         "children": []
+        },
+        {
+         "role": "text",
+         "name": " ",
+         "ignored": false,
+         "children": []
+        },
+        {
+         "role": "textbox",
+         "name": "spec field",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "button",
+       "name": "spec button",
+       "ignored": false,
+       "children": []
+      },
+      {
+       "role": "Label",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "text",
+         "name": "spec+focus",
+         "ignored": false,
+         "children": []
+        },
+        {
+         "role": "text",
+         "name": " ",
+         "ignored": false,
+         "children": []
+        },
+        {
+         "role": "textbox",
+         "name": "spec+focus field",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "button",
+       "name": "spec+focus button",
+       "ignored": false,
+       "children": []
+      },
+      {
+       "role": "Label",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "text",
+         "name": "spec+click",
+         "ignored": false,
+         "children": []
+        },
+        {
+         "role": "text",
+         "name": " ",
+         "ignored": false,
+         "children": []
+        },
+        {
+         "role": "textbox",
+         "name": "spec+click field",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "button",
+       "name": "spec+click button",
+       "ignored": false,
+       "children": []
+      },
+      {
+       "role": "Label",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "text",
+         "name": "full",
+         "ignored": false,
+         "children": []
+        },
+        {
+         "role": "text",
+         "name": " ",
+         "ignored": false,
+         "children": []
+        },
+        {
+         "role": "textbox",
+         "name": "full field",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "button",
+       "name": "full button",
+       "ignored": false,
+       "children": []
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

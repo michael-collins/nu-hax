@@ -1,0 +1,206 @@
+{
+  "addAbove": true,
+  "placed": {
+    "parentIsSection": true,
+    "afterAnchor": true
+  },
+  "now": {
+    "h3": {
+      "ray": false,
+      "editable": null,
+      "role": null
+    },
+    "p": {
+      "ray": false,
+      "editable": null,
+      "role": null
+    }
+  },
+  "settledMs": 65,
+  "atSettled": {
+    "active": "oer-spike-learn > oer-spike-outcome[3]",
+    "h3": {
+      "ray": true,
+      "editable": "true",
+      "role": null
+    },
+    "p": {
+      "ray": true,
+      "editable": "true",
+      "role": null
+    }
+  },
+  "afterCaret": {
+    "active": "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "h3": {
+      "ray": true,
+      "editable": "true",
+      "role": "textbox"
+    }
+  },
+  "caret": [
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3",
+    "oer-spike-learn > oer-spike-outcome[3] > h3"
+  ],
+  "events": [
+    {
+      "t": 0,
+      "active": "oer-spike-learn > oer-spike-outcome[2] > h3"
+    },
+    {
+      "t": 0,
+      "inserting": false
+    },
+    {
+      "t": 16,
+      "inserting": true
+    },
+    {
+      "t": 19,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
+      "attr": "data-hax-ray",
+      "value": "Heading"
+    },
+    {
+      "t": 19,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
+      "attr": "contenteditable",
+      "value": "true"
+    },
+    {
+      "t": 24,
+      "el": "oer-spike-learn > oer-spike-outcome[2] > h3",
+      "attr": "role",
+      "value": null
+    },
+    {
+      "t": 24,
+      "el": "oer-spike-learn > oer-spike-outcome[2] > h3",
+      "attr": "contenteditable",
+      "value": null
+    },
+    {
+      "t": 24,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > p",
+      "attr": "data-hax-ray",
+      "value": "Paragraph"
+    },
+    {
+      "t": 24,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > p",
+      "attr": "contenteditable",
+      "value": "true"
+    },
+    {
+      "t": 26,
+      "el": "oer-spike-learn > oer-spike-outcome[2] > h3",
+      "attr": "data-hax-ray",
+      "value": "Heading"
+    },
+    {
+      "t": 26,
+      "el": "oer-spike-learn > oer-spike-outcome[2] > h3",
+      "attr": "contenteditable",
+      "value": "true"
+    },
+    {
+      "t": 35,
+      "active": "oer-spike-learn > oer-spike-outcome[3]"
+    },
+    {
+      "t": 35,
+      "inserting": false
+    },
+    {
+      "t": 67,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
+      "attr": "data-hax-ray",
+      "value": "Heading"
+    },
+    {
+      "t": 67,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
+      "attr": "contenteditable",
+      "value": "true"
+    },
+    {
+      "t": 68,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > p",
+      "attr": "data-hax-ray",
+      "value": "Paragraph"
+    },
+    {
+      "t": 68,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > p",
+      "attr": "contenteditable",
+      "value": "true"
+    },
+    {
+      "t": 72,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
+      "attr": "contenteditable",
+      "value": "true"
+    },
+    {
+      "t": 72,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
+      "attr": "role",
+      "value": "textbox"
+    },
+    {
+      "t": 72,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
+      "attr": "contenteditable",
+      "value": "true"
+    },
+    {
+      "t": 72,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
+      "attr": "role",
+      "value": "textbox"
+    },
+    {
+      "t": 72,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
+      "attr": "role",
+      "value": "textbox"
+    },
+    {
+      "t": 76,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
+      "attr": "contenteditable",
+      "value": "true"
+    },
+    {
+      "t": 84,
+      "active": "oer-spike-learn > oer-spike-outcome[3] > h3"
+    },
+    {
+      "t": 169,
+      "el": "oer-spike-learn > oer-spike-outcome[3] > h3",
+      "attr": "contenteditable",
+      "value": "true"
+    }
+  ],
+  "path": "oer-spike-learn > oer-spike-outcome[3]",
+  "took": 1738
+}

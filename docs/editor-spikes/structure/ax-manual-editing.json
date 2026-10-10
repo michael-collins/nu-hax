@@ -1,0 +1,607 @@
+{
+ "role": "textbox",
+ "name": "",
+ "ignored": false,
+ "children": [
+  {
+   "role": "none",
+   "name": "",
+   "ignored": true,
+   "children": [
+    {
+     "role": "none",
+     "name": "",
+     "ignored": true,
+     "children": [
+      {
+       "role": "heading",
+       "name": "",
+       "level": 2,
+       "ignored": false,
+       "children": [
+        {
+         "role": "StaticText",
+         "name": "What you'll be able to do",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": "What you'll be able to do",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "role": "list",
+     "name": "",
+     "ignored": false,
+     "children": [
+      {
+       "role": "listitem",
+       "name": "",
+       "level": 1,
+       "ignored": false,
+       "children": [
+        {
+         "role": "none",
+         "name": "",
+         "ignored": true,
+         "children": [
+          {
+           "role": "button",
+           "name": "Change icon: Target",
+           "ignored": false,
+           "children": []
+          },
+          {
+           "role": "heading",
+           "name": "",
+           "level": 3,
+           "ignored": false,
+           "children": [
+            {
+             "role": "StaticText",
+             "name": "Cut with confidence",
+             "ignored": false,
+             "children": [
+              {
+               "role": "InlineTextBox",
+               "name": "Cut with ",
+               "ignored": false,
+               "children": []
+              },
+              {
+               "role": "InlineTextBox",
+               "name": "confidence",
+               "ignored": false,
+               "children": []
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "role": "paragraph",
+           "name": "",
+           "ignored": false,
+           "children": [
+            {
+             "role": "StaticText",
+             "name": "Plan, cut and finish parts on the laser cutter.",
+             "ignored": false,
+             "children": [
+              {
+               "role": "InlineTextBox",
+               "name": "Plan, cut and finish ",
+               "ignored": false,
+               "children": []
+              },
+              {
+               "role": "InlineTextBox",
+               "name": "parts on the laser ",
+               "ignored": false,
+               "children": []
+              },
+              {
+               "role": "InlineTextBox",
+               "name": "cutter.",
+               "ignored": false,
+               "children": []
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "listitem",
+       "name": "",
+       "level": 1,
+       "ignored": false,
+       "children": [
+        {
+         "role": "none",
+         "name": "",
+         "ignored": true,
+         "children": [
+          {
+           "role": "button",
+           "name": "Change icon: Target",
+           "ignored": false,
+           "children": []
+          },
+          {
+           "role": "heading",
+           "name": "",
+           "level": 3,
+           "ignored": false,
+           "children": [
+            {
+             "role": "StaticText",
+             "name": "Print what you model",
+             "ignored": false,
+             "children": [
+              {
+               "role": "InlineTextBox",
+               "name": "Print what you ",
+               "ignored": false,
+               "children": []
+              },
+              {
+               "role": "InlineTextBox",
+               "name": "model",
+               "ignored": false,
+               "children": []
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "role": "paragraph",
+           "name": "",
+           "ignored": false,
+           "children": [
+            {
+             "role": "StaticText",
+             "name": "Slice meshes for FDM printing.",
+             "ignored": false,
+             "children": [
+              {
+               "role": "InlineTextBox",
+               "name": "Slice meshes for ",
+               "ignored": false,
+               "children": []
+              },
+              {
+               "role": "InlineTextBox",
+               "name": "FDM printing.",
+               "ignored": false,
+               "children": []
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "listitem",
+       "name": "",
+       "level": 1,
+       "ignored": false,
+       "children": [
+        {
+         "role": "none",
+         "name": "",
+         "ignored": true,
+         "children": [
+          {
+           "role": "button",
+           "name": "Change icon: Target",
+           "ignored": false,
+           "children": []
+          },
+          {
+           "role": "heading",
+           "name": "",
+           "level": 3,
+           "ignored": false,
+           "children": []
+          },
+          {
+           "role": "paragraph",
+           "name": "",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "role": "none",
+     "name": "",
+     "ignored": true,
+     "children": []
+    },
+    {
+     "role": "none",
+     "name": "",
+     "ignored": true,
+     "children": [
+      {
+       "role": "paragraph",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "StaticText",
+         "name": "Readers won't see what's here.",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": "Readers won't see what's here.",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "role": "none",
+     "name": "",
+     "ignored": true,
+     "children": [
+      {
+       "role": "LabelText",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "StaticText",
+         "name": "plain",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": "plain",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        },
+        {
+         "role": "textbox",
+         "name": "plain field",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "button",
+       "name": "plain button",
+       "ignored": false,
+       "children": [
+        {
+         "role": "StaticText",
+         "name": "plain",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": "plain",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        },
+        {
+         "role": "StaticText",
+         "name": " button",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": " button",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "LabelText",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "StaticText",
+         "name": "spec",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": "spec",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        },
+        {
+         "role": "textbox",
+         "name": "spec field",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "button",
+       "name": "spec button",
+       "ignored": false,
+       "children": [
+        {
+         "role": "StaticText",
+         "name": "spec",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": "spec",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        },
+        {
+         "role": "StaticText",
+         "name": " button",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": " button",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "LabelText",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "StaticText",
+         "name": "spec+focus",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": "spec+focus",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        },
+        {
+         "role": "textbox",
+         "name": "spec+focus field",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "button",
+       "name": "spec+focus button",
+       "ignored": false,
+       "children": [
+        {
+         "role": "StaticText",
+         "name": "spec+focus",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": "spec+focus",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        },
+        {
+         "role": "StaticText",
+         "name": " button",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": " button",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "LabelText",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "StaticText",
+         "name": "spec+click",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": "spec+click",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        },
+        {
+         "role": "textbox",
+         "name": "spec+click field",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "button",
+       "name": "spec+click button",
+       "ignored": false,
+       "children": [
+        {
+         "role": "StaticText",
+         "name": "spec+click",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": "spec+click",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        },
+        {
+         "role": "StaticText",
+         "name": " button",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": " button",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "LabelText",
+       "name": "",
+       "ignored": false,
+       "children": [
+        {
+         "role": "StaticText",
+         "name": "full",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": "full",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        },
+        {
+         "role": "textbox",
+         "name": "full field",
+         "ignored": false,
+         "children": [
+          {
+           "role": "generic",
+           "name": "",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "role": "button",
+       "name": "full button",
+       "ignored": false,
+       "children": [
+        {
+         "role": "StaticText",
+         "name": "full",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": "full",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        },
+        {
+         "role": "StaticText",
+         "name": " button",
+         "ignored": false,
+         "children": [
+          {
+           "role": "InlineTextBox",
+           "name": " button",
+           "ignored": false,
+           "children": []
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
