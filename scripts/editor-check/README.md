@@ -26,7 +26,7 @@ Each run:
 5. writes `report.json` and screenshots to `WORK_DIR/reports/<port>-<time>/`, prints a pass/fail table, and exits 1 if anything failed,
 6. stops the server by its port, also after errors and Ctrl+C, and removes the copy unless `--keep`.
 
-`WORK_DIR` is `EDITOR_CHECK_DIR` if set, otherwise `nu-hax-editor-check` in the system's temp folder. The server is the newest haxcms-nodejs that npx has cached (the one `hax serve` runs); `HAX_APP` and `CHROME_PATH` override the server and browser paths. The axe baseline is `axe-baseline.json` here, kept in git. A whole run of the smoke check takes about 20 seconds.
+`EDITOR_CHECK_SITE` points it at another checkout of the site (a git worktree on a branch) instead of `learning-materials`. `WORK_DIR` is `EDITOR_CHECK_DIR` if set, otherwise `nu-hax-editor-check` in the system's temp folder. The server is the newest haxcms-nodejs that npx has cached (the one `hax serve` runs); `HAX_APP` and `CHROME_PATH` override the server and browser paths. The axe baseline is `axe-baseline.json` here, kept in git. A whole run of the smoke check takes about 20 seconds.
 
 If a run was killed so hard it couldn't clean up, stop its server by port: `lsof -ti tcp:3101 -sTCP:LISTEN | xargs kill`. Never `pkill`: the dev server runs the same `app.js`.
 

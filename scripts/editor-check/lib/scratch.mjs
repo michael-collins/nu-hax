@@ -13,7 +13,8 @@ import { readdirSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export const SITE = new URL("../../../learning-materials/", import.meta.url).pathname.replace(/\/$/, "");
+// the site to copy: learning-materials, or a checkout of it on a branch (EDITOR_CHECK_SITE)
+export const SITE = (process.env.EDITOR_CHECK_SITE || new URL("../../../learning-materials/", import.meta.url).pathname).replace(/\/$/, "");
 // where site copies and reports go: the system's temp folder unless set
 export const WORK_DIR = process.env.EDITOR_CHECK_DIR || path.join(os.tmpdir(), "nu-hax-editor-check");
 // the haxcms-nodejs server `hax serve` runs: the newest one npx has cached
