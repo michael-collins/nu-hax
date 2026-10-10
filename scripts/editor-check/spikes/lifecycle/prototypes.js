@@ -19,13 +19,17 @@
  *   (inert) until HAX has reloaded the saved page into the reading view,
  *   then ends editing.
  * - S6, recovery: one restore path on HAX's own sessionStorage copy.
+ * - WebKit: HAXStore.getRange() reads the selection inside hax-body (its
+ *   arrow-key handler otherwise takes the caret out of the content).
  *
  * Each part can be switched off for a stock measurement by setting
  * globalThis.__lcConfig before this runs, e.g. { undo: false }.
  */
 (() => {
   if (globalThis.__lc) return;
-  const config = { guard: true, undo: true, undoKeys: true, recovery: true, freshDetails: true, saveTimeout: 20000, refreshTimeout: 10000, ...(globalThis.__lcConfig || {}) };
+  // undoKeydown is undoKeys' keydown half: off, ⌘Z reaches the browser's own
+  // undo command (in Firefox and WebKit, how the runner tries the Edit menu's Undo)
+  const config = { guard: true, undo: true, undoKeys: true, undoKeydown: true, haxRange: true, recovery: true, freshDetails: true, saveTimeout: 20000, refreshTimeout: 10000, ...(globalThis.__lcConfig || {}) };
   const lc = (globalThis.__lc = { config, inputs: [], undoSkipped: 0, warnings: [] });
 
   const store = () => globalThis.HAXCMS?.requestAvailability?.()?.store ?? null;
@@ -69,11 +73,11 @@
    */
   function pinned(target, name, marker, wrap) {
     const original = target?.[name];
+    if (original?.__lcWrapped) return original;
     if (typeof original !== "function" || (marker && !String(original).includes(marker))) {
       warn(`${name} isn't HAX 26.8.1's; left alone`);
       return null;
     }
-    if (original.__lcWrapped) return original;
     const wrapped = wrap(original);
     wrapped.__lcWrapped = true;
     target[name] = wrapped;
@@ -134,15 +138,43 @@
   }
 
   /**
+   * The selection in hax-body's tree, in any engine: { sel, range }, with
+   * range a Range inside hax-body's shadow root, or null. Chrome has it on
+   * that root (ShadowRoot.getSelection()); Firefox's document selection
+   * holds the nodes inside shadow roots; WebKit's stops at the outermost
+   * shadow host (anchorNode is the theme, offset 0), and only
+   * getComposedRanges reaches in (WebKit 18 takes the roots one by one).
+   * Set it with sel.collapse() or sel.setBaseAndExtent(), which take nodes
+   * inside shadow roots in all three; WebKit ignores addRange() with them.
+   */
+  function selectionIn(body) {
+    const root = body.getRootNode();
+    const sel = root.getSelection?.() || globalThis.document.getSelection();
+    if (!sel?.rangeCount) return { sel, range: null };
+    const live = sel.getRangeAt(0);
+    if (live.startContainer.getRootNode() === root || !sel.getComposedRanges) return { sel, range: live };
+    const roots = [];
+    for (let r = root; r instanceof ShadowRoot; r = r.host.getRootNode()) roots.push(r);
+    let composed = null;
+    try {
+      [composed] = sel.getComposedRanges({ shadowRoots: roots });
+    } catch {}
+    if (composed?.startContainer.getRootNode() !== root) [composed] = sel.getComposedRanges(...roots);
+    if (composed?.startContainer.getRootNode() !== root) return { sel, range: null };
+    const range = globalThis.document.createRange();
+    range.setStart(composed.startContainer, composed.startOffset);
+    range.setEnd(composed.endContainer, composed.endOffset);
+    return { sel, range };
+  }
+
+  /**
    * Backspace at the start of a block's first text, or Delete at the end of
    * its last, when the browser gives no target range: there's nothing in the
    * block to merge with, so the default would take the block apart.
    */
   function edgeRefusal(inputType, body) {
-    const root = body.getRootNode();
-    const sel = root.getSelection?.() || globalThis.document.getSelection();
-    if (!sel?.rangeCount || !sel.isCollapsed) return "";
-    const range = sel.getRangeAt(0);
+    const { range } = selectionIn(body);
+    if (!range?.collapsed) return "";
     const field = fieldOf(range.startContainer, body);
     const unit = unitOf(range.startContainer, body);
     if (!field || !unit) return "";
@@ -165,7 +197,15 @@
     if (!body.editMode) return;
     // inputs inside a block's own shadow controls are the block's business
     if (e.composedPath()[0] !== body && !body.contains(e.composedPath()[0])) return;
-    const ranges = e.getTargetRanges();
+    let ranges = e.getTargetRanges();
+    let judged = "target ranges";
+    // none given (WebKit's InputEvent constructor drops them, so a synthetic
+    // event has none): what would change is the selection
+    if (!ranges.length) {
+      const { range } = selectionIn(body);
+      ranges = range && !range.collapsed ? [range] : [];
+      judged = ranges.length ? "the selection" : "the caret";
+    }
     let reason = "";
     if (STRUCTURAL.test(e.inputType)) {
       for (const r of ranges) reason ||= refusal(r, e.inputType, body);
@@ -175,6 +215,7 @@
       inputType: e.inputType,
       cancelable: e.cancelable,
       ranges: ranges.map((r) => `${describePoint(r.startContainer, r.startOffset, body)} → ${describePoint(r.endContainer, r.endOffset, body)}`),
+      judged,
       refused: reason,
     };
     lc.inputs.push(entry);
@@ -194,11 +235,11 @@
   function collapseRefused(e) {
     const body = e.currentTarget;
     if (!body.editMode || !config.guard) return;
-    const sel = body.getRootNode().getSelection?.() || globalThis.document.getSelection();
-    if (!sel?.rangeCount || sel.isCollapsed) return;
-    const reason = refusal(sel.getRangeAt(0), e.type === "paste" ? "insertFromPaste" : "insertCompositionText", body);
+    const { sel, range } = selectionIn(body);
+    if (!range || range.collapsed) return;
+    const reason = refusal(range, e.type === "paste" ? "insertFromPaste" : "insertCompositionText", body);
     lc.inputs.push({ inputType: e.type, ranges: [], refused: reason });
-    if (reason) sel.collapseToStart();
+    if (reason) sel.collapse(range.startContainer, range.startOffset);
   }
 
   /**
@@ -212,9 +253,8 @@
     collapseRefused(e);
     const body = e.currentTarget;
     if (!body.editMode || !config.guard) return;
-    const sel = body.getRootNode().getSelection?.() || globalThis.document.getSelection();
-    if (!sel?.rangeCount) return;
-    const range = sel.getRangeAt(0);
+    const { range } = selectionIn(body);
+    if (!range) return;
     const field = fieldOf(range.startContainer, body);
     const unit = unitOf(range.startContainer, body);
     if (!field || !unit?.localName.includes("-") || !field.matches(`li,${SINGLE_LINE}`)) return;
@@ -223,6 +263,25 @@
     e.stopImmediatePropagation();
     lc.inputs.push({ inputType: "paste", ranges: [], refused: "", plain: text });
     if (text) globalThis.document.execCommand("insertText", false, text);
+  }
+
+  /**
+   * HAXStore.getRange() reads the selection from hax-body's root when the
+   * root has getSelection() (Chrome) and from the document otherwise, which
+   * holds the nodes inside shadow roots in Firefox but stops at the
+   * outermost shadow host in WebKit. hax-body's arrow-key handler (any
+   * arrow, in _onKeyDown) then took haxcms-site-builder for the caret's
+   * block and activated it: the caret left the content, focus went to
+   * <body> and hax-body stopped being editable. Read it with selectionIn().
+   */
+  function installRange(store) {
+    pinned(store, "getRange", "getRangeAt(0)", (original) =>
+      function (...args) {
+        const body = this.activeHaxBody;
+        const range = config.haxRange && body ? selectionIn(body).range : null;
+        return range || original.apply(this, args);
+      },
+    );
   }
 
   /* ---------- S4: undo that ignores selection, and the undo keys ---------- */
@@ -252,7 +311,7 @@
   lc.undoRouted = [];
   function undoKeys(e) {
     const body = haxBody();
-    if (!config.undoKeys || !body?.editMode || e.defaultPrevented) return;
+    if (!config.undoKeys || !config.undoKeydown || !body?.editMode || e.defaultPrevented) return;
     const mod = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
     const key = e.key.toLowerCase();
     const redo = (mod && key === "z" && e.shiftKey) || (!isMac && e.ctrlKey && key === "y");
@@ -490,14 +549,12 @@
 
   /** Remember the caret and focus in hax-body, to put back when it stops being inert. */
   function keepFocus(body) {
-    const sel = body.getRootNode().getSelection?.() || globalThis.document.getSelection();
-    const range = sel?.rangeCount && body.contains(sel.getRangeAt(0).startContainer) ? sel.getRangeAt(0).cloneRange() : null;
+    const { range: current } = selectionIn(body);
+    const range = current && body.contains(current.startContainer) ? current.cloneRange() : null;
     return () => {
       if (!range || !body.isConnected) return;
       body.focus({ preventScroll: true });
-      const now = body.getRootNode().getSelection?.() || globalThis.document.getSelection();
-      now.removeAllRanges();
-      now.addRange(range);
+      selectionIn(body).sel?.setBaseAndExtent(range.startContainer, range.startOffset, range.endContainer, range.endOffset);
     };
   }
 
@@ -667,6 +724,7 @@
     }
     const editor = siteEditor();
     if (editor) takeOverPendingRestore(editor);
+    installRange(haxStore());
     if (e.detail) takeBaseline(body);
     else {
       if (!state.saving) releaseImports();
