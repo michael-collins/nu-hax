@@ -1,7 +1,8 @@
-// Helpers for driving the site's editor in Chrome: opening pages, entering,
-// leaving and saving edit mode, reading what's in hax-body and on disk, and
-// real mouse and keyboard input. Queries go through open shadow roots,
-// since the theme, HAX and our blocks all draw in them.
+// Helpers for driving the site's editor in a browser (Chrome, or Firefox or
+// WebKit through lib/engines.mjs): opening pages, entering, leaving and
+// saving edit mode, reading what's in hax-body and on disk, and real mouse
+// and keyboard input. Queries go through open shadow roots, since the
+// theme, HAX and our blocks all draw in them.
 //
 //   const ed = editor(page, { base, siteDir, reportDir });
 //   await ed.open("/up/dart-413");
@@ -13,6 +14,7 @@ import { readFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 
 const VIEWPORTS = { 1440: 900, 390: 844, 320: 568 };
+// Command on a Mac, in every engine, as a Mac user presses it; Control elsewhere
 const MOD = process.platform === "darwin" ? "Meta" : "Control";
 
 // Installed in every page as globalThis.__ec, so checks can use it inside
@@ -84,20 +86,66 @@ function pageHelpers() {
       };
     },
     /**
-     * The selection, read from the shadow root that holds the focused
-     * element (Chrome's ShadowRoot.getSelection), where hax-body's text is.
+     * The selection's nodes inside the shadow root that holds node (the
+     * focused element unless given), in any engine: { anchorNode,
+     * anchorOffset, focusNode, focusOffset, collapsed, text }. Chrome reads
+     * it from that root (ShadowRoot.getSelection); Firefox's document
+     * selection already holds the nodes inside; WebKit's stops at the
+     * outermost shadow host, and its composed range reaches in (WebKit 18
+     * takes the shadow roots one by one).
      */
-    selection() {
-      const root = ec.activeElement()?.getRootNode() ?? document;
+    selectionNodes(node = ec.activeElement()) {
+      const root = node?.getRootNode() ?? document;
       const sel = root.getSelection?.() || document.getSelection();
+      const found = {
+        anchorNode: sel?.anchorNode ?? null,
+        anchorOffset: sel?.anchorOffset ?? null,
+        focusNode: sel?.focusNode ?? null,
+        focusOffset: sel?.focusOffset ?? null,
+        collapsed: sel ? sel.isCollapsed : true,
+        text: sel ? sel.toString() : "",
+      };
+      if (root !== document && sel?.rangeCount && found.anchorNode?.getRootNode() !== root && sel.getComposedRanges) {
+        const roots = [];
+        for (let r = root; r instanceof ShadowRoot; r = r.host.getRootNode()) roots.push(r);
+        let range = null;
+        try {
+          [range] = sel.getComposedRanges({ shadowRoots: roots });
+        } catch {}
+        if (range?.startContainer.getRootNode() !== root) [range] = sel.getComposedRanges(...roots);
+        if (range) {
+          const ends = [
+            [range.startContainer, range.startOffset],
+            [range.endContainer, range.endOffset],
+          ];
+          if (sel.direction === "backward") ends.reverse();
+          [[found.anchorNode, found.anchorOffset], [found.focusNode, found.focusOffset]] = ends;
+          found.collapsed = range.collapsed;
+        }
+      }
+      return found;
+    },
+    /**
+     * Put the selection (or with no focus node, the caret) in any engine,
+     * inside shadow roots too. The document's selection takes nodes in
+     * shadow roots through setBaseAndExtent in all three; addRange with
+     * such a range does nothing in WebKit.
+     */
+    select(anchorNode, anchorOffset, focusNode = anchorNode, focusOffset = anchorOffset) {
+      const sel = anchorNode.getRootNode().getSelection?.() || document.getSelection();
+      sel.setBaseAndExtent(anchorNode, anchorOffset, focusNode, focusOffset);
+    },
+    /** The selection described: its text, whether it's collapsed, and where its ends are. */
+    selection() {
+      const s = ec.selectionNodes();
       const node = (n) => (n ? ec.describe(n.nodeType === 1 ? n : n.parentElement) : null);
       return {
-        text: sel ? sel.toString() : "",
-        collapsed: sel ? sel.isCollapsed : true,
-        anchor: node(sel?.anchorNode),
-        anchorOffset: sel?.anchorOffset ?? null,
-        focus: node(sel?.focusNode),
-        focusOffset: sel?.focusOffset ?? null,
+        text: s.text,
+        collapsed: s.collapsed,
+        anchor: node(s.anchorNode),
+        anchorOffset: s.anchorOffset,
+        focus: node(s.focusNode),
+        focusOffset: s.focusOffset,
       };
     },
     store: () => globalThis.HAXCMS?.requestAvailability?.()?.store ?? null,
@@ -465,7 +513,13 @@ export function editor(page, { base, siteDir, reportDir }) {
       return page.keyboard.type(text, { delay });
     },
 
-    /** Press a key or chord: "Enter", "Shift+Tab", "Mod+Z" (Meta on Macs, Control elsewhere). */
+    /**
+     * Press a key or chord: "Enter", "Shift+Tab", "Mod+Z" (Meta on Macs,
+     * Control elsewhere; "Control+Z" is always Control). Firefox and WebKit
+     * run a Mac's shortcuts themselves (Meta+Z undoes, Meta+A selects all);
+     * headless Chrome doesn't, so a check that means the shortcut's command
+     * there uses page.keyboard.press(key, { commands }).
+     */
     async press(chord) {
       const keys = chord.split("+").map((k) => (k === "Mod" ? MOD : k));
       const key = keys.pop();

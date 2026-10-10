@@ -1,7 +1,7 @@
 // axe-core in the page: injects axe.min.js and runs it over the whole
 // document, open shadow roots included (axe walks them itself), and returns
-// the violations grouped by impact. Also reads and compares the baseline
-// counts the smoke check records.
+// the violations grouped by impact, in any of the engines. Also reads and
+// compares the baseline counts the smoke check records, one file per engine.
 import { readFileSync, existsSync } from "node:fs";
 import { createRequire } from "node:module";
 
@@ -21,11 +21,14 @@ const IMPACTS = ["critical", "serious", "moderate", "minor"];
 export async function runAxe(page, { context = null, tags = WCAG_AA, forcedColors = false } = {}) {
   // evaluate rather than a script tag: the page's CSP doesn't apply to it
   if (!(await page.evaluate(() => !!globalThis.axe))) await page.evaluate(`${AXE_SOURCE}\n;true`);
-  // forced colors through a session of its own: puppeteer's
+  // forced colors in Chrome through a session of its own: puppeteer's
   // emulateMediaFeatures doesn't take it, and detaching the session puts the
-  // page's own emulation (reduced motion) back as it was
-  const forced = forcedColors ? await page.createCDPSession() : null;
+  // page's own emulation (reduced motion) back as it was. Firefox and WebKit
+  // (lib/engines.mjs) through Playwright's emulateMedia, which changes only
+  // what it's given.
+  const forced = forcedColors && !page.playwright ? await page.createCDPSession() : null;
   await forced?.send("Emulation.setEmulatedMedia", { features: [{ name: "forced-colors", value: "active" }] });
+  if (forcedColors && page.playwright) await page.playwright.emulateMedia({ forcedColors: "active" });
   try {
     const result = await page.evaluate(
       async (context, tags) => {
@@ -44,6 +47,7 @@ export async function runAxe(page, { context = null, tags = WCAG_AA, forcedColor
     return summarize(result);
   } finally {
     await forced?.detach();
+    if (forcedColors && page.playwright) await page.playwright.emulateMedia({ forcedColors: null });
   }
 }
 
@@ -66,6 +70,15 @@ export function countsOf(result) {
     counts: result.counts,
     rules: Object.fromEntries(result.rules.map((r) => [r.id, { impact: r.impact, nodes: r.nodes }])),
   };
+}
+
+/**
+ * The baseline file for an engine: axe-baseline.json for Chrome, as it
+ * always was, and axe-baseline.<engine>.json for the others, since each
+ * engine's accessibility tree differs a little.
+ */
+export function baselineFile(engine = "chrome") {
+  return new URL(`../axe-baseline${engine === "chrome" ? "" : `.${engine}`}.json`, import.meta.url).pathname;
 }
 
 export function readBaseline(file) {

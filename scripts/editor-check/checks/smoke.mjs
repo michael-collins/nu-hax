@@ -2,10 +2,11 @@
 // enter edit mode and leave it again without anything being saved. axe runs
 // on the reading and editing views of both. The first run (or a run with
 // --update-baseline) writes those counts to scripts/editor-check/axe-baseline.json (kept in git), the
-// baseline later checks compare against; other runs compare with it.
+// baseline later checks compare against; other runs compare with it. Each
+// engine has its own (axe-baseline.firefox.json, axe-baseline.webkit.json).
 import path from "node:path";
 import { writeFileSync } from "node:fs";
-import { countsOf, readBaseline, newViolations, AXE_VERSION, WCAG_AA } from "../lib/axe.mjs";
+import { countsOf, readBaseline, newViolations, baselineFile, AXE_VERSION, WCAG_AA } from "../lib/axe.mjs";
 
 const PAGES = ["/up/dart-413", "/oer-courses"];
 
@@ -39,7 +40,16 @@ export default async function smoke(ctx) {
     await ctx.screenshot(`${shot}-editing`);
     const editingAxe = await ctx.axe();
 
-    await ctx.exitEdit();
+    // nothing changed, so leaving shouldn't ask; when it does, discard and carry on
+    const asked = await ctx.exitEdit().then(
+      () => false,
+      async (e) => {
+        if (!/asked to discard/.test(e.message)) throw e;
+        await ctx.exitEdit({ discard: true });
+        return true;
+      },
+    );
+    check(`${pagePath}: leaving with nothing changed doesn't ask to discard`, !asked, asked ? "it asked to discard unsaved changes, though nothing was changed" : "");
     const after = await ctx.page.evaluate(() => ({ editMode: !!__ec.store().editMode, frame: !!__ec.theme().shadowRoot.querySelector("oer-course-site") }));
     check(`${pagePath}: leaves edit mode`, !after.editMode && after.frame, after.frame ? "back in the reading view" : "the course-site frame didn't come back");
     check(`${pagePath}: leaving without saving changes nothing on disk`, ctx.savedHtml(pagePath) === saved);
@@ -50,13 +60,13 @@ export default async function smoke(ctx) {
   const counts = Object.fromEntries(Object.entries(axe).map(([p, views]) => [p, { reading: countsOf(views.reading), editing: countsOf(views.editing) }]));
   writeFileSync(path.join(ctx.reportDir, "axe.json"), JSON.stringify(axe, null, 2));
   const summary = (c) => `${c.violations} rules, ${c.nodes} nodes (critical ${c.counts.critical}, serious ${c.counts.serious}, moderate ${c.counts.moderate}, minor ${c.counts.minor})`;
-  const file = new URL("../axe-baseline.json", import.meta.url).pathname;
+  const file = baselineFile(ctx.engine);
   const baseline = readBaseline(file);
 
   if (!baseline || ctx.options.updateBaseline) {
     writeFileSync(
       file,
-      JSON.stringify({ written: new Date().toISOString(), source: ctx.source, axe: AXE_VERSION, tags: WCAG_AA, width: 1440, pages: counts }, null, 2),
+      JSON.stringify({ written: new Date().toISOString(), source: ctx.source, engine: ctx.engine, axe: AXE_VERSION, tags: WCAG_AA, width: 1440, pages: counts }, null, 2),
     );
     for (const [p, views] of Object.entries(counts)) {
       for (const [view, c] of Object.entries(views)) check(`${p} ${view}: axe baseline recorded`, true, summary(c));

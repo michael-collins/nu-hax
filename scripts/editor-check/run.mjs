@@ -1,28 +1,30 @@
-// Runs the editor checks in Chrome against a scratch copy of the site.
+// Runs the editor checks in Chrome (and Firefox and WebKit, if asked)
+// against a scratch copy of the site.
 //   node scripts/editor-check/run.mjs                       every check in checks/
 //   node scripts/editor-check/run.mjs --only smoke,stopgaps  just these
+//   --engines chrome,firefox,webkit   run each check in each (default chrome)
 //   --port 3102          serve the copy on another port (default 3101; never 3000)
 //   --source head        copy the last commit instead of the working tree
 //   --keep               keep the site copy afterwards, to look at what was saved
 //   --update-baseline    let the smoke check rewrite the axe baseline
 // Each checks/<name>.mjs exports a default async function(ctx) that returns
 // [{name, pass, detail}] (see README.md). The JSON report and screenshots go
-// to WORK_DIR/reports/<port>-<time>/. Exits 1 when anything fails. The
-// server is always stopped, on errors and Ctrl+C too.
-import puppeteer from "puppeteer-core";
+// to WORK_DIR/reports/<port>-<time>/, screenshots in a folder per engine.
+// Exits 1 when anything fails. The server is always stopped, on errors and
+// Ctrl+C too.
 import { readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { startScratch, WORK_DIR, DEFAULT_PORT } from "./lib/scratch.mjs";
 import { editor } from "./lib/editor.mjs";
 import { runAxe } from "./lib/axe.mjs";
+import { ENGINES, SUPPORTS, launch } from "./lib/engines.mjs";
 
-const CHROME = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CHECKS_DIR = new URL("./checks/", import.meta.url).pathname;
 // a check that hangs fails instead of holding the run (and its server) open
 const CHECK_TIMEOUT = 5 * 60 * 1000;
 
 const args = process.argv.slice(2);
-const VALUED = ["--only", "--port", "--source"];
+const VALUED = ["--only", "--engines", "--port", "--source"];
 const FLAGS = ["--keep", "--update-baseline"];
 for (let i = 0; i < args.length; i++) {
   if (VALUED.includes(args[i])) i++;
@@ -35,7 +37,7 @@ const keep = args.includes("--keep");
 const updateBaseline = args.includes("--update-baseline");
 
 function usage(problem) {
-  console.error(`${problem}\nUsage: node scripts/editor-check/run.mjs [--only name[,name]] [--port N] [--source worktree|head] [--keep] [--update-baseline]`);
+  console.error(`${problem}\nUsage: node scripts/editor-check/run.mjs [--only name[,name]] [--engines chrome,firefox,webkit] [--port N] [--source worktree|head] [--keep] [--update-baseline]`);
   process.exit(2);
 }
 
@@ -48,6 +50,9 @@ const names = only ? only.split(",").map((n) => n.trim()).filter(Boolean) : avai
 const unknown = names.filter((n) => !available.includes(n));
 if (unknown.length) usage(`No such check: ${unknown.join(", ")} (there are: ${available.join(", ")})`);
 if (!["worktree", "head"].includes(source)) usage(`--source must be worktree or head`);
+const engines = [...new Set(opt("--engines", "chrome").split(",").map((e) => e.trim()).filter(Boolean))];
+const strange = engines.filter((e) => !ENGINES.includes(e));
+if (strange.length || !engines.length) usage(`No such engine: ${strange.join(", ") || "(none)"} (there are: ${ENGINES.join(", ")})`);
 
 const stamp = new Date().toISOString().replace(/\.\d+Z$/, "").replace(/[-:]/g, "").replace("T", "-");
 const reportDir = path.join(WORK_DIR, "reports", `${port}-${stamp}`);
@@ -75,8 +80,8 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 const withTimeout = (promise, ms, what) =>
   Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(`${what} took longer than ${ms / 1000} s`)), ms).unref())]);
 
-async function runCheck(name) {
-  const dir = path.join(reportDir, name);
+async function runCheck(name, engine) {
+  const dir = path.join(reportDir, engine, name);
   mkdirSync(dir, { recursive: true });
   const context = await browser.createBrowserContext();
   const pageErrors = [];
@@ -96,12 +101,17 @@ async function runCheck(name) {
     context,
     port,
     source,
+    // which browser this is, and what it can do (lib/engines.mjs)
+    engine,
+    supports: SUPPORTS[engine],
+    // a result that can't be had in this engine, shown as SKIP (why can be a skip error's message)
+    skip: (resultName, why = "") => ({ name: resultName, pass: true, skipped: true, detail: /^skipped in /.test(why) ? why : `skipped in ${engine}${why ? `: ${why}` : ""}` }),
     workDir: WORK_DIR,
     options: { updateBaseline },
     axe: (options) => runAxe(ed.page, options),
     // another tab in the same browser context, with its own helpers
     newPage: open,
-    log: (...parts) => console.log(`  ${name}:`, ...parts),
+    log: (...parts) => console.log(`  ${name} (${engine}):`, ...parts),
   };
   const start = Date.now();
   let results;
@@ -112,41 +122,72 @@ async function runCheck(name) {
   } catch (e) {
     // the message, and where in the check or its helpers it was thrown
     const where = (e.stack || "").split("\n").filter((l) => l.includes("/editor-check/")).slice(0, 2).map((l) => l.trim().replace(/^at /, ""));
-    results = [{ name: "runs without errors", pass: false, detail: [e.message, ...where].join(" ← ") }];
-    await ed.screenshot("error").catch(() => {});
+    // something only Chrome can do (lib/engines.mjs) skips the rest of the check
+    results = [{ name: "runs without errors", pass: !!e.skipped, skipped: !!e.skipped, detail: [e.message, ...where].join(" ← ") }];
+    if (!e.skipped) await ed.screenshot("error").catch(() => {});
   } finally {
     await context.close().catch(() => {});
   }
-  return { check: name, ms: Date.now() - start, results: results.map((r) => ({ name: r.name, pass: !!r.pass, detail: r.detail ?? "" })), pageErrors };
+  results = results.map((r) => ({ name: r.name, pass: !!r.pass || !!r.skipped, skipped: !!r.skipped, detail: r.detail ?? "" }));
+  return { check: name, engine, ms: Date.now() - start, results, pageErrors };
 }
 
 function printTable(report) {
-  const rows = report.checks.flatMap((c) => c.results.map((r) => [r.pass ? "PASS" : "FAIL", c.check, r.name, String(r.detail).replace(/\s+/g, " ")]));
-  const widths = [4, Math.max(5, ...rows.map((r) => r[1].length)), Math.max(6, ...rows.map((r) => r[2].length))];
-  const line = (cells) => cells.map((c, i) => (i < 3 ? c.padEnd(widths[i]) : c.length > 110 ? `${c.slice(0, 107)}…` : c)).join("  ");
-  console.log(`\n${line(["", "Check", "Result", "Detail"])}`);
+  const status = (r) => (r.skipped ? "SKIP" : r.pass ? "PASS" : "FAIL");
+  const rows = report.checks.flatMap((c) => c.results.map((r) => [status(r), c.engine, c.check, r.name, String(r.detail).replace(/\s+/g, " ")]));
+  const widths = [4, 7, Math.max(5, ...rows.map((r) => r[2].length)), Math.max(6, ...rows.map((r) => r[3].length))];
+  const line = (cells) => cells.map((c, i) => (i < 4 ? c.padEnd(widths[i]) : c.length > 110 ? `${c.slice(0, 107)}…` : c)).join("  ");
+  console.log(`\n${line(["", "Engine", "Check", "Result", "Detail"])}`);
   for (const row of rows) console.log(line(row));
-  const failed = rows.filter((r) => r[0] === "FAIL").length;
-  console.log(`\n${rows.length - failed} passed, ${failed} failed. Report: ${path.join(reportDir, "report.json")}`);
+  const count = (s) => rows.filter((r) => r[0] === s).length;
+  const failed = count("FAIL");
+  const skipped = count("SKIP") ? `, ${count("SKIP")} skipped` : "";
+  console.log(`\n${count("PASS")} passed, ${failed} failed${skipped}. Report: ${path.join(reportDir, "report.json")}`);
   return failed;
+}
+
+/** A browser of the engine, or a failed result saying why it didn't start. */
+async function startBrowser(engine) {
+  try {
+    return await launch(engine);
+  } catch (e) {
+    return { failed: { check: "(browser)", engine, ms: 0, results: [{ name: "starts", pass: false, skipped: false, detail: e.message }], pageErrors: [] } };
+  }
 }
 
 let failed = 1;
 try {
   mkdirSync(reportDir, { recursive: true });
-  scratch = await startScratch({ port, source, keep });
-  // puppeteer's own signal handlers would exit before the server is stopped
-  browser = await puppeteer.launch({ executablePath: CHROME, headless: "new", handleSIGINT: false, handleSIGTERM: false, handleSIGHUP: false });
-  const report = { started: new Date().toISOString(), port, source, base: scratch.base, chrome: await browser.version(), checks: [] };
-  for (const name of names) {
+  const report = { started: new Date().toISOString(), port, source, base: `http://localhost:${port}`, engines, browsers: {}, checks: [] };
+  // one engine at a time, every check in each. Each engine gets a fresh
+  // copy: checks save to it, and expect the site as it was copied
+  let kept = null;
+  for (const engine of engines) {
     if (interrupted) break;
-    console.log(`Running ${name}…`);
-    report.checks.push(await runCheck(name));
+    const started = await startBrowser(engine);
+    if (started.failed) {
+      console.error(`${engine} didn't start: ${started.failed.results[0].detail}`);
+      report.checks.push(started.failed);
+      continue;
+    }
+    browser = started;
+    report.browsers[engine] = await browser.version();
+    scratch = await startScratch({ port, source, keep });
+    kept = { dir: scratch.dir, engine };
+    for (const name of names) {
+      if (interrupted) break;
+      console.log(`Running ${name} in ${engine}…`);
+      report.checks.push(await runCheck(name, engine));
+    }
+    await browser?.close().catch(() => {});
+    browser = null;
+    await scratch.stop();
+    scratch = null;
   }
   report.finished = new Date().toISOString();
   writeFileSync(path.join(reportDir, "report.json"), JSON.stringify(report, null, 2));
   failed = printTable(report);
-  if (keep) console.log(`The site copy is kept at ${scratch.dir}`);
+  if (keep && kept) console.log(`The site copy${engines.length > 1 ? ` (${kept.engine}'s)` : ""} is kept at ${kept.dir}`);
 } catch (e) {
   console.error(`The run stopped: ${e.message}`);
   failed = 1;
