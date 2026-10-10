@@ -1,0 +1,22 @@
+{
+  "note": "First pass of the spike (2026-10-09), before the blocks made their shadow chrome user-select: none. The item's icon tile button came before the title in shadow DOM and the section's stray-box message and controls followed the items; nothing was user-select: none. Same blocks otherwise. Kept as evidence for the user-select rule; results.json has the final measurements.",
+  "started": "20261010-000056",
+  "rows": [
+    {
+      "check": "S2 arrow keys move the caret across slotted fields",
+      "variant": "manual",
+      "engine": "chrome",
+      "pass": false,
+      "measured": true,
+      "detail": "h2 end → right: oer-spike-learn > oer-spike-outcome[1] > p (expected oer-spike-learn > oer-spike-outcome[1] > h3); item 1 title end → right: oer-spike-learn > oer-spike-outcome[1] > p; item 1 text end → right: oer-spike-learn > oer-spike-outcome[2] > p (expected oer-spike-learn > oer-spike-outcome[2] > h3); item 2 text end → right (into the empty title): oer-spike-learn > oer-spike-outcome[2] > p (expected oer-spike-learn > oer-spike-outcome[3] > h3); item 2 title start → left: oer-spike-learn > oer-spike-outcome[1] > p; h2 end → down: oer-spike-learn > oer-spike-outcome[1] > h3; item 2 title start → up: oer-spike-learn > oer-spike-outcome[1] > p; item 1 text end → down (cards side by side): oer-spike-learn > oer-spike-outcome[2] > h3"
+    },
+    {
+      "check": "S2 arrow keys move the caret across slotted fields",
+      "variant": "fallback",
+      "engine": "chrome",
+      "pass": false,
+      "measured": true,
+      "detail": "h2 end → right: oer-spike-learn-fb > oer-spike-outcome-fb[1] > p (expected oer-spike-learn-fb > oer-spike-outcome-fb[1] > h3); item 1 title end → right: oer-spike-learn-fb > oer-spike-outcome-fb[1] > p; item 1 text end → right: oer-spike-learn-fb > oer-spike-outcome-fb[2] > p (expected oer-spike-learn-fb > oer-spike-outcome-fb[2] > h3); item 2 text end → right (into the empty title): oer-spike-learn-fb > oer-spike-outcome-fb[2] > p (expected oer-spike-learn-fb > oer-spike-outcome-fb[3] > h3); item 2 title start → left: oer-spike-learn-fb > oer-spike-outcome-fb[1] > p; h2 end → down: oer-spike-learn-fb > oer-spike-outcome-fb[1] > h3; item 2 title start → up: oer-spike-learn-fb > oer-spike-outcome-fb[1] > p; item 1 text end → down (cards side by side): oer-spike-learn-fb > oer-spike-outcome-fb[2] > h3"
+    }
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "off": {
+    "order": [
+      "keydown window (phase 1, target custom-oer-docs-theme)",
+      "keydown body (phase 2, target hax-body)",
+      "keydown hax",
+      "keyup window (phase 1, target custom-oer-docs-theme)",
+      "keyup body (phase 2, target hax-body)",
+      "keyup hax"
+    ],
+    "target": "custom-oer-docs-theme › h-a-x › hax-body",
+    "enter": {
+      "changed": true,
+      "detail": 7
+    },
+    "slash": {
+      "palette": true,
+      "text": ""
+    },
+    "markdown": {
+      "children": "h3,ul",
+      "text": "",
+      "list": true,
+      "ordered": true
+    },
+    "arrowUp": {
+      "added": 1
+    },
+    "arrowDown": {
+      "added": 1
+    },
+    "handled": 0
+  },
+  "host": {
+    "order": [
+      "keydown window (phase 1, target custom-oer-docs-theme)",
+      "keydown body (phase 2, target hax-body)",
+      "keydown hax",
+      "keyup window (phase 1, target custom-oer-docs-theme)",
+      "keyup body (phase 2, target hax-body)",
+      "keyup hax"
+    ],
+    "target": "custom-oer-docs-theme › h-a-x › hax-body",
+    "enter": {
+      "changed": true,
+      "detail": 7
+    },
+    "slash": {
+      "palette": true,
+      "text": ""
+    },
+    "markdown": {
+      "children": "h3,ul",
+      "text": "",
+      "list": true,
+      "ordered": true
+    },
+    "arrowUp": {
+      "added": 1
+    },
+    "arrowDown": {
+      "added": 1
+    },
+    "handled": 0
+  },
+  "body": {
+    "order": [
+      "keydown window (phase 1, target custom-oer-docs-theme)",
+      "keydown body (phase 2, target hax-body)",
+      "keydown hax",
+      "keyup window (phase 1, target custom-oer-docs-theme)",
+      "keyup body (phase 2, target hax-body)",
+      "keyup hax"
+    ],
+    "target": "custom-oer-docs-theme › h-a-x › hax-body",
+    "enter": {
+      "changed": false,
+      "detail": 0
+    },
+    "slash": {
+      "palette": false,
+      "text": "/"
+    },
+    "markdown": {
+      "children": "h3,ul",
+      "text": "/",
+      "list": true,
+      "ordered": true
+    },
+    "arrowUp": {
+      "added": 0
+    },
+    "arrowDown": {
+      "added": 0
+    },
+    "handled": 8
+  },
+  "window": {
+    "order": [
+      "keydown window (phase 1, target custom-oer-docs-theme)",
+      "keydown body (phase 2, target hax-body)",
+      "keydown hax",
+      "keyup window (phase 1, target custom-oer-docs-theme)",
+      "keyup body (phase 2, target hax-body)",
+      "keyup hax"
+    ],
+    "target": "custom-oer-docs-theme › h-a-x › hax-body",
+    "enter": {
+      "changed": false,
+      "detail": 0
+    },
+    "slash": {
+      "palette": false,
+      "text": "/"
+    },
+    "markdown": {
+      "children": "h3,ul",
+      "text": "/",
+      "list": true,
+      "ordered": true
+    },
+    "arrowUp": {
+      "added": 0
+    },
+    "arrowDown": {
+      "added": 0
+    },
+    "handled": 8
+  },
+  "body-all": {
+    "order": [
+      "keydown window (phase 1, target custom-oer-docs-theme)",
+      "keydown body (phase 2, target hax-body)",
+      "keydown hax",
+      "keyup window (phase 1, target custom-oer-docs-theme)",
+      "keyup body (phase 2, target hax-body)",
+      "keyup hax"
+    ],
+    "target": "custom-oer-docs-theme › h-a-x › hax-body",
+    "enter": {
+      "changed": false,
+      "detail": 0
+    },
+    "slash": {
+      "palette": false,
+      "text": "/"
+    },
+    "markdown": {
+      "children": "h3,p",
+      "text": "/- ",
+      "list": false,
+      "ordered": false
+    },
+    "arrowUp": {
+      "added": 0
+    },
+    "arrowDown": {
+      "added": 0
+    },
+    "handled": 11
+  }
+}

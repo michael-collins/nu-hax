@@ -23,11 +23,30 @@ for (const m of src.matchAll(/--([a-z-]+):\s*([^;]+);/g)) {
   }
 }
 
-function oklchToSrgb(str) {
+const toLab = (str) => {
   const [, L, C, H] = str.match(OKLCH).map(Number);
   const h = (H * Math.PI) / 180;
-  const a = C * Math.cos(h);
-  const b = C * Math.sin(h);
+  return [L, C * Math.cos(h), C * Math.sin(h)];
+};
+
+// Hover colours, as components write them: color-mix(in oklab, <token>
+// <100 - share>%, <other>), where other is a token or "black"
+const MIXES = {
+  // ui/oer-confirm.js .btn.destructive:hover
+  "destructive-hover": ["destructive", "black", 12],
+};
+for (const mode of ["light", "dark"]) {
+  for (const [name, [base, other, share]] of Object.entries(MIXES)) {
+    const from = toLab(tokens[mode][base]);
+    const to = other === "black" ? [0, 0, 0] : toLab(tokens[mode][other]);
+    const [L, a, b] = from.map((v, i) => v + (to[i] - v) * (share / 100));
+    const H = ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360;
+    tokens[mode][name] = `oklch(${L.toFixed(6)} ${Math.hypot(a, b).toFixed(6)} ${H.toFixed(4)})`;
+  }
+}
+
+function oklchToSrgb(str) {
+  const [L, a, b] = toLab(str);
   const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
   const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
   const s_ = L - 0.0894841775 * a - 1.291485548 * b;
@@ -61,6 +80,7 @@ const PAIRS = [
   ["card-foreground", "card", 4.5],
   ["popover-foreground", "popover", 4.5],
   ["destructive-foreground", "destructive", 4.5],
+  ["destructive-foreground", "destructive-hover", 4.5],
   ["primary", "background", 3],
   ["ring", "background", 3],
   ["input-border", "background", 3],

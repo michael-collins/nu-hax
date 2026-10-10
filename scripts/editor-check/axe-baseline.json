@@ -1,0 +1,81 @@
+{
+  "written": "2026-10-09T23:42:58.290Z",
+  "source": "head",
+  "axe": "4.14.0",
+  "tags": [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21a",
+    "wcag21aa",
+    "wcag22aa"
+  ],
+  "width": 1440,
+  "pages": {
+    "/up/dart-413": {
+      "reading": {
+        "violations": 1,
+        "nodes": 1,
+        "counts": {
+          "critical": 0,
+          "serious": 1,
+          "moderate": 0,
+          "minor": 0
+        },
+        "rules": {
+          "definition-list": {
+            "impact": "serious",
+            "nodes": 1
+          }
+        }
+      },
+      "editing": {
+        "violations": 3,
+        "nodes": 4,
+        "counts": {
+          "critical": 0,
+          "serious": 3,
+          "moderate": 0,
+          "minor": 0
+        },
+        "rules": {
+          "aria-input-field-name": {
+            "impact": "serious",
+            "nodes": 1
+          },
+          "definition-list": {
+            "impact": "serious",
+            "nodes": 1
+          },
+          "target-size": {
+            "impact": "serious",
+            "nodes": 2
+          }
+        }
+      }
+    },
+    "/oer-courses": {
+      "reading": {
+        "violations": 0,
+        "nodes": 0,
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0
+        },
+        "rules": {}
+      },
+      "editing": {
+        "violations": 0,
+        "nodes": 0,
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0
+        },
+        "rules": {}
+      }
+    }
+  }
+}
