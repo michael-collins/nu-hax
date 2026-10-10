@@ -4,12 +4,15 @@
 // the block list, the rail, citations, the small text editor); HAX finds
 // the caret in WebKit too, so arrow keys and Backspace keep it in the
 // content and never make the theme's host the active block; Cancel right
-// after Edit content leaves at once; ⌘Z and ⌘⇧Z are HAX's undo and redo;
-// the leave dialog gives focus back to the button that opened it, and
-// Duplicate from the rail by keyboard puts the caret in the copy; Select
-// All then Backspace, or a selection across sections, deletes nothing;
-// the placeholder art's grid isn't drawn inverted; and an HTML paste
-// lands once.
+// after Edit content leaves at once; ⌘Z and ⌘⇧Z are HAX's undo and redo,
+// and leave the caret in the text; the leave dialog gives focus back to
+// the button that opened it, and Duplicate from the rail by keyboard puts
+// the caret in the copy; the content's input guards keep the page-break
+// and the course site's sections (Select All, a selection across
+// sections, Cut, Enter twice then Backspace, Safari's Ctrl+D) and join
+// paragraphs themselves (Safari's engine copied the theme into the page);
+// the placeholder art's grid isn't drawn inverted; and a paste lands once,
+// where it was pasted, without freezing the page.
 //
 // Run with --engines chrome,firefox,webkit. Nothing here saves, and it
 // doesn't count on the copy being unsaved (stopgaps, run before it, saves
@@ -32,16 +35,22 @@ export default async function hotfix(ctx) {
   const json = (v) => JSON.stringify(v);
   // HAX asks before leaving a page it's editing
   page.on("dialog", (d) => d.accept().catch(() => {}));
+  // set once the page stops answering (a paste that never ends): the parts after it aren't run
+  let frozen = false;
   const part = async (name, fn) => {
+    if (frozen) return check(`${name}: runs`, false, "not run: the page had stopped answering");
     const start = Date.now();
     try {
       await fn();
     } catch (e) {
       if (e.skipped) results.push(ctx.skip(`${name}: runs`, e.message));
       else check(`${name}: runs without errors`, false, e.message.split("\n")[0]);
-      await ctx.screenshot(`error-${name}`).catch(() => {});
-      // a question left open mustn't cover the next part
-      if (await page.evaluate(() => !!__ec.openDialog()).catch(() => false)) await ctx.exitEdit({ discard: true }).catch(() => {});
+      // (a page that stopped answering takes neither)
+      if (!frozen) {
+        await ctx.screenshot(`error-${name}`).catch(() => {});
+        // a question left open mustn't cover the next part
+        if (await page.evaluate(() => !!__ec.openDialog()).catch(() => false)) await ctx.exitEdit({ discard: true }).catch(() => {});
+      }
     }
     ctx.log(`${name} took ${((Date.now() - start) / 1000).toFixed(1)} s`);
   };
@@ -114,8 +123,9 @@ export default async function hotfix(ctx) {
   };
   const longParagraph = () => handle(() => [...__ec.haxBody().querySelectorAll(":scope > p")].find((p) => p.textContent.trim().length > 20));
   // Select All as each engine has it: Firefox and WebKit run ⌘A themselves;
-  // headless Chrome's selectAll does nothing, so its selection is set as
-  // Firefox's ⌘A makes it (the whole of hax-body)
+  // headless Chrome's selectAll does nothing, so its selection is set over
+  // the whole of hax-body (Chrome then starts it after the page-break, as
+  // WebKit's ⌘A does; Firefox's takes the page-break in)
   const selectAll = async () => {
     if (ctx.engine === "chrome") await page.evaluate(() => __ec.select(__ec.haxBody(), 0, __ec.haxBody(), __ec.haxBody().childNodes.length));
     else await ctx.press("Mod+A");
@@ -170,6 +180,118 @@ export default async function hotfix(ctx) {
       plain,
     );
   };
+  // the blocks and the start of each one's text
+  const shape = () =>
+    page.evaluate(() =>
+      [...__ec.haxBody().children]
+        .map((c) => {
+          const t = c.textContent.replace(/\s+/g, " ").trim();
+          return `${c.localName}${t ? `(${t.slice(0, 16)})` : ""}`;
+        })
+        .join(" | "),
+    );
+  // text straight in hax-body (HAX's haxToContent throws on it), and whether HAX can save
+  const loose = () => page.evaluate(() => [...__ec.haxBody().childNodes].filter((n) => n.nodeType === 3 && n.data.trim()).length);
+  const saves = () => page.evaluate(async () => __ec.haxBody().haxToContent().then(() => "HAX can save", (e) => `haxToContent throws ${e.message}`));
+  const bodies = () => page.evaluate(() => __ec.all("hax-body").length);
+  const textOf = (selector) => page.evaluate((s) => __ec.haxBody().querySelector(s)?.textContent.replace(/\s+/g, " ").trim() ?? "(gone)", selector);
+  const htmlOf = (selector) => page.evaluate((s) => __ec.normalize(__ec.haxBody().querySelector(s)?.outerHTML ?? "(gone)"), selector);
+  // a click on a paragraph's first line (HAX's invisible block menu sits over
+  // the bottom of the paragraph above the active block)
+  const clickIn = async (el) => {
+    await el.evaluate((p) => p.scrollIntoView({ block: "center" }));
+    await ctx.frames();
+    await ctx.clickAt(await el.evaluate((p) => ({ x: p.getBoundingClientRect().left + 30, y: p.getBoundingClientRect().top + 10 })), { covered: true });
+    await ctx.sleep(150);
+  };
+  // the caret n characters into an element's text (after any white space it starts with)
+  const caretAtText = (el, n) =>
+    el.evaluate((p, n) => {
+      const walker = globalThis.document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+      let left = n + (p.textContent.length - p.textContent.trimStart().length);
+      for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+        if (left <= t.length) return __ec.select(t, left);
+        left -= t.length;
+      }
+    }, n);
+  // whether the page still answers (a paste that never ends holds it)
+  const answers = () => Promise.race([page.evaluate(() => true).catch(() => false), ctx.sleep(8000).then(() => false)]);
+  /**
+   * Paste as each engine can: Firefox a real ⌘C (from a copy outside the
+   * editor: HTML from a div, plain text from a textarea) and ⌘V; the others
+   * a paste event carrying the data. place() puts the caret or selection
+   * (in Firefox after copying, which moves the selection). Resolves to
+   * whether the paste event was cancelled at once (null for a real paste);
+   * throws when the page stops answering, and the parts after aren't run.
+   */
+  const pasteData = async ({ html = "", text = "" }, place) => {
+    if (ctx.engine === "firefox") {
+      await page.evaluate(
+        (html, text) => {
+          const el = document.body.appendChild(document.createElement(html ? "div" : "textarea"));
+          el.id = "hotfix-clip";
+          if (html) {
+            el.innerHTML = html;
+            document.getSelection().selectAllChildren(el);
+          } else {
+            el.value = text;
+            el.focus();
+            el.select();
+          }
+        },
+        html,
+        text,
+      );
+      await ctx.press("Meta+c");
+      await page.evaluate(() => document.getElementById("hotfix-clip").remove());
+      await place();
+      const done = await Promise.race([ctx.press("Meta+v").then(() => true), ctx.sleep(8000).then(() => false)]);
+      frozen ||= !done;
+      if (frozen) throw new Error("The page stopped answering at the paste (8 s)");
+      return null;
+    }
+    await place();
+    const pasted = page.evaluate(
+      (html, text) => {
+        const dt = new DataTransfer();
+        if (text) dt.setData("text/plain", text);
+        if (html) dt.setData("text/html", html);
+        const e = new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true, composed: true });
+        (__ec.activeElement() || __ec.haxBody()).dispatchEvent(e);
+        return e.defaultPrevented;
+      },
+      html,
+      text,
+    );
+    const done = await Promise.race([pasted, ctx.sleep(8000).then(() => "no answer")]);
+    frozen ||= done === "no answer";
+    if (frozen) throw new Error("The page stopped answering at the paste (8 s)");
+    return done;
+  };
+  const TWO = "<p>First pasted</p><p>Second pasted</p>";
+  const count = (s) => page.evaluate((s) => __ec.haxBody().textContent.split(s).length - 1, s);
+  // a rail menu item reached with the keyboard: Alt+F10, Enter (Block), then down to it
+  const railByKeys = async (label) => {
+    await ctx.press("Alt+F10");
+    await ctx.press("Enter");
+    await ctx.sleep(200);
+    const current = () => page.evaluate(() => document.querySelector("oer-block-rail").shadowRoot.activeElement?.querySelector(".text")?.textContent.trim());
+    for (let i = 0; i < 12 && (await current()) !== label; i++) await ctx.press("ArrowDown");
+    if ((await current()) !== label) throw new Error(`The rail's Block menu has no ${label}`);
+    await ctx.press("Enter");
+  };
+  // a block from the block list below the active one, chosen by its name
+  const insertBlock = async (name) => {
+    await runRail("Insert block below…");
+    await ctx.waitFor(() => !!document.querySelector("oer-block-inserter").shadowRoot.querySelector(".panel input"), { what: "the block list" });
+    await ctx.type(name);
+    await ctx.sleep(200);
+    const option = await handle((name) => [...document.querySelector("oer-block-inserter").shadowRoot.querySelectorAll("[role=option]")].find((o) => o.textContent.trim().startsWith(name)) || null, name);
+    if (!option.asElement()) throw new Error(`The block list has no ${name}`);
+    await ctx.clickAt(option);
+    await ctx.sleep(500);
+  };
+
   // Edit content, then Cancel as soon as it's there: leaves at once, or asks
   const cancelAtOnce = async () => {
     // (a lesson has Edit content in its page menu: the stock toggle instead, as enterEdit does)
@@ -279,6 +401,88 @@ export default async function hotfix(ctx) {
     await ctx.sleep(300);
     const crossed = { blocks: await blocks(), tagline: await page.evaluate(() => __ec.haxBody().querySelector("oer-cs-hero > p")?.textContent) };
     check("A selection from the hero into the Learn section: Backspace or typing over it deletes nothing", crossed.blocks === before && crossed.tagline === tagline, `${crossed.blocks === before ? "blocks kept" : crossed.blocks}; tagline “${crossed.tagline}”`);
+    // and Cut, which no key guard sees (headless Chrome runs its cut command only sometimes)
+    await page.evaluate(() => {
+      globalThis.__hotfixCuts = 0;
+      __ec.haxBody().addEventListener("beforeinput", (e) => e.inputType === "deleteByCut" && globalThis.__hotfixCuts++, true);
+    });
+    await across();
+    if (ctx.engine === "chrome") await page.keyboard.press("x", { commands: ["cut"] });
+    else await ctx.press("Mod+X");
+    await ctx.sleep(300);
+    const cut = { cuts: await page.evaluate(() => globalThis.__hotfixCuts), blocks: await blocks(), tagline: await page.evaluate(() => __ec.haxBody().querySelector("oer-cs-hero > p")?.textContent) };
+    if (!cut.cuts && ctx.engine === "chrome") results.push(ctx.skip("…and cutting it (⌘X) deletes nothing either", "headless Chrome didn't run its cut command"));
+    else check("…and cutting it (⌘X) deletes nothing either", cut.blocks === before && cut.tagline === tagline, `${cut.cuts} cut; ${cut.blocks === before ? "blocks kept" : cut.blocks}; tagline “${cut.tagline}”`);
+  });
+
+  await part("site undo", async () => {
+    const tagline = await field("oer-cs-hero > p");
+    await ctx.clickAt(tagline);
+    await caretAtEnd(tagline);
+    const start = await textOf("oer-cs-hero > p");
+    await ctx.type(" Und");
+    // HAX records an undo step 300 ms after the last change
+    await ctx.sleep(700);
+    await ctx.press("Mod+Z");
+    await ctx.sleep(500);
+    await ctx.type("X");
+    await ctx.sleep(300);
+    const r = { text: await textOf("oer-cs-hero > p"), loose: await loose(), saves: await saves() };
+    check("⌘Z in the hero's tagline: the caret stays in it, so typing goes on there and HAX can still save", r.text === `${start}X` && !r.loose && r.saves === "HAX can save", `“${r.text}”; ${r.loose} loose texts; ${r.saves}`);
+  });
+
+  await part("site sections", async () => {
+    const before = await blocks();
+    // two empty paragraphs, then Backspace: Safari's engine deleted past the section from the second
+    await clickBox("oer-cs-people");
+    await ctx.type("Text");
+    await ctx.press("Enter");
+    await ctx.press("Enter");
+    await ctx.sleep(200);
+    await backspace(3);
+    await ctx.sleep(300);
+    const people = await htmlOf("oer-cs-people");
+    check("Enter twice in the instructor's note, then Backspace three times: back to its own text, no section lost", (await blocks()) === before && people === "<oer-cs-people><p>Tex</p></oer-cs-people>", `${(await blocks()) === before ? "blocks kept" : await blocks()}; ${people}`);
+    // Delete in the empty question: Safari's engine and Firefox deleted the section
+    await clickBox("oer-cs-faq");
+    await ctx.press("Delete");
+    await ctx.press("Delete");
+    await ctx.sleep(300);
+    const faq = await htmlOf("oer-cs-faq");
+    check("Delete twice in the empty Questions box keeps the section and its question", (await blocks()) === before && /^<oer-cs-faq><h3>/.test(faq), `${(await blocks()) === before ? "blocks kept" : await blocks()}; ${faq}`);
+    // the Mac's deletions in Safari: Ctrl+H, Ctrl+D, Ctrl+K at a section's edges
+    if (ctx.engine === "webkit") {
+      const note = await field("oer-cs-people > p");
+      await ctx.clickAt(note);
+      await caretAtEnd(note);
+      for (const key of ["Control+d", "Control+d", "Control+k"]) await ctx.press(key);
+      await caretAtStart(note);
+      for (const key of ["Control+h", "Control+h"]) await ctx.press(key);
+      await ctx.sleep(300);
+      check("Ctrl+D, Ctrl+K and Ctrl+H at the edges of the instructor's note delete nothing past it", (await blocks()) === before && (await htmlOf("oer-cs-people")) === people, `${(await blocks()) === before ? "blocks kept" : await blocks()}; ${await htmlOf("oer-cs-people")}`);
+    } else results.push(ctx.skip("Ctrl+D, Ctrl+K and Ctrl+H at the edges of the instructor's note delete nothing past it", "only Safari's engine deletes with those keys"));
+    // a copied list pasted into the middle of an outcome: Firefox's paste kept the copy's wrapper and its id
+    const row = await field("oer-cs-learn li");
+    await ctx.clickAt(row);
+    await caretAtStart(row);
+    await ctx.type("onetwo");
+    await pasteData({ html: "<ul><li>Item A</li><li>Item B</li></ul>", text: "Item A\nItem B" }, async () => {
+      await ctx.clickAt(await field("oer-cs-learn li"));
+      await caretAtText(await field("oer-cs-learn li"), 3);
+    });
+    await ctx.sleep(800);
+    const learn = await htmlOf("oer-cs-learn");
+    check("A copied list pasted into an outcome goes in once, without the copy's wrapper or id", !/<div|id="hotfix-clip"/.test(learn) && (await count("Item A")) === 1, learn.slice(0, 160));
+    // Remove block on the note's only paragraph, from the keyboard: somewhere to type is left
+    const note = await field("oer-cs-people > p");
+    await ctx.clickAt(note);
+    await caretAtEnd(note);
+    await railByKeys("Remove block");
+    await ctx.sleep(400);
+    await ctx.type("S4");
+    await ctx.sleep(300);
+    const removed = { html: await htmlOf("oer-cs-people"), focus: (await ctx.deepActiveElement())?.path };
+    check("Remove block on the note's only paragraph leaves an empty one, and typing goes into it", removed.html === "<oer-cs-people><p>S4</p></oer-cs-people>" && /hax-body$/.test(removed.focus || ""), json(removed));
   });
 
   await part("site heading", async () => {
@@ -372,6 +576,26 @@ export default async function hotfix(ctx) {
     }
     const r = await cancelAtOnce();
     check(`${HUB}: Cancel straight after Edit content leaves at once`, r.outcome === "left", `${r.outcome} after ${r.ms} ms`);
+    // ArrowDown from the empty intro (Firefox put the caret before the page-break), then typing
+    await ctx.enterEdit();
+    await clickBox("oer-courses-intro");
+    await ctx.press("ArrowDown");
+    await ctx.sleep(300);
+    await ctx.type("Hello");
+    await ctx.sleep(300);
+    const typed = { first: (await blocks()).split(" ")[0], loose: await loose(), saves: await saves(), intro: await htmlOf("oer-courses-intro") };
+    check("ArrowDown from the hub's empty intro, then typing: nothing lands outside a block or before the page-break, and HAX can save", typed.first === "page-break" && !typed.loose && typed.saves === "HAX can save", json(typed));
+    await ctx.exitEdit({ discard: true });
+    // ArrowUp from there, then Cancel (Firefox wrote the page-break's attributes in another order)
+    await ctx.enterEdit();
+    await clickBox("oer-courses-intro");
+    await ctx.press("ArrowUp");
+    await ctx.sleep(300);
+    await ctx.clickAt(await ctx.control("Cancel"));
+    const outcome = await ctx.waitFor(() => (!__ec.store().editMode ? "left" : __ec.openDialog() ? "asked" : null), { what: "Cancel to leave or ask", timeout: 10000 });
+    if (outcome === "asked") await ctx.exitEdit({ discard: true });
+    else await ctx.waitForReading();
+    check("ArrowUp from the hub's empty intro, then Cancel: leaves at once, nothing having changed", outcome === "left", outcome);
   });
 
   /* ---------- a lesson ---------- */
@@ -530,8 +754,8 @@ export default async function hotfix(ctx) {
     await ctx.type("Q");
     await ctx.sleep(300);
     const end = await para.evaluate((p) => __ec.normalize(p.innerHTML).slice(-60));
-    // (Chrome and WebKit type on in the citation's superscript from there, as Chrome did before)
-    check("Citing leaves the caret after the citation", /<\/sup>Q$/.test(end) || (ctx.engine !== "firefox" && /<\/a>Q<\/sup>$/.test(end)), `…${end}`);
+    // (Chrome and WebKit keep the caret in the superscript even when it's put after it)
+    check("Citing leaves the caret after the citation: typing goes after it, not into its number", /<\/sup>Q$/.test(end), `…${end}`);
   });
 
   await part("lesson paste", async () => {
@@ -616,15 +840,244 @@ export default async function hotfix(ctx) {
     check("…and HTML that HAX leaves to the browser (a table) still goes in, once", (await count("Cell pasted")) === 1, `${await count("Cell pasted")} times; ${(await shape()).slice(0, 130)}; pasted ${pasted.slice(0, 120)}`);
   });
 
+  await part("lesson undo caret", async () => {
+    // a fresh start, so that ⌘Z has nothing of the parts before to undo
+    await ctx.exitEdit({ discard: true });
+    await ctx.open(LESSON);
+    await ctx.enterEdit();
+    // by its place: HAX's undo puts back a copy of the whole content
+    const index = await (await longParagraph()).evaluate((p) => [...p.parentElement.children].indexOf(p));
+    const para = () => handle((i) => __ec.haxBody().children[i], index);
+    const text = () => page.evaluate((i) => __ec.haxBody().children[i].textContent, index);
+    await clickIn(await para());
+    await caretAtText(await para(), 20);
+    const start = await text();
+    await ctx.press("Mod+Z");
+    await ctx.sleep(500);
+    await ctx.type("X");
+    // its own undo step (HAX records one 300 ms after the last change)
+    await ctx.sleep(700);
+    const first = { text: await text(), loose: await loose(), saves: await saves() };
+    const at = 20 + (start.length - start.trimStart().length);
+    check("⌘Z with nothing to undo leaves the caret where it was: typing goes on there, and HAX can still save", first.text === `${start.slice(0, at)}X${start.slice(at)}` && !first.loose && first.saves === "HAX can save", `…${first.text.slice(at - 10, at + 10)}…; ${first.loose} loose texts; ${first.saves}`);
+    await ctx.sleep(400);
+    await caretAtEnd(await para());
+    const before = await text();
+    await ctx.type(" more");
+    await ctx.sleep(700);
+    await ctx.press("Mod+Z");
+    await ctx.sleep(500);
+    await ctx.type("Y");
+    await ctx.sleep(300);
+    const second = { text: await text(), loose: await loose(), saves: await saves() };
+    // (the X typed before can go with it: HAX's undo steps differ by engine and timing)
+    check(
+      "⌘Z after typing: the caret is where the undone words were, so typing goes on there, and HAX can still save",
+      second.text.endsWith(`${before.slice(-12)}Y`) && !second.text.includes(" more") && !second.loose && second.saves === "HAX can save",
+      `…${second.text.slice(-24)}; ${second.loose} loose texts; ${second.saves}`,
+    );
+  });
+
+  await part("lesson enter", async () => {
+    const para = await longParagraph();
+    await clickIn(para);
+    await caretAtEnd(para);
+    await ctx.press("Enter");
+    await ctx.type("NEXT", { delay: 0 });
+    await ctx.sleep(400);
+    const next = await para.evaluate((p) => p.nextElementSibling?.textContent);
+    check("Enter, then letters typed straight away: they stay in order in the new paragraph", next === "NEXT", `“${next}”`);
+  });
+
+  await part("lesson block list", async () => {
+    // a list, a quote and columns from the block list take typing straight away
+    for (const [name, where] of [
+      ["Bulleted list", "ul > li"],
+      ["Block quote", "block-quote"],
+      ["Column layout", "grid-plate > p"],
+    ]) {
+      await clickIn(await longParagraph());
+      await insertBlock(name);
+      await ctx.type("Typed");
+      await ctx.sleep(300);
+      const r = await page.evaluate((where) => {
+        const found = [...__ec.haxBody().querySelectorAll(where)].find((el) => el.textContent.includes("Typed"));
+        return { found: !!found, loose: [...__ec.haxBody().childNodes].filter((n) => n.nodeType === 3 && n.data.trim()).length };
+      }, where);
+      check(`${name} from the block list: typing straight away goes into it`, r.found && !r.loose, `${r.found ? `in its ${where}` : "not in it"}; ${r.loose} loose texts`);
+    }
+  });
+
+  await part("lesson joins", async () => {
+    // Safari's engine joined two differently styled paragraphs by copying the
+    // theme's own elements into the page; HAX then reloaded the saved page
+    const first = await longParagraph();
+    const index = await first.evaluate((p) => [...p.parentElement.children].indexOf(p));
+    await page.evaluate((i) => {
+      const p = globalThis.document.createElement("p");
+      p.innerHTML = "Some <em>stressed</em> words";
+      __ec.haxBody().children[i].after(p);
+    }, index);
+    await ctx.sleep(300);
+    const n = (await blocks()).split(" ").length;
+    const second = await handle((i) => __ec.haxBody().children[i + 1], index);
+    await clickIn(second);
+    await caretAtStart(second);
+    await backspace();
+    await ctx.sleep(400);
+    const joined = { text: await page.evaluate((i) => __ec.normalize(__ec.haxBody().children[i].innerHTML).slice(-60), index), blocks: (await blocks()).split(" ").length, bodies: await bodies(), state: await haxState() };
+    check("Backspace at the start of a paragraph with emphasis joins it to the one before, nothing else", joined.bodies === 1 && joined.blocks === n - 1 && /Some <em>stressed<\/em> words$/.test(joined.text) && joined.state.haxCaret === "in the content", `${joined.bodies} hax-body; ${n} → ${joined.blocks} blocks; …${joined.text}; ${json(joined.state)}`);
+    // Delete at the end of the lesson's lead paragraph, as on the lesson about animation
+    await page.evaluate((i) => {
+      const p = globalThis.document.createElement("p");
+      p.className = "lead";
+      p.textContent = "A lead line.";
+      __ec.haxBody().children[i].before(p);
+    }, index);
+    await ctx.sleep(300);
+    const next = await page.evaluate((i) => __ec.haxBody().children[i + 1].textContent.trim().slice(0, 12), index);
+    const lead = await handle((i) => __ec.haxBody().children[i], index);
+    await clickIn(lead);
+    await caretAtEnd(lead);
+    await ctx.press("Delete");
+    await ctx.sleep(400);
+    const merged = { text: await page.evaluate((i) => __ec.haxBody().children[i].textContent.trim().slice(0, 30), index), blocks: (await blocks()).split(" ").length, bodies: await bodies() };
+    check("Delete at the end of a lead paragraph joins the next one to it, nothing else", merged.bodies === 1 && merged.blocks === n - 1 && merged.text.startsWith(`A lead line.${next}`), `${merged.bodies} hax-body; ${n} → ${merged.blocks} blocks; “${merged.text}…”`);
+    await ctx.exitEdit({ discard: true });
+  });
+
+  await part("lesson pastes", async () => {
+    await ctx.open(LESSON);
+    await ctx.enterEdit();
+    // the lesson's first long paragraph, by its place (stopgaps, before
+    // this, adds a short one), and the blocks around it
+    const index = await (await longParagraph()).evaluate((p) => [...p.parentElement.children].indexOf(p));
+    const target = () => handle((i) => __ec.haxBody().children[i], index);
+    const shapes = async () => (await shape()).split(" | ");
+    const was = await shapes();
+    const words = (i) => page.evaluate((i) => __ec.haxBody().children[i]?.textContent.replace(/\s+/g, " ").trim() ?? "", i);
+    const whole = await words(index);
+    // a triple click selects the paragraph; pasted paragraphs take its place
+    const triple = async () => {
+      const p = await target();
+      await clickIn(p);
+      const pt = await p.evaluate((p) => ({ x: p.getBoundingClientRect().left + 60, y: p.getBoundingClientRect().top + 10 }));
+      await page.mouse.click(pt.x, pt.y, { count: 3 });
+      await ctx.sleep(300);
+    };
+    let how = await pasteData({ html: TWO, text: "First pasted\n\nSecond pasted" }, triple);
+    await ctx.sleep(800);
+    let after = await shapes();
+    const replaced = [...was.slice(0, index), "p(First pasted)", "p(Second pasted)", ...was.slice(index + 1)];
+    check(
+      "A paragraph selected with a triple click, then two pasted: they take its place, in order, and the page-break stays",
+      json(after) === json(replaced) && (await count("First pasted")) === 1,
+      `${how === null ? "a real paste" : `cancelled at once ${how}`}; ${after.join(" ").slice(0, 140)}`,
+    );
+    await ctx.exitEdit({ discard: true });
+    await ctx.open(LESSON);
+    await ctx.enterEdit();
+    // Markdown pasted as plain text into the middle of a paragraph (20 characters in)
+    const md = "## Pasted heading\n\n- first item\n- second item\n\nA **bold** line.";
+    const middle = async () => {
+      const p = await target();
+      await clickIn(p);
+      await caretAtText(p, 20);
+    };
+    how = await pasteData({ text: md }, middle);
+    await ctx.sleep(800);
+    after = await shapes();
+    const between = json(after.slice(0, index)) === json(was.slice(0, index)) && json(after.slice(index + 1, index + 4)) === json(["h2(Pasted heading)", "ul(first item secon)", "p(A bold line.)"]) && json(after.slice(index + 5)) === json(was.slice(index + 1));
+    // the paragraph's two halves, with nothing lost
+    const halves = `${await words(index)}${await words(index + 4)}`;
+    check(
+      "Markdown pasted into the middle of a paragraph goes in between its halves, in order",
+      between && halves.replace(/\s+/g, "") === whole.replace(/\s+/g, "") && (await count("Pasted heading")) === 1,
+      `${how === null ? "a real paste" : `cancelled at once ${how}`}; ${after.join(" ").slice(0, 160)}`,
+    );
+    await ctx.exitEdit({ discard: true });
+    await ctx.open(LESSON);
+    await ctx.enterEdit();
+    // plain text of two lines, and an address, pasted once
+    how = await pasteData({ text: "Line one\nLine two" }, middle);
+    await ctx.sleep(600);
+    const lines = await count("Line one");
+    how = [how, await pasteData({ text: "https://example.com/page" }, middle)];
+    await ctx.sleep(600);
+    const urls = await count("example.com/page");
+    check("Plain text of two lines, or a web address, pasted into a paragraph goes in once", lines === 1 && urls === 1, `${lines} and ${urls} times; ${how.every((h) => h === null) ? "real pastes" : `cancelled at once ${how.join(", ")}`}`);
+    // Select All, then a paste: the page answers and keeps its page-break
+    const before = await shape();
+    how = await pasteData({ html: TWO, text: "First pasted\n\nSecond pasted" }, async () => {
+      await clickIn(await longParagraph());
+      await selectAll();
+    });
+    await ctx.sleep(800);
+    const ok = await answers();
+    frozen ||= !ok;
+    after = ok ? await shape() : "(no answer)";
+    check(
+      "Select All, then pasting two paragraphs: the page goes on answering, and the page-break stays",
+      ok && after.startsWith("page-break") && (after === before || /^page-break \| p\(First pasted\) \| p\(Second pasted\)$/.test(after)),
+      `${after === before ? "nothing pasted over a selection that reaches the page-break" : after.slice(0, 120)}`,
+    );
+  });
+
   await part("lesson select all", async () => {
+    // a fresh start: the paste over Select All may have replaced the page
+    await ctx.exitEdit({ discard: true });
+    await ctx.open(LESSON);
+    await ctx.enterEdit();
     const before = await blocks();
     await ctx.clickAt(await longParagraph(), { covered: true });
     const selected = await selectAll();
+    const reaches = await page.evaluate(() => {
+      const s = __ec.selectionNodes(__ec.haxBody());
+      if (!s.anchorNode) return false;
+      const r = globalThis.document.createRange();
+      r.setStart(s.anchorNode, s.anchorOffset);
+      r.setEnd(s.focusNode, s.focusOffset);
+      if (r.collapsed) r.setStart(s.focusNode, s.focusOffset);
+      return r.intersectsNode(__ec.haxBody().querySelector(":scope > page-break"));
+    });
     await backspace(1).catch(() => ctx.press("Backspace"));
     await ctx.sleep(400);
-    const after = await page.evaluate(() => ({ blocks: __ec.haxBody().children.length, pageBreak: !!__ec.haxBody().querySelector(":scope > page-break"), text: __ec.haxBody().textContent.trim().length }));
-    check("Select All then Backspace in a lesson keeps the page-break and doesn't empty the page", after.pageBreak && after.blocks > 1, `${selected} characters selected; ${before.split(" ").length} → ${after.blocks} blocks, page-break ${after.pageBreak ? "kept" : "gone"}`);
+    const after = await page.evaluate(() => ({ blocks: [...__ec.haxBody().children].map((c) => c.localName).join(" "), pageBreak: !!__ec.haxBody().querySelector(":scope > page-break") }));
+    // a selection that reaches the page-break deletes nothing; one that starts after it deletes the rest
+    const pass = reaches ? after.blocks === before : after.pageBreak && after.blocks.split(" ").length > 1;
+    check(
+      "Select All then Backspace in a lesson: nothing goes when the selection takes in the page-break, and the page-break stays",
+      pass,
+      `${selected} characters selected, ${reaches ? "page-break included" : "from after the page-break"}; ${before.split(" ").length} → ${after.blocks.split(" ").length} blocks, page-break ${after.pageBreak ? "kept" : "gone"}`,
+    );
     await ctx.exitEdit({ discard: true });
+  });
+
+  await part("newer Firefox", async () => {
+    // Firefox 142 and later have getComposedRanges, as Safari's engine does,
+    // but keep the nodes inside shadow roots in the document's selection:
+    // HAX's own selection stays (a getComposedRanges added here, as theirs)
+    if (ctx.engine !== "firefox") return results.push(ctx.skip("Firefox with getComposedRanges (142 and later): HAX keeps its own selection and live range", "Firefox only"));
+    const other = await ctx.newPage();
+    await other.page.evaluateOnNewDocument(() => {
+      if (!Selection.prototype.getComposedRanges) Selection.prototype.getComposedRanges = function () {
+        return this.rangeCount ? [new StaticRange(this.getRangeAt(0))] : [];
+      };
+    });
+    await other.setViewport(1440);
+    await other.open(LESSON);
+    await other.enterEdit();
+    const para = await other.page.evaluateHandle(() => [...__ec.haxBody().querySelectorAll(":scope > p")].find((p) => p.textContent.trim().length > 20));
+    await other.clickAt(await para.evaluate((p) => ({ x: p.getBoundingClientRect().left + 30, y: p.getBoundingClientRect().top + 10 })), { covered: true });
+    await para.evaluate((p) => __ec.select(p.firstChild, 5));
+    const own = await other.page.evaluate(() => {
+      const hs = __ec.haxStore();
+      const sel = document.getSelection();
+      return { composed: typeof sel.getComposedRanges, selection: hs.getSelection() === sel, live: hs.getRange() === sel.getRangeAt(0) };
+    });
+    check("Firefox with getComposedRanges (142 and later): HAX keeps its own selection and live range", own.composed === "function" && own.selection && own.live, json(own));
+    await other.exitEdit({ discard: true }).catch(() => {});
+    await other.page.close();
   });
 
   await part("text editor", async () => {
