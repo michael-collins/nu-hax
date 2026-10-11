@@ -11,8 +11,10 @@
 // of test items, oer-test-list and oer-test-item, which this check defines
 // in the page (the real items are WP-07's), plus columns. One part saves the
 // course site in the copy, to read it as readers do. Since WP-08 the tools'
-// list becomes tools as editing begins (fields typed in are a tool's p), and
-// the hero's image field opens from Change image on its picture.
+// list becomes tools as editing begins (fields typed in are a tool's p); since
+// WP-14 the shadow control the editor-control part tries is an outcome's
+// icon (Change icon), as the hero's Change image opens a popover outside the
+// content.
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -376,7 +378,8 @@ export default async function core(ctx) {
         learn.scrollIntoView({ block: "center" });
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         const r = learn.getBoundingClientRect();
-        return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 12) };
+        // (a quarter across: the seams' + Add pills sit in the middle of its edges)
+        return { x: Math.round(r.left + r.width / 4), y: Math.round(r.top + 12) };
       });
       await ctx.clickAt(padding);
       await ctx.sleep(400);
@@ -861,48 +864,48 @@ export default async function core(ctx) {
     await part("editor control", async () => {
       await edit(SITE);
       const html = (await snap()).html;
-      // (Change image opens it, until the editor's image popover answers that)
-      await ctx.clickAt(await handle(() => __ec.haxBody().querySelector("oer-cs-hero").shadowRoot.querySelector(".change-image")));
-      await ctx.sleep(300);
-      const field = await handle(() => __ec.haxBody().querySelector("oer-cs-hero").shadowRoot.querySelector("oer-image-field"));
-      const button = (label) => field.evaluateHandle((f, label) => [...f.shadowRoot.querySelectorAll("button")].find((b) => b.textContent.includes(label)) || null, label);
+      // an outcome's icon: a button in the item's shadow DOM (editorControl),
+      // which opens the icon picker (Esc gives focus back to it)
+      const tile = await handle(() => __ec.haxBody().querySelector("oer-cs-outcome")?.shadowRoot.querySelector("button.tile") || null);
+      if (!tile.asElement()) throw new Error("No outcome shows its icon as a button");
       const focusOn = () => ctx.deepActiveElement();
-      // what of the field's events reaches hax-body (bubbling, as HAX listens)
+      // what of the button's events reaches hax-body (bubbling, as HAX listens)
       await page.evaluate((types) => {
         const heard = (globalThis.__heard = []);
-        for (const type of types) __ec.haxBody().addEventListener(type, (e) => e.composedPath().some((n) => n.localName === "oer-image-field") && heard.push(type));
+        for (const type of types) __ec.haxBody().addEventListener(type, (e) => e.composedPath().some((n) => n.classList?.contains?.("tile")) && heard.push(type));
       }, ["pointerdown", "mousedown", "click", "dblclick", "focusin", "keydown", "keyup", "paste"]);
+      const pickAndClose = async () => {
+        await tile.evaluate((b) => b.scrollIntoView({ block: "center" }));
+        await ctx.frames();
+        await ctx.clickAt(tile);
+        await ctx.sleep(300);
+        const opened = await page.evaluate(() => !!document.querySelector("oer-icon-picker")?.open);
+        await ctx.press("Escape");
+        await ctx.sleep(500);
+        return opened;
+      };
       // a click from another block (the tagline active)
       await clickField("oer-cs-hero > p");
-      const byAddress = await button("Use an address");
-      await byAddress.evaluate((b) => b.scrollIntoView({ block: "center" }));
-      await ctx.frames();
-      await ctx.clickAt(byAddress);
-      await ctx.sleep(500);
+      const picked = await pickAndClose();
       const clicked = await focusOn();
-      // and a click with the hero itself selected
-      await page.evaluate(() => globalThis.OerEditor.ops.select(__ec.haxBody().querySelector("oer-cs-hero"), { focus: false }));
+      // and a click with the outcome itself selected
+      await page.evaluate(() => globalThis.OerEditor.ops.select(__ec.haxBody().querySelector("oer-cs-outcome"), { focus: false }));
       await ctx.sleep(200);
-      await ctx.clickAt(byAddress);
-      await ctx.sleep(500);
+      const pickedAgain = await pickAndClose();
       const again = await focusOn();
-      // Tab in from outside the field: from what comes before it in the
-      // tab order (the hero's See the semester), to its first button
-      const choose = await button("Choose from site");
-      await choose.evaluate((b) => b.focus());
-      await ctx.press("Shift+Tab");
-      await ctx.sleep(300);
-      const outside = await focusOn();
+      // Tab in from the field before it (the section's heading)
+      await clickField("oer-cs-learn > h2");
       await ctx.press("Tab");
       await ctx.sleep(500);
       const tabbed = await focusOn();
-      const hero = await page.evaluate(() => __ec.haxBody().querySelector("oer-cs-hero").getAttribute("role"));
+      const role = await page.evaluate(() => __ec.haxBody().querySelector("oer-cs-outcome").getAttribute("role"));
       const unchanged = (await snap()).html === html;
       const heard = await page.evaluate(() => globalThis.__heard);
+      const isTile = (f) => f?.tag === "button" && /^Change icon/.test(f.name) && f.path.includes("oer-cs-outcome");
       check(
-        "A shadow button wrapped in editorControl still holds deep focus 500 ms after a click (from another block, and with its section selected) and after Tab from outside it",
-        [clicked, again].every((f) => f?.tag === "button" && f.name === "Use an address") && !outside?.path.includes("oer-image-field") && tabbed?.tag === "button" && tabbed.name === "Choose from site" && tabbed.path.includes("oer-image-field") && hero === null && unchanged,
-        `after click: ${clicked?.name} (${clicked?.path}); with the hero selected: ${again?.name}; Tab from ${outside?.name} (${outside?.path}) to ${tabbed?.name}; hero role ${hero}; hax-body ${unchanged ? "unchanged" : "changed"}`,
+        "A shadow button wrapped in editorControl (an outcome's icon) holds deep focus 500 ms after the picker it opened closes (clicked from another block, and with its item selected) and after Tab into it",
+        picked && pickedAgain && isTile(clicked) && isTile(again) && isTile(tabbed) && role === null && unchanged,
+        `after click: ${clicked?.name} (${clicked?.path}); with the outcome selected: ${again?.name}; Tab to ${tabbed?.name} (${tabbed?.path}); picker ${picked}/${pickedAgain}; outcome role ${role}; hax-body ${unchanged ? "unchanged" : "changed"}`,
       );
       check("…and none of its pointer, click, focus or key events reaches hax-body", heard.length === 0, heard.join(", ") || "none");
       await ctx.exitEdit({ discard: true });

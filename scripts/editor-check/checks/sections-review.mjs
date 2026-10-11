@@ -5,7 +5,7 @@
 // details current when the page saves); lists written with paragraphs in
 // their rows become one-line items; Tab goes through the content and the
 // controls the sections draw, and in an answer's list puts an item under
-// the one before; the hero's image field by keyboard; questions (a lone
+// the one before; the hero's image popover by keyboard; questions (a lone
 // heading, one without words, stray blocks made questions); the hub (a
 // tagline's line break, no course site on); and, without a browser, the
 // conversions, the API client's tokenless sign-in and the migration's
@@ -167,7 +167,12 @@ export default async function sectionsReview(ctx) {
         after.editing && after.tagline?.endsWith(" TYPED-BEFORE") && after.same && after.dirty && after.steps === 0,
         json(after),
       );
-      check("…the section shows what was saved (the instructor), and focus is on the section, its callout gone", after.people && after.unit === "oer-cs-people" && after.focus?.tag === "hax-body", json({ people: after.people, unit: after.unit, focus: after.focus }));
+      // (on the section: the content, or since WP-09 the section's name tag)
+      check(
+        "…the section shows what was saved (the instructor), and focus is on the section, its callout gone",
+        after.people && after.unit === "oer-cs-people" && (after.focus?.tag === "hax-body" || (/^oer-block-(frame|rail) › button$/.test(after.focus?.path || "") && /^Who teaches it/.test(after.focus?.name || ""))),
+        json({ people: after.people, unit: after.unit, focus: after.focus }),
+      );
       // the course site's description changed in Page details mid-edit, then the page saved
       const described = `Described mid-edit ${Date.now()}`;
       await page.evaluate(
@@ -302,7 +307,7 @@ export default async function sectionsReview(ctx) {
       await ctx.exitEdit({ discard: true });
     });
 
-    /* ---------- the hero's image field, by keyboard ---------- */
+    /* ---------- the hero's image popover, by keyboard (WP-14) ---------- */
 
     await part("image field", async () => {
       await edit(SITE, SITE_ID, FULL_PAGE);
@@ -311,18 +316,27 @@ export default async function sectionsReview(ctx) {
       const opened = await ctx.deepActiveElement();
       await ctx.press("Escape");
       await ctx.sleep(300);
-      const closed = await page.evaluate(() => ({ open: !!__ec.haxBody().querySelector("oer-cs-hero").shadowRoot.querySelector("oer-image-field"), focus: __ec.describe(__ec.activeElement()) }));
-      check("Change image opens the image field with focus in it, and Esc closes it with focus back on Change image", opened?.path.includes("oer-image-field") && !closed.open && closed.focus?.name === "Change image", json({ opened, closed }));
+      const closed = await page.evaluate(() => ({ open: document.querySelector("oer-image-popover").matches(":popover-open"), focus: __ec.describe(__ec.activeElement()) }));
+      check("Change image opens the image popover with focus in its field, and Esc closes it with focus back on Change image", opened?.path.includes("oer-image-popover › oer-image-field") && !closed.open && closed.focus?.name === "Change image", json({ opened, closed }));
       await ctx.press("Enter");
       await ctx.sleep(300);
-      await ctx.clickAt(await handle(() => [...__ec.haxBody().querySelector("oer-cs-hero").shadowRoot.querySelector("oer-image-field").shadowRoot.querySelectorAll("button")].find((b) => b.textContent.trim() === "Use an address")));
+      const field = () => handle(() => document.querySelector("oer-image-popover").shadowRoot.querySelector("oer-image-field"));
+      await ctx.clickAt(await (await field()).evaluateHandle((f) => [...f.shadowRoot.querySelectorAll("button")].find((b) => b.textContent.trim() === "Use an address")));
       await ctx.sleep(200);
-      await ctx.clickAt(await handle(() => __ec.haxBody().querySelector("oer-cs-hero").shadowRoot.querySelector("oer-image-field").shadowRoot.querySelector('input[aria-label="Hero image address"]')));
+      await ctx.clickAt(await (await field()).evaluateHandle((f) => f.shadowRoot.querySelector('input[aria-label="Image address"]')));
       await ctx.type("files/1500.jpg");
       await ctx.press("Enter");
       await ctx.sleep(400);
-      const set = await page.evaluate(() => ({ image: __ec.haxBody().querySelector("oer-cs-hero").getAttribute("image"), focus: __ec.describe(__ec.activeElement()), label: __ec.activeElement()?.closest?.("label")?.querySelector(".alt-label")?.textContent }));
-      check("An address typed and Enter: the hero has it, and focus goes on to its description", set.image === "files/1500.jpg" && set.focus?.tag === "input" && set.label === "Description (alt text)", json(set));
+      const described = await page.evaluate(() => ({ focus: __ec.describe(__ec.activeElement()), label: __ec.activeElement()?.closest?.("label")?.querySelector(".alt-label")?.textContent }));
+      await ctx.type("Students at the laser cutter");
+      await ctx.clickAt(await ctx.control("Done"));
+      await ctx.sleep(600);
+      const set = await page.evaluate(() => ({ image: __ec.haxBody().querySelector("oer-cs-hero").getAttribute("image"), alt: __ec.haxBody().querySelector("oer-cs-hero").getAttribute("alt"), focus: __ec.describe(__ec.activeElement())?.name }));
+      check(
+        "An address typed and Enter: focus goes on to its description, and Done gives the hero the address and description, focus back on Change image",
+        described.focus?.tag === "input" && described.label === "Description (alt text)" && set.image === "files/1500.jpg" && set.alt === "Students at the laser cutter" && set.focus === "Change image",
+        json({ described, set }),
+      );
       await ctx.exitEdit({ discard: true });
     });
 

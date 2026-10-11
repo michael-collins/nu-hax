@@ -237,7 +237,8 @@ export default async function haxLayer(ctx) {
       (s.querySelector(":scope > h1, :scope > h2") || s).scrollIntoView({ block: "center" });
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const r = s.getBoundingClientRect();
-      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 12) };
+      // (a quarter across: the seams' + Add pills sit in the middle of its edges)
+      return { x: Math.round(r.left + r.width / 4), y: Math.round(r.top + 12) };
     }, tag);
     await ctx.clickAt(spot);
     await ctx.waitFor((tag) => __ec.haxStore().activeNode?.localName === tag, { args: [tag], what: `${tag} to be selected`, timeout: 5000 });

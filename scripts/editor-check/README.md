@@ -45,7 +45,7 @@ export default async function (ctx) {
 }
 ```
 
-Name results by what a person would notice ("Save keeps the new tagline"), and put the evidence in `detail`. A check that throws fails as "runs without errors", with the message and the line it came from, and a screenshot named `error.png`. A check has five minutes.
+Name results by what a person would notice ("Save keeps the new tagline"), and put the evidence in `detail`. A check that throws fails as "runs without errors", with the message and the line it came from, and a screenshot named `error.png`. A check has five minutes, or what it exports as `timeout` (milliseconds).
 
 ### The context
 

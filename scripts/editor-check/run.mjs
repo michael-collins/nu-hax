@@ -106,8 +106,9 @@ async function runCheck(name) {
   const start = Date.now();
   let results;
   try {
-    const { default: check } = await import(path.join(CHECKS_DIR, `${name}.mjs`));
-    results = await withTimeout(check(ctx), CHECK_TIMEOUT, `The ${name} check`);
+    // (a check can give itself longer: export const timeout = ms)
+    const { default: check, timeout = CHECK_TIMEOUT } = await import(path.join(CHECKS_DIR, `${name}.mjs`));
+    results = await withTimeout(check(ctx), timeout, `The ${name} check`);
     if (!Array.isArray(results) || !results.length) results = [{ name: "returns results", pass: false, detail: "The check returned no results" }];
   } catch (e) {
     // the message, and where in the check or its helpers it was thrown

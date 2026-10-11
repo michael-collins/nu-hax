@@ -10,7 +10,7 @@
 // yet being edited selects it (it deleted it); Undo and Redo of an outcome
 // added or removed go back to where the author was; keys typed straight
 // after Enter go to the new outcome; automatic icons follow the outcomes'
-// order and no icon is a button that does nothing; Enter in the heading of
+// order and each icon is a Change icon button (WP-14); Enter in the heading of
 // a section without items does nothing, quietly; Tab from the last field
 // leaves the content; Ctrl is not ⌘ on a Mac; markup that's odd for the
 // section model (lists in the hero and the note, a heading after the
@@ -155,6 +155,9 @@ export default async function model(ctx) {
     if (await ctx.editMode()) await ctx.exitEdit({ discard: true });
     write(html);
     await ctx.open(SITE);
+    // (a part that left mid-edit keeps a copy of its unsaved edits, which
+    // Edit content would offer back: each part starts from the saved page)
+    await page.evaluate(() => sessionStorage.removeItem("oer-pending-edits"));
     await ctx.enterEdit();
     await ctx.waitFor(() => globalThis.OerEditor?.state.tracking, { what: "unsaved changes to be followed", timeout: 5000 });
   };
@@ -193,14 +196,18 @@ export default async function model(ctx) {
       const b = r.getBoundingClientRect();
       return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
     }, word);
-  // the rail's Block menu, and one of its items
-  const runRail = async (label) => {
-    const button = await handle(() => document.querySelector("oer-block-rail").shadowRoot.querySelector('.rail button[aria-label="Block"]'));
-    if (!button.asElement()) throw new Error("The rail has no Block button");
+  // the rail's menu for what's selected (a section's Section ▾ since WP-09,
+  // Block ▾ before), and one of its items (by the labels it goes by)
+  const runRail = async (...labels) => {
+    const button = await handle(() => {
+      const root = document.querySelector("oer-block-rail").shadowRoot;
+      return root.querySelector('.rail button[aria-label="Section"]') || root.querySelector('.rail button[aria-label="Block"]');
+    });
+    if (!button.asElement()) throw new Error("The rail has no Section or Block button");
     await ctx.clickAt(button);
-    await ctx.sleep(150);
-    const item = await handle((label) => [...document.querySelector("oer-block-rail").shadowRoot.querySelectorAll(".menu [role^=menuitem]")].find((b) => b.querySelector(".text")?.textContent.trim() === label) || null, label);
-    if (!item.asElement()) throw new Error(`The rail's Block menu has no ${label}`);
+    await ctx.sleep(300);
+    const item = await handle((labels) => [...document.querySelector("oer-block-rail").shadowRoot.querySelectorAll(".menu [role^=menuitem]")].find((b) => labels.includes(b.querySelector(".text")?.textContent.trim())) || null, labels);
+    if (!item.asElement()) throw new Error(`The rail's menu has no ${labels.join(" or ")}`);
     await ctx.clickAt(item);
   };
   // select a section as a whole, by a click on its own padding, above what's in it
@@ -210,7 +217,8 @@ export default async function model(ctx) {
       (s.querySelector(":scope > h1, :scope > h2") || s).scrollIntoView({ block: "center" });
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const r = s.getBoundingClientRect();
-      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 12) };
+      // (a quarter across: the seams' + Add pills sit in the middle of its edges)
+      return { x: Math.round(r.left + r.width / 4), y: Math.round(r.top + 12) };
     }, tag);
     await ctx.clickAt(spot);
     await ctx.waitFor((tag) => __ec.haxStore().activeNode?.localName === tag, { args: [tag], what: `${tag} to be selected`, timeout: 5000 });
@@ -333,13 +341,17 @@ export default async function model(ctx) {
       await ctx.sleep(100);
       const all = await ctx.selectionText();
       check("Mod+A in a title selects that field's text only", all === "Laser", `“${all}”`);
-      // Tab to the next field (the sentence), and on into the next outcome
+      // Tab to the next field (the sentence), and on into the next outcome,
+      // by its icon (a control it draws, since WP-14)
       await ctx.press("End");
       await ctx.press("Tab");
       await ctx.press("Tab");
       await ctx.sleep(150);
+      const icon = (await ctx.deepActiveElement())?.name;
+      await ctx.press("Tab");
+      await ctx.sleep(150);
       const tabbed = await caret();
-      check("Tab goes from field to field, on into the next outcome", tabbed?.field === "h3" && tabbed.item === 3, json(tabbed));
+      check("Tab goes from field to field, on into the next outcome (by its Change icon button)", /^Change icon/.test(icon || "") && tabbed?.field === "h3" && tabbed.item === 3, json({ icon, tabbed }));
       // Esc selects the outcome as a whole: no caret
       await ctx.press("Escape");
       await ctx.sleep(300);
@@ -514,8 +526,9 @@ export default async function model(ctx) {
         after.length === 5 && json(after.slice(0, 4)) === json(before) && new Set(after).size === 5,
         `${new Set(before).size} icons before, ${new Set(after).size} after; first four ${json(after.slice(0, 4)) === json(before) ? "in order" : "out of order"}`,
       );
-      const buttons = await page.evaluate(() => [...__ec.haxBody().querySelectorAll("oer-cs-outcome")].flatMap((o) => [...o.shadowRoot.querySelectorAll("button, [tabindex]")].map((b) => b.getAttribute("aria-label") || b.textContent.trim())));
-      check("…and an outcome's icon is no control while it can't be changed", !buttons.length, json(buttons));
+      // (since WP-14 the icon is a button that opens the icon picker)
+      const buttons = await page.evaluate(() => [...__ec.haxBody().querySelectorAll("oer-cs-outcome")].map((o) => [...o.shadowRoot.querySelectorAll("button, [tabindex]")].map((b) => b.getAttribute("aria-label") || b.textContent.trim())));
+      check("…and each outcome's icon is one control, named for what it does (Change icon: Automatic)", buttons.length === 5 && buttons.every((b) => b.length === 1 && b[0] === "Change icon: Automatic"), json(buttons));
       // the semester holds no items: Enter and Mod+Enter in its heading do nothing, and say nothing
       const semester = await handle(() => __ec.haxBody().querySelector("oer-cs-semester > h2"));
       await clickField(semester);
@@ -720,7 +733,7 @@ export default async function model(ctx) {
 
       // the section's own Edit HTML: no editing attributes in it, and its fields still take typing after
       await selectSection("oer-cs-learn");
-      await runRail("Edit HTML");
+      await runRail("Edit HTML…", "Edit HTML");
       await ctx.waitFor(() => !!__ec.haxBody().querySelector("code-editor"), { what: "the source view", timeout: 5000 });
       await ctx.sleep(600);
       const source = await page.evaluate(() => {
@@ -779,7 +792,8 @@ export default async function model(ctx) {
         await __ec.haxStore().runHook(books, "inlineContextMenu", [plate]);
         return plate.ceButtons.map((b) => b.label);
       });
-      check("…and its HAX menu offers Show to readers", json(menu) === json(["Show to readers"]), json(menu));
+      // (and since WP-09 where its content comes from, first)
+      check("…and its HAX menu offers Show to readers", json(menu.filter((m) => m !== "Edit course details…")) === json(["Show to readers"]), json(menu));
       // Show to readers from the keyboard, as one undo step; focus stays with the section
       const show = await handle(() => [...__ec.haxBody().querySelector("oer-cs-books").shadowRoot.querySelectorAll("button")].find((b) => b.textContent.trim() === "Show to readers"));
       await show.evaluate((b) => b.focus());
@@ -787,7 +801,12 @@ export default async function model(ctx) {
       await ctx.sleep(500);
       const shown = await page.evaluate(() => __ec.haxBody().querySelector("oer-cs-books").hasAttribute("hidden-from-readers"));
       const kept = await page.evaluate(() => ({ focus: __ec.describe(__ec.activeElement())?.path, selected: __ec.haxStore().activeNode?.localName, mode: OerEditor.state.mode }));
-      check("Show to readers from the keyboard keeps focus with the section, selected", /hax-body$/.test(kept.focus || "") && kept.selected === "oer-cs-books" && kept.mode === "selected", json(kept));
+      // (the section's own: the content, or since WP-09 its name tag)
+      check(
+        "Show to readers from the keyboard keeps focus with the section, selected",
+        (/hax-body$/.test(kept.focus || "") || /^oer-block-(frame|rail) › button$/.test(kept.focus || "")) && kept.selected === "oer-cs-books" && kept.mode === "selected",
+        json(kept),
+      );
       await ctx.press("Mod+Z");
       await ctx.sleep(500);
       const undone = await page.evaluate(() => __ec.haxBody().querySelector("oer-cs-books").hasAttribute("hidden-from-readers"));

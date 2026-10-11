@@ -228,13 +228,15 @@ export default async function geometry(ctx) {
         );
 
         // a section, selected (a click on its own padding): its frame and the
-        // rail sit on the page, the rail beside the handle
+        // rail sit on the page, the rail clear of the handle (beside it, or,
+        // since WP-09's rail at the content's edge, above it)
         const spot = await page.evaluate(async () => {
           const learn = __ec.haxBody().querySelector("oer-cs-learn");
           learn.scrollIntoView({ block: "center" });
           await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
           const r = learn.getBoundingClientRect();
-          return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 12) };
+          // (a quarter across: the seams' + Add pills sit in the middle of its edges)
+          return { x: Math.round(r.left + r.width / 4), y: Math.round(r.top + 12) };
         });
         await ed.clickAt(spot);
         await ed.waitFor(() => __ec.haxStore().activeNode?.localName === "oer-cs-learn", { what: "the section to be selected", timeout: 5000 });
@@ -245,15 +247,16 @@ export default async function geometry(ctx) {
           const box = (el) => {
             if (!el || !__ec.visible(el)) return null;
             const r = el.getBoundingClientRect();
-            return { left: Math.round(r.left), right: Math.round(r.right) };
+            return { left: Math.round(r.left), right: Math.round(r.right), top: Math.round(r.top), bottom: Math.round(r.bottom) };
           };
           const frame = document.querySelector("oer-block-frame").shadowRoot;
           return { content: [Math.round(left), Math.round(left + main.clientWidth)], ring: box(frame.querySelector(".ring")), handle: box(frame.querySelector(".handle")), label: box(frame.querySelector(".label")), rail: box(document.querySelector("oer-block-rail").shadowRoot.querySelector(".rail")) };
         });
         const inside = (b) => b && b.left >= chrome.content[0] && b.right <= chrome.content[1];
+        const apart = (a, b) => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
         check(
-          "A selected section's frame, label and rail are on the page, the rail beside the handle",
-          ["ring", "handle", "label", "rail"].every((k) => inside(chrome[k])) && chrome.rail.left >= chrome.handle.right,
+          "A selected section's frame, label and rail are on the page, the rail clear of the handle",
+          ["ring", "handle", "label", "rail"].every((k) => inside(chrome[k])) && apart(chrome.rail, chrome.handle),
           json(chrome),
         );
         await ed.screenshot("editing-section-selected");
@@ -284,7 +287,9 @@ export default async function geometry(ctx) {
     );
     // The rail, the frame's handle and the selected block's text, from wide
     // windows (no gutter) down to phones: none covers another. A section's
-    // text is its .wrap, inside its padding.
+    // text is its .wrap, inside its padding. Where the margin beside the
+    // text is too narrow for them, they're in the selection dock at the
+    // bottom (WP-09), which doesn't cover the text either.
     await part(
       "rail and handle",
       async () => {
@@ -306,16 +311,21 @@ export default async function geometry(ctx) {
               NOTE,
             );
             try {
-              // (a section by a click on its own padding)
+              // (a section by a click on its own padding; each in the middle of
+              // the window, clear of the selection dock at its bottom)
               const spot =
                 what === "What you'll learn"
                   ? await target.evaluate(async (s) => {
                       s.scrollIntoView({ block: "center" });
                       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
                       const r = s.getBoundingClientRect();
-                      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 12) };
+                      // (a quarter across: the seams' + Add pills sit in the middle of its edges)
+                      return { x: Math.round(r.left + r.width / 4), y: Math.round(r.top + 12) };
                     })
-                  : target;
+                  : await target.evaluate(async (el) => {
+                      el.scrollIntoView({ block: "center" });
+                      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+                    }).then(() => target);
               await ed.clickAt(spot, { covered: true });
               await ed.waitFor((t) => !!__ec.haxStore().activeNode && __ec.within(t, __ec.haxStore().activeNode), { args: [target], what: `${what} to be selected`, timeout: 5000 });
             } catch (e) {
@@ -332,18 +342,21 @@ export default async function geometry(ctx) {
                 return { l: Math.round(r.left + (s ? parseFloat(s.paddingLeft) : 0)), r: Math.round(r.right - (s ? parseFloat(s.paddingRight) : 0)), t: Math.round(r.top), b: Math.round(r.bottom) };
               };
               const wrap = node.shadowRoot?.querySelector(".wrap");
+              const rail = document.querySelector("oer-block-rail");
+              const docked = rail.hasAttribute("dock");
               return {
                 tag: node.localName,
                 text: wrap ? box(wrap, true) : box(node),
-                handle: box(document.querySelector("oer-block-frame").shadowRoot.querySelector(".handle")),
-                rail: box(document.querySelector("oer-block-rail").shadowRoot.querySelector(".rail")),
+                handle: docked ? null : box(document.querySelector("oer-block-frame").shadowRoot.querySelector(".handle")),
+                rail: docked ? null : box(rail.shadowRoot.querySelector(".rail")),
+                dock: docked ? box(rail.shadowRoot.querySelector(".dock")) : null,
               };
             });
             const hit = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
-            const parts = ["text", "handle", "rail"];
+            const parts = m.dock ? ["text", "dock"] : ["text", "handle", "rail"];
             const missing = parts.filter((k) => !m[k]);
-            const over = [["rail", "handle"], ["rail", "text"], ["handle", "text"]].filter(([a, b]) => m[a] && m[b] && hit(m[a], m[b])).map(([a, b]) => `the ${a} over the ${b}`);
-            seen.push(`${width} ${m.tag}: text ${m.text?.l}, handle ${m.handle?.l}–${m.handle?.r}, rail ${m.rail?.l}–${m.rail?.r}`);
+            const over = [["rail", "handle"], ["rail", "text"], ["handle", "text"], ["dock", "text"]].filter(([a, b]) => m[a] && m[b] && hit(m[a], m[b])).map(([a, b]) => `the ${a} over the ${b}`);
+            seen.push(m.dock ? `${width} ${m.tag}: text ${m.text?.l}, dock ${m.dock.t}–${m.dock.b}` : `${width} ${m.tag}: text ${m.text?.l}, handle ${m.handle?.l}–${m.handle?.r}, rail ${m.rail?.l}–${m.rail?.r}`);
             if (missing.length || over.length) covers.push(`${width}, ${what}: ${[...over, ...missing.map((k) => `no ${k}`)].join(", ")}`);
           }
           if (width === 1024) await ed.screenshot("selected-1024");
@@ -415,7 +428,8 @@ export default async function geometry(ctx) {
           });
           await ed.exitEdit({ discard: true });
         }
-        check(`While editing ${SITE} and ${HUB}, Add block follows the last section`, Object.values(rows).every((r) => r.end !== null), json(rows));
+        // (since WP-10: nothing goes below Ready to start or the catalog, pinned last)
+        check(`While editing ${SITE} and ${HUB}, no Add block row follows the last section, which stays at the end`, Object.values(rows).every((r) => r.end === null), json(rows));
       },
       ed,
     );
@@ -432,7 +446,8 @@ export default async function geometry(ctx) {
           learn.scrollIntoView({ block: "center" });
           await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
           const r = learn.getBoundingClientRect();
-          return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 12) };
+          // (a quarter across: the seams' + Add pills sit in the middle of its edges)
+          return { x: Math.round(r.left + r.width / 4), y: Math.round(r.top + 12) };
         });
         await ed.clickAt(wrap);
         await ed.waitFor(() => __ec.haxStore().activeNode?.localName === "oer-cs-learn", { what: "the section to be selected", timeout: 5000 });

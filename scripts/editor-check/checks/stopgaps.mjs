@@ -21,7 +21,7 @@
 // DOM), What you'll learn holds outcomes (not a list), and a section is
 // selected by a click on its own padding. Since WP-08 the tools and the
 // questions are items too (a tool's p, a question's h3 and answer), and the
-// hero's image field opens from Change image on its picture.
+// hero's Change image opens the editor's image popover (WP-14).
 import path from "node:path";
 import { readBaseline, newViolations } from "../lib/axe.mjs";
 
@@ -32,6 +32,8 @@ const LESSON = "/lessons/what-is-design";
 const EDITOR_ATTRS = /\s(data-hax-[\w-]*|contenteditable|role)=/;
 
 export default async function stopgaps(ctx) {
+  // the editor's way out: Cancel in the old editor header, Exit in the editing bar (WP-11)
+  const EXIT = /^(Cancel|Exit)$/;
   const { page } = ctx;
   const results = [];
   const check = (name, pass, detail = "") => results.push({ name, pass: !!pass, detail });
@@ -72,19 +74,29 @@ export default async function stopgaps(ctx) {
         return b.getAttribute("aria-disabled") === "true" ? `${label} (off: ${b.querySelector(".end")?.textContent.trim() || "no reason"})` : label;
       }),
     );
+  // (Block ▾ is the menu for what's selected; since WP-09 a section and
+  // what's typed in it have the section's own, Section ▾, first on the rail)
   const openRail = async (label = "Block") => {
-    const button = await handle((label) => document.querySelector("oer-block-rail").shadowRoot.querySelector(`.rail button[aria-label="${label}"]`), label);
+    const button = await handle((label) => {
+      const root = document.querySelector("oer-block-rail").shadowRoot;
+      return root.querySelector(`.rail button[aria-label="${label}"]`) || (label === "Block" ? root.querySelector(".rail button[aria-haspopup=menu]") : null);
+    }, label);
     if (!button.asElement()) throw new Error(`The rail has no ${label} button`);
     await ctx.clickAt(button);
-    await ctx.sleep(150);
+    await ctx.sleep(300);
     return railMenu();
   };
+  // (and what Section ▾ calls the same, since WP-09)
+  const ALSO = { "Insert block below…": "Add below…", "Edit HTML": "Edit HTML…" };
   const railItem = (label) =>
-    handle((label) => [...document.querySelector("oer-block-rail").shadowRoot.querySelectorAll(".menu [role^=menuitem]")].find((b) => b.querySelector(".text")?.textContent.trim() === label) || null, label);
+    handle(
+      (labels) => [...document.querySelector("oer-block-rail").shadowRoot.querySelectorAll(".menu [role^=menuitem]")].find((b) => labels.includes(b.querySelector(".text")?.textContent.trim())) || null,
+      [label, ALSO[label]].filter(Boolean),
+    );
   const runRail = async (label) => {
     await openRail("Block");
     const item = await railItem(label);
-    if (!item.asElement()) throw new Error(`The rail's Block menu has no ${label}`);
+    if (!item.asElement()) throw new Error(`The rail's menu has no ${label}`);
     await ctx.clickAt(item);
   };
   // select a section as a whole, by a click on its own padding, above what's in it
@@ -95,7 +107,8 @@ export default async function stopgaps(ctx) {
       (s.querySelector(":scope > h1, :scope > h2") || s).scrollIntoView({ block: "center" });
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const r = s.getBoundingClientRect();
-      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 12) };
+      // (a quarter across: the seams' + Add pills sit in the middle of its edges)
+      return { x: Math.round(r.left + r.width / 4), y: Math.round(r.top + 12) };
     }, tag);
     await ctx.clickAt(spot);
     await ctx.waitFor((tag) => __ec.haxStore().activeNode?.localName === tag, { args: [tag], what: `${tag} to be selected`, timeout: 5000 });
@@ -177,7 +190,7 @@ export default async function stopgaps(ctx) {
 
   await part("exit at once", async () => {
     await ctx.enterEdit();
-    await ctx.clickAt(await ctx.control("Cancel"));
+    await ctx.clickAt(await ctx.control(EXIT));
     await ctx.sleep(500);
     const quiet = await page.evaluate(() => ({ editing: !!__ec.store().editMode, dialog: !!__ec.openDialog() }));
     check("Exit with no changes leaves at once", !quiet.editing && !quiet.dialog, json(quiet));
@@ -301,41 +314,45 @@ export default async function stopgaps(ctx) {
   });
 
   await part("image field", async () => {
-    // (Change image opens it, until the editor's image popover answers that)
+    // (in the editor's image popover, since WP-14)
     await ctx.clickAt(await handle(() => __ec.haxBody().querySelector("oer-cs-hero").shadowRoot.querySelector(".change-image")));
     await ctx.sleep(300);
-    const imageField = await handle(() => __ec.haxBody().querySelector("oer-cs-hero").shadowRoot.querySelector("oer-image-field"));
+    const imageField = await handle(() => document.querySelector("oer-image-popover").shadowRoot.querySelector("oer-image-field"));
     const byAddress = await imageField.evaluateHandle((f) => [...f.shadowRoot.querySelectorAll("button")].find((b) => b.textContent.includes("Use an address")));
-    await byAddress.evaluate((b) => b.scrollIntoView({ block: "center" }));
-    await ctx.frames();
     await ctx.clickAt(byAddress);
     await ctx.sleep(300);
     const input = await imageField.evaluateHandle((f) => f.shadowRoot.querySelector('input[type="text"]'));
-    await input.evaluate((i) => i.scrollIntoView({ block: "center" }));
-    await ctx.frames();
     await ctx.clickAt(input);
     await ctx.type("files/studio.jpg");
     await ctx.sleep(300);
     const focus = await ctx.deepActiveElement();
     await ctx.press("Enter");
-    await ctx.sleep(400);
+    await ctx.sleep(300);
+    // (a first picture asks for its description once: decoration, here)
+    await ctx.clickAt(await imageField.evaluateHandle((f) => f.shadowRoot.querySelector(".check input")));
+    await ctx.clickAt(await ctx.control("Done"));
+    await ctx.sleep(600);
     const image = await page.evaluate(() => __ec.haxBody().querySelector("oer-cs-hero").getAttribute("image"));
-    check("Typing an address in the hero's image field keeps focus there and sets the image", focus?.tag === "input" && image === "files/studio.jpg", `focus on ${focus?.path} (${focus?.name}); image="${image}"`);
+    check("Typing an address in the hero's image popover keeps focus there, and Done sets the image", focus?.tag === "input" && image === "files/studio.jpg", `focus on ${focus?.path} (${focus?.name}); image="${image}"`);
+    // (the tagline back in view for what comes next, not under the editing bar)
+    await page.evaluate(() => __ec.haxBody().querySelector("oer-cs-hero > p").scrollIntoView({ block: "center" }));
+    await ctx.frames();
   });
 
   await part("exit", async () => {
     const saved = ctx.savedHtml(SITE);
-    await ctx.clickAt(await ctx.control("Cancel"));
+    await ctx.clickAt(await ctx.control(EXIT));
     await ctx.waitFor(() => !!__ec.openDialog(), { what: "the leave dialog", timeout: 5000 });
     const dialog = await page.evaluate(() => {
       const d = __ec.openDialog();
       return { title: d.querySelector("h2")?.textContent.trim(), text: d.querySelector("p")?.textContent.trim(), buttons: [...d.querySelectorAll("button")].map((b) => b.textContent.trim()), focus: __ec.describe(__ec.activeElement())?.name };
     });
-    check("Exit with changes opens a dialog whose buttons read Keep editing and Discard changes", json(dialog.buttons) === json(["Keep editing", "Discard changes"]), `${dialog.title} ${dialog.text} ${json(dialog.buttons)}, focus on ${dialog.focus}`);
+    // (the editing bar of WP-11 adds Save and exit after them)
+    check("Exit with changes opens a dialog whose buttons read Keep editing and Discard changes", json(dialog.buttons.slice(0, 2)) === json(["Keep editing", "Discard changes"]), `${dialog.title} ${dialog.text} ${json(dialog.buttons)}, focus on ${dialog.focus}`);
     await ctx.clickAt(await ctx.control("Keep editing"));
     await ctx.sleep(300);
     const kept = await page.evaluate(() => ({ editing: !!__ec.store().editMode, dialog: !!__ec.openDialog(), text: __ec.haxBody().querySelector("oer-cs-hero > p")?.textContent, focus: __ec.describe(__ec.activeElement())?.name }));
-    check("Keep editing stays in the editor with the changes, focus back on Cancel", kept.editing && !kept.dialog && kept.text === "Hello Design it on screen" && kept.focus === "Cancel", json(kept));
+    check("Keep editing stays in the editor with the changes, focus back on Cancel", kept.editing && !kept.dialog && kept.text === "Hello Design it on screen" && EXIT.test(kept.focus), json(kept));
     // HAX's own shortcut for leaving (Ctrl+Shift+/) asks the same question,
     // pressed on the rail (which keeps other keys from the content)
     await ctx.clickAt(await field("oer-cs-hero > p"));
@@ -485,15 +502,26 @@ export default async function stopgaps(ctx) {
     const stuck = await page.evaluate(() => __ec.haxBody().hasAttribute("viewsourcetoggle"));
     const learn = await page.evaluate(() => !!__ec.haxBody().querySelector("oer-cs-learn > oer-cs-outcome"));
     check("After Edit HTML on a section and selecting a paragraph, the source view has ended", !stuck && learn, `viewsourcetoggle ${stuck ? "still on" : "off"}; the section's outcome ${learn ? "kept" : "lost"}`);
-    const menu = await openRail("Block");
-    const count = () => page.evaluate(() => __ec.haxBody().querySelectorAll("oer-cs-hero > p").length);
+    // (since WP-09 text in a section has no Duplicate of its own, only the
+    // section's: the outcome's, in its own menu, is the command to try)
+    const wp09 = !(await page.evaluate(() => !!document.querySelector("oer-block-rail").shadowRoot.querySelector('.rail button[aria-label="Block"]')));
+    const copies = wp09 ? "oer-cs-learn > oer-cs-outcome" : "oer-cs-hero > p";
+    if (wp09) {
+      const title = await field("oer-cs-learn > oer-cs-outcome > h3");
+      await title.evaluate((h) => h.scrollIntoView({ block: "center" }));
+      await ctx.frames();
+      await ctx.clickAt(title);
+      await ctx.sleep(300);
+    }
+    const menu = await openRail(wp09 ? "Outcome" : "Block");
+    const count = () => page.evaluate((copies) => __ec.haxBody().querySelectorAll(copies).length, copies);
     const before = await count();
     const duplicate = await railItem("Duplicate");
     const enabled = !!duplicate.asElement() && (await duplicate.evaluate((b) => b.getAttribute("aria-disabled") !== "true"));
     if (enabled) await ctx.clickAt(duplicate);
     await ctx.sleep(500);
     const after = await count();
-    check("…the rail's Duplicate is enabled and duplicates the paragraph", enabled && after === before + 1, `${menu.find((m) => m.startsWith("Duplicate"))}; ${before} → ${after} paragraphs`);
+    check("…the rail's Duplicate is enabled and duplicates the paragraph (since WP-09, the outcome)", enabled && after === before + 1, `${menu.find((m) => m.startsWith("Duplicate"))}; ${before} → ${after} ${wp09 ? "outcomes" : "paragraphs"}`);
   });
 
   await part("starters", async () => {
@@ -512,7 +540,8 @@ export default async function stopgaps(ctx) {
       await ctx.sleep(250);
       check("…and typing goes into it", (await p.evaluate((el) => el.textContent)) === "Typed straight away", await outer("oer-cs-facts + p"));
     }
-    for (const title of ["Basic Image", "Enhanced Image", "Column layout"]) await insertBelow(title, title);
+    // (the block list's names since WP-10: Image, found by HAX's "Basic Image" too, and Columns)
+    for (const [query, title] of [["Basic Image", "Image"], ["Enhanced Image", "Enhanced Image"], ["Columns", "Columns"]]) await insertBelow(query, title);
     const html = await ctx.haxBodyHtml();
     const borrowed = html.match(/https?:\/\/(cdn2\.thecatapi\.com|dummyimage\.com)[^"' ]*/g) || [];
     check("Inserting an image adds no thecatapi.com (or other borrowed) picture anywhere in hax-body", !borrowed.length, borrowed.join(", ") || "no outside image addresses");
@@ -591,21 +620,28 @@ export default async function stopgaps(ctx) {
     const para = await handle(() => [...__ec.haxBody().querySelectorAll(":scope > p")].find((p) => p.textContent.trim().length > 20));
     await ctx.clickAt(para);
     await ctx.sleep(250);
+    // (one Columns… since WP-10, opening the Columns menu, in place of Add and Remove column)
     const menu = await openRail("Block");
-    check("A paragraph outside sections offers Add column but not Remove column", menu.includes("Add column") && !menu.includes("Remove column"), menu.join(", "));
+    check("A paragraph outside sections offers Columns…", menu.includes("Columns…") && !menu.some((m) => /(Add|Remove) column/.test(m)), menu.join(", "));
     // not for a locked block, as HAX's own columns commands
     await ctx.clickAt(await railItem("Lock content"));
     await ctx.sleep(400);
     const locked = await openRail("Block");
-    check("…and offers it switched off while the block is locked", locked.includes("Add column (off: Unlock it first)"), locked.filter((m) => /column|lock/i.test(m)).join(", "));
+    check("…and offers it switched off while the block is locked", locked.includes("Columns… (off: Unlock it first)"), locked.filter((m) => /column|lock/i.test(m)).join(", "));
     await ctx.clickAt(await railItem("Unlock content"));
     await ctx.sleep(400);
-    await openRail("Block");
-    await ctx.clickAt(await railItem("Add column"));
+    // the Columns menu: its first preset, 1 : 1
+    const columnsMenu = async () => {
+      await openRail("Block");
+      await ctx.clickAt(await railItem("Columns…"));
+      await ctx.sleep(300);
+    };
+    await columnsMenu();
+    await ctx.clickAt(await handle(() => document.querySelector("oer-columns-menu").shadowRoot.querySelector('[aria-label="Two columns, 1 : 1"]')));
     await ctx.sleep(700);
     const state = () => para.evaluate((p) => ({ parent: p.parentElement.localName, layout: p.parentElement.layout ?? null, slot: p.getAttribute("slot"), selected: globalThis.HaxStore.requestAvailability().activeNode === p }));
     const wrapped = await state();
-    check("Add column puts it in two equal columns, still selected", wrapped.parent === "grid-plate" && wrapped.layout === "1-1" && wrapped.slot === "col-1" && wrapped.selected, json(wrapped));
+    check("Columns 1 : 1 puts it in two equal columns, still selected", wrapped.parent === "grid-plate" && wrapped.layout === "1-1" && wrapped.slot === "col-1" && wrapped.selected, json(wrapped));
     // the new column has a paragraph to type in
     const second = await handle(() => __ec.haxBody().querySelector('grid-plate > p[slot="col-2"]'));
     if (second.asElement()) {
@@ -618,13 +654,14 @@ export default async function stopgaps(ctx) {
     check("…and the new column has a paragraph to type in", col2 === '<p slot="col-2">Second column</p>', col2);
     await ctx.clickAt(para);
     await ctx.sleep(250);
-    const inGrid = await openRail("Block");
-    check("…where Remove column is offered", inGrid.includes("Remove column"), inGrid.join(", "));
-    await ctx.clickAt(await railItem("Remove column"));
+    await columnsMenu();
+    const remove = await handle(() => [...document.querySelector("oer-columns-menu").shadowRoot.querySelectorAll("[role=menuitem]")].find((b) => b.textContent.trim() === "Remove columns, keep blocks") || null);
+    check("…where Remove columns is offered", !!remove.asElement());
+    if (remove.asElement()) await ctx.clickAt(remove);
     await ctx.sleep(500);
     const back = await state();
     const next = await para.evaluate((p) => __ec.normalize(p.nextElementSibling?.outerHTML ?? ""));
-    check("Remove column on two columns takes both columns' paragraphs back out, the first still selected", back.parent === "hax-body" && !back.slot && back.selected && next === "<p>Second column</p>", `${json(back)}; then ${next}`);
+    check("Remove columns takes both columns' paragraphs back out, the first still selected", back.parent === "hax-body" && !back.slot && back.selected && next === "<p>Second column</p>", `${json(back)}; then ${next}`);
   });
 
   await part("rail by keyboard", async () => {
@@ -729,12 +766,12 @@ export default async function stopgaps(ctx) {
     await insertBelow("Paragraph", "Paragraph");
     await ctx.type("A note between sections.");
     // below it, an image given a picture, and one left without
-    await insertBelow("Basic Image", "Basic Image");
+    await insertBelow("Basic Image", "Image");
     await page.evaluate(() => {
       const img = __ec.haxBody().querySelector("oer-cs-facts + p + img");
       Object.entries({ src: "files/rec2Od2fcMVgDSQyg_image_diamond_image.png", width: "200", height: "159", alt: "A diamond" }).forEach(([k, v]) => img.setAttribute(k, v));
     });
-    await insertBelow("Basic Image", "Basic Image");
+    await insertBelow("Basic Image", "Image");
     // (back up the page, clear of the course site's bar)
     const tagline = await field("oer-cs-hero > p");
     await tagline.evaluate((p) => p.scrollIntoView({ block: "center" }));

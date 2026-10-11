@@ -131,6 +131,9 @@ export default async function sections(ctx) {
     if (await ctx.editMode()) await ctx.exitEdit({ discard: true });
     if (id) write(id, html);
     await ctx.open(url);
+    // (a part that left mid-edit keeps a copy of its unsaved edits, which
+    // Edit content would offer back: each part starts from the saved page)
+    await page.evaluate(() => sessionStorage.removeItem("oer-pending-edits"));
     await ctx.enterEdit();
     await ctx.waitFor(() => globalThis.OerEditor?.state.tracking, { what: "unsaved changes to be followed", timeout: 5000 });
   };
@@ -288,17 +291,18 @@ export default async function sections(ctx) {
       await ctx.sleep(200);
       const typed = await page.evaluate(() => __ec.normalize(__ec.haxBody().querySelector("oer-cs-semester").innerHTML));
       check("A generated section's heading takes typing, and it holds nothing else", typed === "<h2>Fifteen weeks, three projects ahead</h2>", typed);
-      // the hero's Change image: asked of the editor; the image field opens while nothing answers
+      // the hero's Change image: asked of the editor, whose image popover answers (WP-14)
       await nextEvent("oer-edit-request");
       await ctx.clickAt(await sectionButton("oer-cs-hero", "Change image"));
       await ctx.sleep(300);
       const asked = await heard();
       const field = await page.evaluate(() => {
-        const f = __ec.haxBody().querySelector("oer-cs-hero").shadowRoot.querySelector("oer-image-field");
-        return { open: !!f && __ec.visible(f), focus: __ec.describe(__ec.activeElement())?.path };
+        const pop = document.querySelector("oer-image-popover");
+        return { open: !!pop?.matches(":popover-open"), inHero: !!__ec.haxBody().querySelector("oer-cs-hero").shadowRoot.querySelector("oer-image-field"), focus: __ec.describe(__ec.activeElement())?.path };
       });
+      await ctx.press("Escape");
       check("The hero's Change image button fires oer-edit-request with action ‘image’", asked?.action === "image" && asked.unit === "oer-cs-hero", json(asked));
-      check("…and, with no popover to answer it yet, opens the image field under the picture", field.open, json(field));
+      check("…which the editor's image popover answers, with focus in it (no field under the picture)", field.open && !field.inHero && /^oer-image-popover/.test(field.focus || ""), json(field));
       const label = await page.evaluate(() => {
         const s = __ec.haxBody().querySelector("oer-cs-hero").shadowRoot;
         const art = s.querySelector(".art").getBoundingClientRect();

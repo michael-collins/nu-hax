@@ -12,6 +12,12 @@
 // stayed on the block before). HAX's hidden block toolbar takes no room, so
 // a phone's page doesn't scroll sideways for it.
 //
+// Since WP-09 the rail's menus follow the level: an outcome's commands are
+// in Outcome ▾ (Move earlier and later, as cards), a section's in Section ▾,
+// and text in a section has Section ▾ and Format ▾ only; an item's handle
+// has arrows and no grip. The check takes the rail it finds: WP-09's, or
+// the Block ▾ of before.
+//
 // The course site's page is written into the copy before it opens and put
 // back at the end. Nothing is saved.
 import { readFileSync, writeFileSync } from "node:fs";
@@ -57,10 +63,16 @@ export default async function sectionCommands(ctx) {
 
   const handle = (fn, ...args) => page.evaluateHandle(fn, ...args);
   const list = () => page.evaluate(outcomes);
-  // the rail's Block menu, opened: its items as "label" or "label (off: why)"
-  const openBlock = async () => {
-    const button = await handle(() => document.querySelector("oer-block-rail").shadowRoot.querySelector('.rail button[aria-label="Block"]'));
-    if (!button.asElement()) throw new Error("The rail has no Block button");
+  // the rail's categories now
+  const cats = () => page.evaluate(() => [...document.querySelector("oer-block-rail").shadowRoot.querySelectorAll(".rail button[aria-haspopup=menu]")].map((b) => b.getAttribute("aria-label")));
+  // the rail's menu for what's selected (WP-09: Outcome or Section; before
+  // it, Block), opened: its items as "label" or "label (off: why)"
+  let menuOf = "Block";
+  const openBlock = async (want = ["Outcome", "Section", "Block"]) => {
+    const have = await cats();
+    menuOf = want.find((c) => have.includes(c)) || "Block";
+    const button = await handle((cat) => document.querySelector("oer-block-rail").shadowRoot.querySelector(`.rail button[aria-label="${cat}"]`), menuOf);
+    if (!button.asElement()) throw new Error(`The rail has no ${want.join(" or ")} button (it has ${have.join(", ")})`);
     // (a click on it closes it when it's open)
     if (!(await page.evaluate(() => !!document.querySelector("oer-block-rail").shadowRoot.querySelector(".menu")))) await ctx.clickAt(button);
     await ctx.sleep(200);
@@ -71,10 +83,12 @@ export default async function sectionCommands(ctx) {
       }),
     );
   };
-  const runBlock = async (label) => {
-    await openBlock();
-    const item = await handle((label) => [...document.querySelector("oer-block-rail").shadowRoot.querySelectorAll(".menu [role^=menuitem]")].find((b) => b.querySelector(".text")?.textContent.trim() === label) || null, label);
-    if (!item.asElement()) throw new Error(`The rail's Block menu has no ${label}`);
+  // (a label, or the labels it goes by: WP-09's first)
+  const runBlock = async (label, want) => {
+    await openBlock(want);
+    const labels = [label].flat();
+    const item = await handle((labels) => [...document.querySelector("oer-block-rail").shadowRoot.querySelectorAll(".menu [role^=menuitem]")].find((b) => labels.includes(b.querySelector(".text")?.textContent.trim())) || null, labels);
+    if (!item.asElement()) throw new Error(`The rail's ${menuOf} menu has no ${labels.join(" or ")}`);
     await ctx.clickAt(item);
     await ctx.sleep(700);
   };
@@ -98,7 +112,8 @@ export default async function sectionCommands(ctx) {
       (s.querySelector(":scope > h2") || s).scrollIntoView({ block: "center" });
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const r = s.getBoundingClientRect();
-      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 12) };
+      // (a quarter across: the seams' + Add pills sit in the middle of its edges)
+      return { x: Math.round(r.left + r.width / 4), y: Math.round(r.top + 12) };
     }, tag);
     await ctx.clickAt(spot);
     await ctx.sleep(400);
@@ -113,7 +128,7 @@ export default async function sectionCommands(ctx) {
       await clickTitle(0);
       const menu = await openBlock();
       await page.keyboard.press("Escape");
-      check("With the caret in an outcome's title, the rail's Block menu removes the outcome", menu.includes("Remove outcome") && !menu.includes("Remove block"), menu.join(", "));
+      check("With the caret in an outcome's title, the rail's menu for it removes the outcome", menu.includes("Remove outcome") && !menu.includes("Remove block"), `${menuOf}: ${menu.join(", ")}`);
       check("…and has no Block settings in the frame's label", !(await frameButtons()).some((b) => /settings/i.test(b)), json(await frameButtons()));
 
       await clickTitle(0);
@@ -128,7 +143,7 @@ export default async function sectionCommands(ctx) {
       check("…and one Undo takes the copy back", json(await list()) === json(start), json(await list()));
 
       await clickTitle(0);
-      await runBlock("Move down");
+      await runBlock(["Move later", "Move down"]);
       const moved = await list();
       check("Move down there moves the outcome after the next, title first", json(moved) === json([start[1], start[0]]), json(moved));
       await undo();
@@ -145,14 +160,19 @@ export default async function sectionCommands(ctx) {
       await undo();
       check("…and one Undo puts it back", json(await list()) === json(start), json(await list()));
 
-      // the frame's grip, by keyboard: the outcome moves, its fields stay together
+      // the frame's handle: the outcome moves, its fields stay together (its
+      // grip by keyboard; since WP-09 an item has no grip, but ← → buttons)
       await clickTitle(1);
-      const grip = await handle(() => document.querySelector("oer-block-frame").shadowRoot.querySelector(".grip"));
-      await grip.evaluate((g) => g.focus());
-      await ctx.press("ArrowUp");
+      const earlier = await handle(() => document.querySelector("oer-block-frame").shadowRoot.querySelector('.handle button[aria-label="Move earlier"]') || null);
+      if (earlier.asElement()) await ctx.clickAt(earlier);
+      else {
+        const grip = await handle(() => document.querySelector("oer-block-frame").shadowRoot.querySelector(".grip"));
+        await grip.evaluate((g) => g.focus());
+        await ctx.press("ArrowUp");
+      }
       await ctx.sleep(700);
       const gripped = await list();
-      check("The frame's grip moves the outcome, not its title, with ↑", json(gripped) === json([start[1], start[0]]), json(gripped));
+      check("The frame's handle moves the outcome, not its title, up", json(gripped) === json([start[1], start[0]]), json(gripped));
       await undo();
       await ctx.exitEdit({ discard: true });
     });
@@ -164,24 +184,31 @@ export default async function sectionCommands(ctx) {
       const tagline = await handle(() => __ec.haxBody().querySelector("oer-cs-hero > p"));
       await ctx.clickAt(tagline);
       await ctx.sleep(300);
-      const hero = await openBlock();
+      const inTagline = await cats();
+      const hero = await openBlock(["Section", "Block"]);
       await page.keyboard.press("Escape");
       check("In the tagline, Move up is off and says the hero stays at the top", hero.some((m) => /^Move up \(off: The hero stays at the top/.test(m)), hero.join(", "));
-      check("…while Duplicate and Remove block are the paragraph's own", hero.includes("Duplicate") && hero.includes("Remove block"), hero.join(", "));
+      // (before WP-09 its paragraphs had HAX's own Duplicate and Remove block;
+      // since, text in a section has the section's menu and Format, spec §4.3)
+      check(
+        "…and the rest is the section's: Section and Format only (before WP-09, the paragraph's own Duplicate and Remove block)",
+        menuOf === "Section" ? json(inTagline) === json(["Section", "Format"]) && hero.includes("Remove section") : hero.includes("Duplicate") && hero.includes("Remove block"),
+        `${inTagline.join(", ")}: ${hero.join(", ")}`,
+      );
 
       await selectSection("oer-cs-tools");
-      const tools = await openBlock();
+      const tools = await openBlock(["Section", "Block"]);
       await page.keyboard.press("Escape");
       check("A selected section's Duplicate is off, one per page, and Remove says section", tools.some((m) => /^Duplicate \(off: Only one per page/.test(m)) && tools.includes("Remove section"), tools.join(", "));
       check("A selected section's label has no Block settings", !(await frameButtons()).some((b) => /settings/i.test(b)), json(await frameButtons()));
       const order = await page.evaluate(() => [...__ec.haxBody().children].map((c) => c.localName));
-      await runBlock("Move up");
+      await runBlock("Move up", ["Section", "Block"]);
       const after = await page.evaluate(() => [...__ec.haxBody().children].map((c) => c.localName));
       check("Move up there moves the section, one step", after.indexOf("oer-cs-tools") === order.indexOf("oer-cs-tools") - 1, after.join(" "));
       await undo();
       // Remove section asks first, as the section has a tool in it
       await selectSection("oer-cs-tools");
-      await runBlock("Remove section");
+      await runBlock("Remove section", ["Section", "Block"]);
       const asked = await page.evaluate(() => !!__ec.openDialog());
       check("Remove section asks first when something's written in it", asked, `dialog ${asked ? "open" : "not open"}`);
       if (asked) await ctx.clickAt(await ctx.control("Keep it"));
