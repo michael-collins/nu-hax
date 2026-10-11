@@ -21,7 +21,7 @@ import { ENGINES, SUPPORTS, launch } from "./lib/engines.mjs";
 
 const CHECKS_DIR = new URL("./checks/", import.meta.url).pathname;
 // a check that hangs fails instead of holding the run (and its server) open
-const CHECK_TIMEOUT = 5 * 60 * 1000;
+const CHECK_TIMEOUT = 10 * 60 * 1000;
 
 const args = process.argv.slice(2);
 const VALUED = ["--only", "--engines", "--port", "--source"];

@@ -12,7 +12,16 @@
 // sections, Cut, Enter twice then Backspace, Safari's Ctrl+D) and join
 // paragraphs themselves (Safari's engine copied the theme into the page);
 // the placeholder art's grid isn't drawn inverted; and a paste lands once,
-// where it was pasted, without freezing the page.
+// where it was pasted, without freezing the page. Round 3: a selection
+// past columns or a video no longer crashes Safari's engine; Enter,
+// Shift+Enter and word deletions over or across blocks join the blocks
+// (Safari's engine copied the theme into the page); Backspace and Delete
+// next to quiz questions, between columns and in code blocks leave them
+// whole (an empty paragraph after a video goes); one copied paragraph pasted into a paragraph goes in as its
+// words (HAX nested it, and the next saves lost the rest of the
+// paragraph), and pasted paragraphs go in order without taking the block
+// before; ⌘Z straight after typing undoes only that typing; Cancel asks
+// after quick typing; and typing after an active list goes to its end.
 //
 // Run with --engines chrome,firefox,webkit. Nothing here saves, and it
 // doesn't count on the copy being unsaved (stopgaps, run before it, saves
@@ -22,6 +31,9 @@ import path from "node:path";
 
 const SITE = "/up/dart-413";
 const HUB = "/oer-courses";
+const QUIZ = "/quizzes/drawing-for-3d-design-quiz";
+// a tutorial with code blocks and lists
+const CODE = "/tutorials/setting-up-ollama-for-local-ai";
 // /lessons/what-is-design, by its id: saving gives a page whose title
 // ends in "?" a new address
 const LESSON_ID = "item-143f3783-959c-45c3-8758-dacef0f6861f";
@@ -1050,6 +1062,398 @@ export default async function hotfix(ctx) {
       pass,
       `${selected} characters selected, ${reaches ? "page-break included" : "from after the page-break"}; ${before.split(" ").length} → ${after.blocks.split(" ").length} blocks, page-break ${after.pageBreak ? "kept" : "gone"}`,
     );
+    await ctx.exitEdit({ discard: true });
+  });
+
+  /* ---------- round 3: blocks, pastes and undo, on every kind of page ---------- */
+
+  // the lesson's paragraphs by their place among the paragraphs (the
+  // picture's is the second), as selectors
+  const P1 = ":scope > p:nth-of-type(1)";
+  const P3 = ":scope > p:nth-of-type(3)";
+  const COLUMNS = '<grid-plate layout="1-1"><p slot="col-1">Left column one.</p><p slot="col-1">Left column two.</p><p slot="col-2">Right column text.</p></grid-plate>';
+  // a block put in after hax-body's nth child (as the block list would, without its dialog)
+  const putAfter = (index, html) =>
+    page.evaluate(
+      (i, html) => {
+        const t = document.createElement("template");
+        t.innerHTML = html;
+        __ec.haxBody().children[i].after(...t.content.childNodes);
+      },
+      index,
+      html,
+    );
+  // a point n characters into an element's text ("end" for its end), as [node, offset], inside the page
+  const POINT = `(el, n) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let left = n === "end" ? el.textContent.length : n;
+    let last = null;
+    for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+      last = t;
+      if (left <= t.length) return [t, left];
+      left -= t.length;
+    }
+    return last ? [last, last.length] : [el, n === "end" ? el.childNodes.length : 0];
+  }`;
+  // select from n characters into one block to m into another (selectors under hax-body)
+  const selectFrom = async (a, n, b, m) => {
+    await clickIn(await field(a));
+    await page.evaluate(
+      (a, n, b, m, point) => {
+        const at = eval(point);
+        const [x, xo] = at(__ec.haxBody().querySelector(a), n);
+        const [y, yo] = at(__ec.haxBody().querySelector(b), m);
+        __ec.select(x, xo, y, yo);
+      },
+      a,
+      n,
+      b,
+      m,
+      POINT,
+    );
+    await ctx.sleep(100);
+  };
+  const caretAt = async (selector, n) => {
+    await clickIn(await field(selector));
+    await page.evaluate(
+      (s, n, point) => {
+        const [x, xo] = eval(point)(__ec.haxBody().querySelector(s), n);
+        __ec.select(x, xo);
+      },
+      selector,
+      n,
+      POINT,
+    );
+    await ctx.sleep(100);
+  };
+  // Option+Backspace (a word back): Chrome's command for it, as headless Chrome runs none itself
+  const wordBack = async () => {
+    if (ctx.engine === "chrome") {
+      await page.keyboard.down("Alt");
+      await page.keyboard.press("Backspace", { commands: ["deleteWordBackward"] });
+      await page.keyboard.up("Alt");
+    } else {
+      if (ctx.engine === "webkit" && !(await caretInContent())) throw new Error("The caret left the content before Option+Backspace");
+      await ctx.press("Alt+Backspace");
+    }
+    await ctx.sleep(200);
+  };
+  // what HAX would save, parsed as the saved file is: blocks inside text
+  // blocks, text left outside any block, and blocks in columns without one
+  const audit = () =>
+    page.evaluate(async () => {
+      const body = __ec.haxBody();
+      const nested = body.querySelectorAll(":is(p, h1, h2, h3, h4, h5, h6) :is(p, div, h1, h2, h3, h4, h5, h6, ul, ol, pre, table, blockquote)").length;
+      const t = document.createElement("template");
+      t.innerHTML = await body.haxToContent();
+      const loose = [...t.content.childNodes].filter((n) => (n.nodeType === 3 && n.data.trim()) || (n.nodeType === 1 && /^(span|em|strong|a|b|i|code)$/.test(n.localName))).length;
+      const unslotted = t.content.querySelectorAll("grid-plate > :not([slot])").length;
+      return { nested, loose, unslotted, ok: !nested && !loose && !unslotted, bodies: __ec.all("hax-body").length };
+    });
+  // the lesson as it was before stopgaps saved it: three paragraphs, the second a picture
+  const LESSON_BLOCKS =
+    '<p>In this lesson you will learn about how design thinking, systems thinking, and critical thinking play important roles in the process of design.</p>' +
+    '<p><img src="files/design-and-truth-book@2x.jpg" alt="Photo of book, Design and Truth by Robert Grudin"></p>' +
+    "<p>You will begin reading the book, <em>Design and Truth</em>, by Robert Grudin. It talks about design at a very high level.</p>";
+  const setBlocks = (pg, html) =>
+    pg.evaluate((html) => {
+      const body = __ec.haxBody();
+      for (const c of [...body.childNodes]) if (c.localName !== "page-break") c.remove();
+      const t = document.createElement("template");
+      t.innerHTML = html;
+      body.append(...t.content.childNodes);
+      __ec.haxStore().activeNode = body.querySelector(":scope > p");
+    }, html);
+  const fresh = async () => {
+    await ctx.exitEdit({ discard: true }).catch(() => {});
+    await ctx.open(LESSON);
+    await ctx.enterEdit();
+    await setBlocks(page, LESSON_BLOCKS);
+    // (HAX records an undo step 300 ms after a change)
+    await ctx.sleep(500);
+  };
+  // a paste of HTML (or text) with the caret or selection put by place()
+  const pasted = async (data, place) => {
+    const how = await pasteData(data, place);
+    await ctx.sleep(900);
+    return how === null ? "a real paste" : `cancelled at once ${how}`;
+  };
+
+  await part("crossing blocks", async () => {
+    // a selection from a paragraph past a block with a shadow root of its
+    // own (columns, a video) into the next one: one Range.deleteContents()
+    // across it crashed Safari's engine, losing every unsaved edit
+    for (const [name, html] of [
+      ["columns", COLUMNS],
+      ["a video", '<oer-video src="files/no-such-video.mp4" title="A video"></oer-video>'],
+    ]) {
+      for (const [how, act] of [
+        ["Backspace", (tab) => tab.press("Backspace")],
+        ["typing", (tab) => tab.type("Z")],
+      ]) {
+        const tab = await ctx.newPage();
+        try {
+          await tab.setViewport(1440);
+          await tab.open(LESSON);
+          await tab.enterEdit();
+          await setBlocks(tab.page, LESSON_BLOCKS);
+          await tab.page.evaluate((html) => {
+            const t = document.createElement("template");
+            t.innerHTML = html;
+            __ec.haxBody().querySelector(":scope > p").after(...t.content.childNodes);
+          }, html);
+          await tab.sleep(500);
+          const p = await tab.page.evaluateHandle(() => __ec.haxBody().querySelector(":scope > p"));
+          await tab.clickAt(await p.evaluate((p) => ({ x: p.getBoundingClientRect().left + 30, y: p.getBoundingClientRect().top + 10 })), { covered: true });
+          await tab.page.evaluate((point) => {
+            const at = eval(point);
+            const first = __ec.haxBody().querySelector(":scope > p");
+            const next = [...__ec.haxBody().querySelectorAll(":scope > p")].find((q) => q !== first && q.textContent.trim());
+            const [x, xo] = at(first, 10);
+            const [y, yo] = at(next, 10);
+            __ec.select(x, xo, y, yo);
+          }, POINT);
+          // (a key pressed as the page crashes never returns)
+          await Promise.race([act(tab).catch(() => {}), tab.sleep(8000)]);
+          await tab.sleep(800);
+          const r = await Promise.race([
+            tab.page.evaluate(() => ({ text: __ec.haxBody().querySelector(":scope > p").textContent.slice(0, 30), blocks: [...__ec.haxBody().children].map((c) => c.localName).slice(0, 4).join(" "), bodies: __ec.all("hax-body").length })),
+            tab.sleep(8000).then(() => null),
+          ]).catch((e) => ({ crashed: e.message.split("\n")[0] }));
+          check(`A selection from a paragraph past ${name} into the next, then ${how}: the page goes on, the two paragraphs joined`, r && !r.crashed && r.bodies === 1 && !r.blocks.includes(name === "columns" ? "grid-plate" : "oer-video") && /^In this leZ?egin reading/.test(r.text), json(r));
+          if (r && !r.crashed) await tab.exitEdit({ discard: true }).catch(() => {});
+        } finally {
+          await Promise.race([tab.page.close().catch(() => {}), ctx.sleep(5000)]);
+        }
+      }
+    }
+  });
+
+  await part("empty paragraph beside a block", async () => {
+    // Backspace in an empty paragraph after a video: the paragraph goes, the video stays
+    await fresh();
+    await putAfter(1, '<oer-video src="files/no-such-video.mp4" title="A video"></oer-video><p><br></p>');
+    await ctx.sleep(500);
+    const n = (await blocks()).split(" ").length;
+    await clickIn(await field("oer-video + p"));
+    await page.evaluate(() => __ec.select(__ec.haxBody().querySelector("oer-video + p"), 0));
+    await backspace(1);
+    await ctx.type("Z");
+    await ctx.sleep(300);
+    const r = { blocks: await blocks(), first: (await textOf(P1)).slice(-12) };
+    check("Backspace in an empty paragraph after a video removes that paragraph, keeps the video, and typing goes on at the end of the text before it", r.blocks.split(" ").length === n - 1 && r.blocks.includes("oer-video") && r.first.endsWith("design.Z"), `${n} → ${r.blocks.split(" ").length} blocks (${r.blocks}); “…${r.first}”`);
+  });
+
+  await part("enter and word deletes over blocks", async () => {
+    // over a selection from one paragraph into another: Enter splits there,
+    // Shift+Enter breaks the line, nothing else goes (Safari's engine
+    // copied the theme into the page)
+    for (const [key, want] of [
+      ["Enter", 2],
+      ["Shift+Enter", null],
+    ]) {
+      await fresh();
+      const n = (await blocks()).split(" ").length;
+      await selectFrom(P1, 10, P3, 10);
+      await ctx.press(key);
+      await ctx.type("X");
+      await ctx.sleep(300);
+      const r = { shape: await shape(), audit: await audit(), blocks: (await blocks()).split(" ").length, text: await page.evaluate(() => __ec.haxBody().textContent.replace(/\s+/g, " ")) };
+      // three paragraphs (the picture's included) become one or two
+      check(`${key} over a selection from the first paragraph into the third: the selection goes, the rest goes on after it on a new line, one content`, r.audit.bodies === 1 && r.blocks <= n - 1 && /In this le ?Xegin reading/.test(r.text) && !r.text.includes("sson you will") && r.audit.ok, `${n} → ${r.blocks} blocks; ${r.shape.slice(0, 110)}; ${json(r.audit)}`);
+    }
+    // Option+Backspace twice at the third paragraph's start (it joins the
+    // picture's paragraph, then the picture goes), and after a quotation mark
+    await fresh();
+    await caretAt(P3, 0);
+    await wordBack();
+    await wordBack();
+    const twice = { shape: await shape(), audit: await audit() };
+    const picture = await page.evaluate(() => !!__ec.haxBody().querySelector("img"));
+    check("Option+Backspace twice at a paragraph's start after a picture: it joins the picture's paragraph, then the picture goes; the first paragraph stays as it was", twice.audit.bodies === 1 && !picture && /^page-break \| p\(In this lesson y\) \| p\(You will begin r\)/.test(twice.shape), `${twice.shape.slice(0, 110)}; picture ${picture ? "kept" : "gone"}; ${json(twice.audit)}`);
+    await fresh();
+    await caretAt(P3, 0);
+    await ctx.type("“");
+    await wordBack();
+    const quote = { shape: await shape(), picture: await page.evaluate(() => !!__ec.haxBody().querySelector("img")) };
+    check("Option+Backspace after a quotation mark typed at a paragraph's start deletes the mark, not the picture's paragraph before it", quote.picture && /p\(You will begin r\)/.test(quote.shape) && !quote.shape.includes("“"), `${quote.shape.slice(0, 110)}; picture ${quote.picture ? "kept" : "gone"}`);
+  });
+
+  await part("quiz", async () => {
+    // Backspace and Delete next to a quiz's questions leave them whole
+    await ctx.exitEdit({ discard: true }).catch(() => {});
+    await ctx.open(QUIZ);
+    await ctx.enterEdit();
+    const before = await blocks();
+    const quizHtml = () => page.evaluate(() => __ec.normalize([...__ec.haxBody().querySelectorAll("multiple-choice, true-false-question, self-check")].map((q) => q.outerHTML).join("")));
+    const startHtml = await quizHtml();
+    await caretAt(":scope > p", "end");
+    await ctx.press("Delete");
+    await ctx.press("Delete");
+    await ctx.type("Z");
+    await ctx.sleep(300);
+    check("Delete twice at the end of the paragraph before a quiz's questions deletes no question", (await blocks()) === before && (await quizHtml()) === startHtml && (await textOf(":scope > p")).endsWith("recorded.Z"), `${(await blocks()) === before ? "blocks kept" : await blocks()}; “…${(await textOf(":scope > p")).slice(-12)}”`);
+    const question = "self-check > p[slot=question]";
+    await caretAt(question, 0);
+    await backspace(2);
+    await caretAt(question, "end");
+    await ctx.press("Delete");
+    await ctx.sleep(300);
+    const check2 = await page.evaluate(() => [...__ec.haxBody().querySelector("self-check").children].map((c) => `${c.localName}[${c.getAttribute("slot") || ""}]`).join(" "));
+    check("Backspace at the start of a self-check's question, and Delete at its end, keep the question and its answer apart", (await blocks()) === before && check2 === "p[question] p[]", `${check2}; ${(await blocks()) === before ? "blocks kept" : await blocks()}`);
+    await page.evaluate(() => {
+      const p = document.createElement("p");
+      p.textContent = "Closing paragraph.";
+      __ec.haxBody().querySelector("multiple-choice").after(p);
+    });
+    await ctx.sleep(300);
+    await caretAt("multiple-choice + p", 0);
+    await backspace(1);
+    await ctx.type("X");
+    await ctx.sleep(300);
+    const closing = await page.evaluate(() => ({ outside: __ec.haxBody().querySelector("multiple-choice + p")?.textContent, inside: __ec.haxBody().querySelector("multiple-choice").textContent.includes("Closing") }));
+    check("Backspace at the start of a paragraph after a question leaves the paragraph outside it", closing.outside === "XClosing paragraph." && !closing.inside, json(closing));
+    await ctx.exitEdit({ discard: true });
+  });
+
+  await part("columns", async () => {
+    await fresh();
+    await putAfter(1, COLUMNS);
+    await ctx.sleep(500);
+    const grid = () => htmlOf("grid-plate");
+    const start = await grid();
+    await caretAt("grid-plate > p[slot=col-2]", 0);
+    await backspace(1);
+    await caretAt("grid-plate > p:nth-of-type(2)", "end");
+    await ctx.press("Delete");
+    await ctx.sleep(300);
+    check("Backspace at the start of a column's paragraph, or Delete at the end of the one before, leaves each column's text in its own column", (await grid()) === start, (await grid()).slice(0, 200));
+    await caretAt("grid-plate > p:nth-of-type(2)", 0);
+    await backspace(1);
+    await ctx.sleep(300);
+    check("…and Backspace between two paragraphs of one column joins them", (await grid()).includes('<p slot="col-1">Left column one.Left column two.</p>'), (await grid()).slice(0, 200));
+    await ctx.exitEdit({ discard: true });
+  });
+
+  await part("pastes into and over paragraphs", async () => {
+    const ONE = '<meta charset="utf-8"><p>PASTED one paragraph</p>';
+    const TWO_P = "<p>First copied paragraph.</p><p>Second copied paragraph.</p>";
+    // one paragraph into the middle of a paragraph: its words go in there,
+    // no paragraph inside a paragraph (saved, the rest was left outside
+    // any block, and lost on the next save)
+    await fresh();
+    let how = await pasted({ html: ONE, text: "PASTED one paragraph" }, () => caretAt(P1, 20));
+    let a = await audit();
+    check("One copied paragraph pasted into the middle of a paragraph: its words go in at the caret, and what's saved keeps every word in a block", a.ok && (await textOf(P1)).startsWith("In this lesson you wPASTED one paragraphill learn"), `${how}; “${(await textOf(P1)).slice(0, 50)}…”; ${json(a)}`);
+    // …and over a selection from one paragraph into another
+    await fresh();
+    how = await pasted({ html: ONE, text: "PASTED one paragraph" }, () => selectFrom(P1, 20, P3, 10));
+    a = await audit();
+    check("…and over a selection from the first paragraph into the third", a.ok && (await textOf(P1)).startsWith("In this lesson you wPASTED one paragraphegin reading"), `${how}; “${(await textOf(P1)).slice(0, 50)}…”; ${json(a)}`);
+    // two paragraphs at the very start of a paragraph after a picture: the picture stays, in order
+    await fresh();
+    const was = await shape();
+    how = await pasted({ html: TWO_P, text: "First copied paragraph.\n\nSecond copied paragraph." }, () => caretAt(P3, 0));
+    a = await audit();
+    const now = await shape();
+    check("Two paragraphs pasted at the very start of a paragraph after a picture go in before it, in order, and the picture stays", a.ok && now === was.replace(" | p(You will begin r)", " | p(First copied par) | p(Second copied pa) | p(You will begin r)"), `${how}; ${now.slice(0, 140)}`);
+    // into columns: at the start of the second column, and over a selection in the first
+    await fresh();
+    await putAfter(1, COLUMNS);
+    await ctx.sleep(500);
+    how = await pasted({ html: TWO_P, text: "First copied paragraph.\n\nSecond copied paragraph." }, () => caretAt("grid-plate > p[slot=col-2]", 0));
+    a = await audit();
+    const cols = await htmlOf("grid-plate");
+    check("Two paragraphs pasted at the start of a column go into that column, in order, and the column before keeps its text", a.ok && cols.includes('<p slot="col-1">Left column two.</p><p slot="col-2">First copied paragraph.</p><p slot="col-2">Second copied paragraph.</p><p slot="col-2">Right column text.</p>'), `${how}; ${cols.slice(0, 260)}`);
+    await fresh();
+    await putAfter(1, COLUMNS);
+    await ctx.sleep(500);
+    how = await pasted({ html: ONE, text: "PASTED one paragraph" }, () => selectFrom("grid-plate > p:nth-of-type(1)", 5, "grid-plate > p:nth-of-type(2)", 5));
+    await ctx.type("TYPED");
+    await ctx.sleep(300);
+    a = await audit();
+    const col = await htmlOf("grid-plate");
+    check("A paragraph pasted over a selection across a column's two paragraphs replaces it there, and typing goes on after it", a.ok && col.includes('<p slot="col-1">Left PASTED one paragraphTYPEDcolumn two.</p>'), `${how}; ${col.slice(0, 200)}`);
+    // a web address without http over a word: the word becomes the link
+    await fresh();
+    how = await pasted({ text: "www.example.com" }, () => selectFrom(P1, 8, P1, 14));
+    const link = await page.evaluate((s) => __ec.normalize(__ec.haxBody().querySelector(s).innerHTML).slice(0, 140), P1);
+    check("A web address without http pasted over a word makes the word a link", /^In this <a href="www\.example\.com"[^>]*>lesson<\/a> you/.test(link), `${how}; ${link}`);
+    await ctx.exitEdit({ discard: true });
+  });
+
+  await part("undo straight after typing", async () => {
+    // ⌘Z pressed before HAX has recorded the typing (300 ms): only that typing goes, and ⌘⇧Z brings it back
+    await fresh();
+    await caretAt(P3, "end");
+    await ctx.sleep(1200);
+    const before = await textOf(P3);
+    await ctx.type(" ONE", { delay: 30 });
+    await ctx.sleep(800);
+    await ctx.type(" TWO", { delay: 30 });
+    await ctx.press("Mod+Z");
+    await ctx.sleep(600);
+    const undone = await textOf(P3);
+    await ctx.press("Mod+Shift+Z");
+    await ctx.sleep(600);
+    const redone = await textOf(P3);
+    check("⌘Z straight after typing undoes just that typing, and ⌘⇧Z brings it back", undone === `${before} ONE` && redone === `${before} ONE TWO`, `undone “…${undone.slice(-12)}”; redone “…${redone.slice(-16)}”`);
+    await ctx.exitEdit({ discard: true });
+  });
+
+  await part("cancel after quick typing", async () => {
+    // typing as soon as the page arrives in the editor, before its unchanged copy is taken: Cancel still asks
+    await ctx.open(LESSON);
+    const edit = await ctx.control("Edit content");
+    if (edit) await ctx.clickAt(edit);
+    else await page.evaluate(() => __ec.store().cmsSiteEditor.haxCmsSiteEditorUIElement._editButtonTap());
+    // once HAX has imported the page (typing before that is replaced by the import, as on main)
+    await page.waitForFunction(() => __ec.store()?.editMode && __ec.haxBody()?.querySelector(":scope > p")?.firstChild && !__ec.haxBody()._contentState?.getState?.("importing"), { polling: 10, timeout: 15000 });
+    // the caret put straight into the first paragraph (a click there can
+    // land elsewhere while the editor's bar is still sliding in)
+    await page.evaluate(() => {
+      const body = __ec.haxBody();
+      body.focus();
+      __ec.select(body.querySelector(":scope > p").firstChild, 0);
+    });
+    await ctx.type("QUICKTYPED", { delay: 20 });
+    await ctx.sleep(1500);
+    const typed = await page.evaluate(() => __ec.haxBody().textContent.includes("QUICKTYPED"));
+    await ctx.clickAt(await ctx.control("Cancel"));
+    const outcome = await ctx.waitFor(() => (!__ec.store().editMode ? "left" : __ec.openDialog() ? "asked" : null), { what: "Cancel to leave or ask", timeout: 10000 });
+    check("Typing as soon as the page is in the editor, then Cancel: it asks before discarding", typed && outcome === "asked", `${typed ? "typed" : "nothing typed"}; ${outcome}`);
+    if (outcome === "asked") await ctx.exitEdit({ discard: true });
+  });
+
+  await part("a tutorial's code and lists", async () => {
+    await ctx.exitEdit({ discard: true }).catch(() => {});
+    await ctx.open(CODE);
+    await ctx.enterEdit();
+    // a code block's leading spaces: Backspace deletes one, the block stays
+    await caretAt(":scope > pre", 0);
+    await ctx.type("    ");
+    await backspace(1);
+    await ctx.sleep(300);
+    const pre = await htmlOf(":scope > pre");
+    check("Backspace in a code block's leading spaces deletes one space and keeps the code block", /^<pre><code[^>]*> {3}ollama list/.test(pre), pre.slice(0, 80));
+    // the caret between blocks right after a list HAX has active (Firefox's arrow keys can leave it there): typing goes to the list's last item
+    if (ctx.engine !== "firefox") {
+      results.push(ctx.skip("Typing with the caret just after an active list goes to the end of its last item, not its first", "only Firefox puts the caret between blocks"));
+      return ctx.exitEdit({ discard: true });
+    }
+    const last = await page.evaluate(() => [...__ec.haxBody().querySelector(":scope > ul").querySelectorAll("li")].pop().textContent.trim());
+    await clickIn(await field(":scope > ul li"));
+    await page.evaluate(() => {
+      const body = __ec.haxBody();
+      const ul = body.querySelector(":scope > ul");
+      body.__focusLogic(ul, false);
+      __ec.select(body, [...body.childNodes].indexOf(ul) + 1);
+    });
+    await ctx.sleep(200);
+    await ctx.type("Z");
+    await ctx.sleep(300);
+    const r = await page.evaluate(() => ({ items: [...__ec.haxBody().querySelector(":scope > ul").querySelectorAll("li")].map((li) => li.textContent.trim()), loose: [...__ec.haxBody().childNodes].filter((n) => n.nodeType === 3 && n.data.trim()).length }));
+    check("Typing with the caret just after an active list goes to the end of its last item, not its first", r.items.at(-1) === `${last}Z` && !r.items[0].endsWith("Z") && !r.loose, `last item “${r.items.at(-1)}”; first “${r.items[0]}”`);
     await ctx.exitEdit({ discard: true });
   });
 
