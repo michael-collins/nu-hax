@@ -41,9 +41,14 @@ saves the draft). Timestamps on the page are HAX's `page-anchor`, made to play
    It prints the work folder, the transcript's source, chapters, scene changes,
    and the times in each contact sheet (12 pictures, left to right, top to
    bottom). A 13-minute video takes about 30 seconds the first time. Captions:
-   the video's own when it has them, else speech to text if installed, else
-   YouTube's automatic ones (no punctuation; names often wrong: re-run with
-   `--fix` for the transcript, and spell names properly in what you write).
+   the video's own when it has them, else speech to text (mlx-whisper,
+   punctuated, about 30 s for 13 minutes), else YouTube's automatic ones (no
+   punctuation). `--captions youtube` or `--captions speech` picks one. Names
+   are often wrong in either: re-run with `--fix` for the transcript, and spell
+   names properly in what you write. If it says "check the transcript: nothing
+   said 9:00–13:19", read that part: a quiet stretch is fine, but speech to
+   text can lose its place, so re-run (without `--vocab`, or with
+   `--captions youtube`).
 
 2. **Understand it.** Read `transcript.txt` all the way through and look at
    every contact sheet (`sheets/sheet-NN.jpg`) with Read. Note what's on
@@ -121,11 +126,23 @@ To try it without touching the real site, run step 5 against a scratch copy:
 `HAX_BASE=http://localhost:3101 SITE_DIR=<copy> HAX_TOKENLESS=1` (see
 `scripts/editor-check/README.md`).
 
-## Local recordings
+## Local recordings and speech to text
 
-`video-source.mjs` takes a file path. The transcript needs a speech-to-text
-tool: whisper.cpp's `whisper-cli` with a model in `~/.cache/nu-hax/whisper/`
-(or `WHISPER_MODEL`), or `mlx_whisper`. Without one it says "No transcript"
-and carries on; the page can still be made from the screenshots. There's no
-video to embed unless the recording is online (`"video": "<link>"`), so
-timestamps print as plain times.
+`video-source.mjs` takes a file path (anything ffmpeg reads: .mp4, .mov,
+.mkv, .webm). There's no video to embed unless the recording is online
+somewhere (`"video": "<link>"` in page.json), so timestamps print as plain
+times.
+
+Speech to text is mlx-whisper (Apple Silicon), installed 2026-10-12 in its own
+Python environment, `~/.cache/nu-hax/whisper-venv` (1.2 GB, mostly PyTorch),
+with the `mlx-community/whisper-large-v3-turbo` model (1.5 GB) in
+`~/.cache/huggingface`. `WHISPER_MODEL` picks another model. To set it up
+again:
+
+```bash
+python3.13 -m venv ~/.cache/nu-hax/whisper-venv && ~/.cache/nu-hax/whisper-venv/bin/pip install mlx-whisper
+```
+
+whisper.cpp's `whisper-cli` (with a ggml model in `~/.cache/nu-hax/whisper/`)
+works too if it's ever installed. Without either, video-source says "No
+transcript" and carries on.

@@ -16,9 +16,9 @@
 // sheets), transcript.vtt (cleaned), transcript.txt ("[m:ss] text", for
 // reading), lines.json, video.<ext>, and sheets/sheet-NN.jpg.
 //
-// Needs yt-dlp and ffmpeg (Homebrew). Speech to text uses whisper.cpp's
-// whisper-cli (with a model in WHISPER_MODEL or ~/.cache/nu-hax/whisper/) or
-// mlx_whisper, whichever is installed.
+// Needs yt-dlp and ffmpeg (Homebrew). Speech to text uses mlx-whisper from
+// ~/.cache/nu-hax/whisper-venv (or on the PATH), or whisper.cpp's whisper-cli
+// with a model in WHISPER_MODEL or ~/.cache/nu-hax/whisper/.
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, statSync } from "node:fs";
 import os from "node:os";
@@ -153,7 +153,10 @@ function speechTool() {
     const model = process.env.WHISPER_MODEL || (existsSync(dir) ? readdirSync(dir).filter((f) => /^ggml-.*\.bin$/.test(f)).map((f) => path.join(dir, f))[0] : "");
     if (model && existsSync(model)) return { kind: "whisper-cli", model };
   }
-  if (has("mlx_whisper")) return { kind: "mlx_whisper", model: process.env.WHISPER_MODEL || "mlx-community/whisper-large-v3-turbo" };
+  // mlx-whisper lives in its own Python environment (see the video-to-page skill)
+  const venv = path.join(os.homedir(), ".cache/nu-hax/whisper-venv/bin/mlx_whisper");
+  const bin = existsSync(venv) ? venv : has("mlx_whisper") ? "mlx_whisper" : "";
+  if (bin) return { kind: "mlx_whisper", bin, model: process.env.WHISPER_MODEL || "mlx-community/whisper-large-v3-turbo" };
   return null;
 }
 
@@ -186,9 +189,11 @@ function speechToText(tool) {
   say(`Transcribing with ${tool.kind} (this takes a while for long videos)`);
   const vocab = opt("--vocab");
   if (tool.kind === "whisper-cli") {
-    run("whisper-cli", ["-m", tool.model, "-f", wav, "-l", LANG, "-ovtt", "-of", path.join(OUT, "speech"), ...(vocab ? ["--prompt", vocab] : [])]);
+    // no context from the previous window: it's what sends whisper into
+    // loops ("Okay." every second to the end) after a quiet stretch
+    run("whisper-cli", ["-m", tool.model, "-f", wav, "-l", LANG, "-mc", "0", "-ovtt", "-of", path.join(OUT, "speech"), ...(vocab ? ["--prompt", vocab] : [])]);
   } else {
-    run("mlx_whisper", [wav, "--model", tool.model, "--language", LANG, "--output-format", "vtt", "--output-dir", OUT, "--output-name", "speech", ...(vocab ? ["--initial-prompt", vocab] : [])]);
+    run(tool.bin, [wav, "--model", tool.model, "--language", LANG, "--output-format", "vtt", "--output-dir", OUT, "--output-name", "speech", "--condition-on-previous-text", "False", "--word-timestamps", "True", "--hallucination-silence-threshold", "2", ...(vocab ? ["--initial-prompt", vocab] : [])]);
   }
   rmSync(wav, { force: true });
   return readFileSync(path.join(OUT, "speech.vtt"), "utf8");
@@ -222,6 +227,11 @@ if (raw) {
   writeFileSync(path.join(OUT, "lines.json"), JSON.stringify(lines));
   writeFileSync(path.join(OUT, "transcript.txt"), readable(lines) + "\n");
   meta.words = lines.reduce((n, l) => n + l.text.split(/\s+/).length, 0);
+  // long silences in the transcript: quiet stretches in the video, or
+  // speech to text losing its place; either way, worth a look
+  const marks = [0, ...lines.flatMap((l) => [l.start, l.end]), meta.duration || 0];
+  meta.gaps = [];
+  for (let i = 1; i < marks.length; i += 2) if (marks[i] - marks[i - 1] > 90) meta.gaps.push([marks[i - 1], marks[i]]);
 }
 
 /* ---------- pictures to choose from ---------- */
@@ -264,6 +274,7 @@ const mb = (f) => (f && existsSync(f) ? `${(statSync(f).size / 1e6).toFixed(0)} 
 console.log(`${meta.title}${meta.channel ? ` — ${meta.channel}` : ""} (${clock(meta.duration)})`);
 console.log(`work folder: ${OUT}`);
 console.log(`transcript: ${meta.captions === "none" ? "none" : `${meta.words} words from ${meta.captions === "youtube" ? "the video's captions" : meta.captions === "speech" ? "speech to text" : "YouTube's automatic captions (no punctuation; check names)"} → transcript.txt`}`);
+if (meta.gaps?.length) console.log(`check the transcript: nothing said ${meta.gaps.map(([a, b]) => `${clock(a)}–${clock(b)}`).join(", ")} (a quiet stretch, or speech to text lost its place; try again with --captions youtube or without --vocab)`);
 if (meta.chapters.length) console.log(`chapters: ${meta.chapters.map((c) => `${clock(c.start)} ${c.title}`).join(" · ")}`);
 if (video) {
   console.log(`video: ${video} ${mb(video)}`);
