@@ -1,12 +1,13 @@
 // Swap a YouTube playlist embedded in exercises and projects for the
 // tutorial series made from it (the video-to-page skill, last step): each
 // <oer-video>, <oer-iframe> or <video-player> showing that playlist becomes
-// <oer-tutorial-series series="…">, and the page records the series it shows
-// (metadata.oerTutorialSeries, for the series' "Used in").
+// <oer-tutorial-series series="…" playlist="…">, and the page records the
+// series it shows (metadata.oerTutorialSeries, for the series' "Used in").
+// The block keeps the playlist: readers who can't see the series yet (it or
+// its parts are drafts) get the playlist, so this can run before publishing.
 //   node --env-file=.env.local scripts/link-series.mjs <playlist link or id> <series id or address>            what would change
 //   node --env-file=.env.local scripts/link-series.mjs <playlist link or id> <series id or address> --apply    change it
-// Archived versions keep their playlist. It waits until the series and its
-// parts are published (--drafts swaps anyway). HAX_BASE and SITE_DIR point it at
+// Archived versions keep their playlist. HAX_BASE and SITE_DIR point it at
 // another copy of the site (with HAX_TOKENLESS=1 for a scratch server).
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -38,18 +39,18 @@ if (!parts.length) {
   console.error(`${series.title} has no parts yet (Tutorial sub-pages); make them first`);
   process.exit(1);
 }
-// readers see neither a draft series nor draft parts: swapping the playlist
-// for them would leave the exercise with no videos
 const drafts = [series, ...parts].filter((i) => i.metadata?.published === false);
-if (drafts.length && !process.argv.includes("--drafts")) {
-  console.error(`Not yet: readers can't see ${drafts.map((i) => i.title).join(", ")} (draft${drafts.length === 1 ? "" : "s"}), so the exercise would lose its videos. Publish them first, or pass --drafts to swap anyway (a scratch copy, say).`);
-  process.exit(1);
-}
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 // the element showing the playlist, with its closing tag
 const EMBED = new RegExp(`<(oer-video|oer-iframe|video-player)\\b[^>]*list=${esc(list)}[^>]*>(?:\\s*</\\1>)?`, "g");
-const block = `<oer-tutorial-series series="${series.id}"></oer-tutorial-series>`;
+const attr = (tag, name) => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1] || "";
+// the block, keeping the playlist it replaces
+const blockFor = (embed) => {
+  const src = attr(embed, "src") || attr(embed, "source");
+  const title = attr(embed, "title");
+  return `<oer-tutorial-series series="${series.id}" playlist="${src}"${title ? ` playlist-title="${title}"` : ""}></oer-tutorial-series>`;
+};
 
 const changes = [];
 for (const item of items) {
@@ -66,7 +67,7 @@ for (const item of items) {
     console.log(`! ${item.title}: mentions the playlist but not in an embed this can swap; left as it is`);
     continue;
   }
-  changes.push({ item, found, contents: html.replace(EMBED, block) });
+  changes.push({ item, found, contents: html.replace(EMBED, (m) => blockFor(m)) });
 }
 if (!changes.length) {
   console.log("No pages embed this playlist.");
@@ -74,8 +75,7 @@ if (!changes.length) {
 }
 for (const c of changes) {
   console.log(`${c.item.title} (${c.item.metadata?.pageType}, ${c.item.slug}):`);
-  for (const f of c.found) console.log(`  - ${f.slice(0, 160)}`);
-  console.log(`  + ${block}`);
+  for (const f of c.found) console.log(`  - ${f.slice(0, 200)}\n  + ${blockFor(f)}`);
 }
 if (!APPLY) {
   console.log(`\n${changes.length} page${changes.length === 1 ? "" : "s"} would change. Run again with --apply.`);
@@ -91,3 +91,4 @@ const out = changes.map(({ item, contents }) => ({
 const res = await api.call("PATCH", "/x/api/v1/site/outline", { headers: api.headers, body: { site: { name: SITE }, items: out } });
 if (!res.ok) throw new Error(`outline save failed (${res.status}): ${JSON.stringify(res.json).slice(0, 300)}`);
 console.log(`changed ${changes.length} page${changes.length === 1 ? "" : "s"}`);
+if (drafts.length) console.log(`Readers keep the playlist until these are published: ${drafts.map((i) => i.title).join(", ")}.`);

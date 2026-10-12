@@ -154,11 +154,12 @@ a playlist, each part's written tutorial beside it, and full screen).
    site shows "Part 2 of 5 · Part of …"). A part can start as video only
    (page.html just `<!-- video -->`); the playlist says "Video only" until
    it's written.
-5. **Swap the playlist for the series**, once the user has reviewed and
-   published the series and its parts:
+5. **Swap the playlist for the series:**
    `node --env-file=.env.local scripts/link-series.mjs <playlist> <series address>`
-   shows what changes; `--apply` changes it. It refuses while any of them is
-   a draft (readers would lose the videos).
+   shows what changes; `--apply` changes it. The block keeps the playlist
+   (`playlist="…"`), and anyone who can't see the series yet gets it, so this
+   can run while the series is still a draft: authors see the series, and
+   students switch over when it's published.
 
 ## Local recordings and speech to text
 
