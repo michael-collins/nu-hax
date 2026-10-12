@@ -53,6 +53,7 @@ const blockFor = (embed) => {
 };
 
 const changes = [];
+let shown = 0;
 for (const item of items) {
   if (item.metadata?.oerSnapshotOf || !item.location || item.id === series.id) continue;
   let html;
@@ -65,6 +66,7 @@ for (const item of items) {
   const found = html.match(EMBED) || [];
   if (!found.length && html.includes(`<oer-tutorial-series series="${series.id}"`)) {
     console.log(`${item.title}: already shows the series`);
+    shown++;
     continue;
   }
   if (!found.length) {
@@ -74,7 +76,7 @@ for (const item of items) {
   changes.push({ item, found, contents: html.replace(EMBED, (m) => blockFor(m)) });
 }
 if (!changes.length) {
-  console.log("No pages embed this playlist.");
+  console.log(shown ? "Nothing to change." : "No pages embed this playlist.");
   process.exit(0);
 }
 for (const c of changes) {
