@@ -55,3 +55,15 @@ Exercise: [Texturing the Airline Chair](http://localhost:3000/exercises/texturin
 - Ctrl+L (Select Linked) is written for the video's ⌘L; Photoshop shortcuts shown are Mac ones. Spoken promises of links to texture sites and supplied textures are left out. A "Thank you." that speech to text invented over silence was removed from Part 5's transcript.
 - Blender 2.83 in the videos. On 4.x: Apply is in the modifier's dropdown; "Viewport" is "Levels Viewport"; the video's UV menu has add-on entries (Peel Edge, UV Smoothing, Copy/Paste UV); Unwrap is a submenu; Stretching is in the UV Editor's Overlays popover; the Principled BSDF looks different; Image → Reload (Alt+R).
 - The exercise's step now says "Follow the Texturing the Airline Chair tutorials above to create UV maps…".
+
+## Lighting and rendering the Airline Chair
+
+Exercise: [Lighting and Rendering the Airline Chair](http://localhost:3000/exercises/lighting-and-rendering-the-airline-chair). Series: [Lighting and rendering the Airline Chair](http://localhost:3000/tutorials/lighting-and-rendering-the-airline-chair) (drafts): Studio backdrop and three-point lighting; Refining the lighting and the leather; Framing the shot and finishing in Photoshop.
+
+- Part 2's Shading-workspace screenshots (t0750, t0932, t0975, t1055) show your home folders in the file browser. Frames with your Desktop, Downloads and a "Mike_chapt…" file weren't used.
+- Part 3's t0160.0 shows the reference photo side.jpg, probably someone else's photo of the real chair.
+- The exercise asks for contrast and denoising; the Photoshop part adjusts only Hue/Saturation and Vibrance (Curves is mentioned), and nothing covers denoising. The video's samples advice is about 250 (500–700 optional); the exercise says 250–750.
+- From the screen, not the speech: turning off the default light's camera visibility (Part 2, ~8:12); the back cushion's maps (18:35–19:10); 250 samples for the final render; the file names chair-render-1.png and chair-render-comp.png.
+- "cc0textures.com" is now probably ambientCG (not checked); the page says CC0 Textures.
+- Blender 2.83 and Photoshop 2020 in the videos. On 4.x: adaptive sampling and denoising are on by default ("Max Samples"); the Principled BSDF is reorganized (Clearcoat is Coat); Shadow Catcher is under Visibility › Mask; "Color Ramp". Cmd+Delete is Ctrl+Backspace on Windows.
+- The exercise's step now says "Follow the Lighting and rendering the Airline Chair tutorials above…".
