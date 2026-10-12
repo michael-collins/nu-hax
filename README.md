@@ -14,7 +14,7 @@ This repository holds the tooling and documentation. The HAXcms site, with the c
 | `scripts/decap-types-to-json.mjs` | Converts Decap `cms/config.yml` collections into the site's content-type definitions |
 | `scripts/import-pathways.mjs` | Imports the Decap pathways (outlines with levels and planned items, prerequisites) and the lessons, exercises, projects, lectures and tutorials they link to; re-runnable |
 | `scripts/contrast-audit.mjs` | WCAG AA contrast check of the theme's colour tokens |
-| `scripts/video-source.mjs`, `video-frames.mjs`, `video-page.mjs` | Turn a YouTube video or a recording into a draft Tutorial or Lecture page: transcript, screenshots, timestamps that play the video. Run through the `video-to-page` Claude Code skill (`.claude/skills/video-to-page/`) |
+| `scripts/video-source.mjs`, `video-frames.mjs`, `video-page.mjs`, `video-playlist.mjs`, `link-series.mjs`, `tutorial-series-type.mjs` | Turn a YouTube video or a recording into a draft Tutorial or Lecture page (transcript, screenshots, timestamps that play the video), and a playlist into a tutorial series that exercises show with the Tutorial series block. Run through the `video-to-page` Claude Code skill (`.claude/skills/video-to-page/`) |
 | `tools/reader-grain-tuner.html` | Tunes Reader mode's paper grain for each page colour, with live contrast on the grain's worst pixel; open it in a browser and copy the settings as JSON |
 | `docs/design-system.md` | How the site looks, reads and behaves: tokens, components, patterns, writing and accessibility rules, and a checklist for new UI |
 | `docs/regression-protection.md` | Proposal for keeping the UI layer safe from upstream HAX changes |

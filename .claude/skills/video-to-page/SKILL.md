@@ -4,9 +4,11 @@ description: >
   Turn a video (a YouTube link or a recording on this Mac) into a draft
   Tutorial or Lecture page on the learning-materials site: the video embedded,
   a written breakdown, screenshots with alt text, timestamps that play the
-  video from that moment, and the transcript. Use when the user says "make a
-  tutorial from this video", "turn this lecture into a page", "make a page
-  from this YouTube video", "video to page", or gives a YouTube link or video
+  video from that moment, and the transcript. A YouTube playlist becomes a
+  tutorial series (a part per video) that exercises and projects show with
+  the Tutorial series block. Use when the user says "make a tutorial from
+  this video", "turn this lecture into a page", "turn this playlist into
+  tutorials", "video to page", or gives a YouTube link, playlist or video
   file and wants it on the site.
 ---
 
@@ -125,6 +127,38 @@ saves the draft). Timestamps on the page are HAX's `page-anchor`, made to play
 To try it without touching the real site, run step 5 against a scratch copy:
 `HAX_BASE=http://localhost:3101 SITE_DIR=<copy> HAX_TOKENLESS=1` (see
 `scripts/editor-check/README.md`).
+
+## A playlist: a tutorial series
+
+Exercises and projects embed YouTube playlists (46 of them in 2026). A
+playlist becomes a **tutorial series**: a Tutorial page whose sub-pages are
+its parts, one per video, shown in exercises and projects by the Tutorial
+series block (`<oer-tutorial-series series="…">`: the video with the parts as
+a playlist, each part's written tutorial beside it, and full screen).
+
+1. Once per site, let Tutorials hold parts:
+   `node --env-file=.env.local scripts/tutorial-series-type.mjs`
+2. `node scripts/video-playlist.mjs <playlist link>` lists the videos and the
+   pages that embed the playlist, and makes the series' work folder. Check
+   the channel for rights (see Before starting); ask before converting
+   anyone else's.
+3. **The series page:** in its work folder, `page.json` with the series' name
+   as title (sentence case, without course prefixes like "3D Studio:"), a
+   description, `fields`, `"video": false` and `"transcript": false`;
+   `page.html` a short introduction and `<oer-tutorial-series></oer-tutorial-series>`
+   (on its own page the block shows that series). Save it with video-page.mjs
+   and note its address.
+4. **Each part, in order** (parts are numbered by their order): steps 1–5
+   above for each video, with `"parent": "<the series' address>"` in
+   page.json and a short title without the series' name or "Part 2" (the
+   site shows "Part 2 of 5 · Part of …"). A part can start as video only
+   (page.html just `<!-- video -->`); the playlist says "Video only" until
+   it's written.
+5. **Swap the playlist for the series**, once the user has reviewed and
+   published the series and its parts:
+   `node --env-file=.env.local scripts/link-series.mjs <playlist> <series address>`
+   shows what changes; `--apply` changes it. It refuses while any of them is
+   a draft (readers would lose the videos).
 
 ## Local recordings and speech to text
 

@@ -74,6 +74,7 @@ Each is a Lit component with its styles in its shadow root. Reuse these before w
 | Table | `blocks/oer-collection.js` | Columns, sorting, filters, cards view, selection with a bulk bar. |
 | Sidebar | `outline/oer-site-nav.js` | Group labels (headings), rows, browse arrows on collections. |
 | Timestamp | `blocks/oer-timestamps.js` (HAX's `page-anchor`) | "▷ 1:30" in text: a `--muted` chip with a play icon that plays the video it points at (`target="#id"`, `value` in seconds) from that moment. A button for the keyboard (Tab, Enter, Space) named "Play from 1:30"; out of the tab order and inert while editing. Works with `oer-video` (its `seek()`), HAX's video-player and audio-player. |
+| Tutorial series | `blocks/oer-tutorial-series.js` (series: `tutorials/series-model.js`) | In an exercise or project, in place of a playlist: the current part's video with the series' parts as a playlist under it. **Tutorial** opens that part's written tutorial beside the video (the block widens to 72rem, centred on the main area, where there's room; stacks under the video where there isn't); open or closed, and the part, are remembered per reader. **Full screen** shows both side by side across the screen, or across the window as a popover where the browser won't allow full screen; Esc comes back. Timestamps in the written tutorial play the block's video. The written tutorial is read into the block's shadow DOM, never its light DOM, which HAX would save. Parts without one say "Video only". On a series' own page it shows that series. |
 | Toast | `editor/oer-toast.js` (HAX's toasts are shown in it) | For confirmations after an action, with one action button when it can be taken back ("Books removed · Undo"). Says its text in the editor's live region (`editor/announce.js`) and waits while pointed at or focused. An Undo goes back to where the author was, and is put away when editing ends. |
 
 HAX's own components (its editor bar, tray, dialogs) get the same look from `editor/editor-skin.js`, which pushes styles into their shadow roots.
@@ -141,7 +142,7 @@ HAX's own components (its editor bar, tray, dialogs) get the same look from `edi
 
 The site's types (`types/content-types.js`, edited in Site → Content types) and how they're grouped for authors (`types/type-homes.js`):
 
-- **Course materials:** Lesson, Lecture, Tutorial, Article, Resource.
+- **Course materials:** Lesson, Lecture, Tutorial (a series is a Tutorial whose sub-pages are its parts: its header lists them, numbered, and each part says "Part 2 of 5 · Part of …"), Article, Resource.
 - **Assessed work:** Exercise, Reflection, Project, Activity (a step in a project), Quiz, Rubric.
 - **Courses and pathways:** Program (a degree, under Institution → Programs, listing the courses whose Degree programs link to it), Course (with its Campus and Degree programs: the same code at two campuses is two course pages; Degree programs links to program pages), Course site (switched on from its course, not added), Course sequence, Pathway, Unit, Book, Specialization.
 - **Site structure:** Section; Heading (navigation labels, added in Edit navigation).

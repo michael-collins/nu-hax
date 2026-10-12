@@ -9,8 +9,9 @@
 //   parent?: id or address (default: the type's listing page, Tutorials…),
 //   fields?: the type's fields ({ difficulty, authors: [{ name, url }], … });
 //            a value "frames/…" becomes the uploaded image's address,
-//   video?: false to leave the video out, or a link for a local recording
-//           that's online somewhere,
+//   video?: false to leave the video out (a series page: its work folder is
+//           video-playlist.mjs's), or a link for a local recording that's
+//           online somewhere,
 //   transcript?: false to leave the transcript out }
 // page.html: the page's content. Conventions:
 //   [1:30]                 → a timestamp that plays the video from there
@@ -99,6 +100,9 @@ for (const m of body.matchAll(/<img\b[^>]*>/g)) {
 const fields = { ...(page.fields || {}) };
 for (const v of Object.values(fields)) if (typeof v === "string" && v.startsWith("frames/")) frameRefs.add(v);
 
+// anything written besides the video and transcript
+const written = read("page.html").replace(/<!--[\s\S]*?-->/g, "").replace(/<[^>]+>/g, "").trim().length > 0;
+
 const finalFile = path.join(work, "final.html");
 writeFileSync(finalFile, body);
 console.log(`page: ${page.title} (${page.type}), ${frameRefs.size} screenshots, ${body.length} characters → ${finalFile}`);
@@ -162,7 +166,9 @@ const item = {
     pageType: page.type,
     published: false,
     oerFields: fields,
-    oerVideoSource: { source, batch, captions: meta.captions || "none" },
+    // for the tutorial series block: the video's length, and whether there's
+    // anything written beside it ("Video only" when there isn't)
+    oerVideoSource: { source, batch, captions: meta.captions || "none", ...(meta.source.kind === "playlist" ? { kind: "playlist" } : { duration: Math.round(meta.duration || 0), written }) },
   },
   contents,
   new: true,
