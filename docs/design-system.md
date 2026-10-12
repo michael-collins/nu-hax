@@ -73,6 +73,7 @@ Each is a Lit component with its styles in its shadow root. Reuse these before w
 | Menu | page menu and account menu in the theme | `role="menu"`, arrow keys, Esc returns focus. |
 | Table | `blocks/oer-collection.js` | Columns, sorting, filters, cards view, selection with a bulk bar. |
 | Sidebar | `outline/oer-site-nav.js` | Group labels (headings), rows, browse arrows on collections. |
+| Timestamp | `blocks/oer-timestamps.js` (HAX's `page-anchor`) | "▷ 1:30" in text: a `--muted` chip with a play icon that plays the video it points at (`target="#id"`, `value` in seconds) from that moment. A button for the keyboard (Tab, Enter, Space) named "Play from 1:30"; out of the tab order and inert while editing. Works with `oer-video` (its `seek()`), HAX's video-player and audio-player. |
 | Toast | `editor/oer-toast.js` (HAX's toasts are shown in it) | For confirmations after an action, with one action button when it can be taken back ("Books removed · Undo"). Says its text in the editor's live region (`editor/announce.js`) and waits while pointed at or focused. An Undo goes back to where the author was, and is put away when editing ends. |
 
 HAX's own components (its editor bar, tray, dialogs) get the same look from `editor/editor-skin.js`, which pushes styles into their shadow roots.
