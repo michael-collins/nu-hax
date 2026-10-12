@@ -138,10 +138,12 @@ a playlist, each part's written tutorial beside it, and full screen).
 
 1. Once per site, let Tutorials hold parts:
    `node --env-file=.env.local scripts/tutorial-series-type.mjs`
-2. `node scripts/video-playlist.mjs <playlist link>` lists the videos and the
-   pages that embed the playlist, and makes the series' work folder. Check
-   the channel for rights (see Before starting); ask before converting
-   anyone else's.
+2. `node scripts/video-playlist.mjs <playlist link>` lists the videos (with
+   who made each one) and the pages that embed the playlist, and makes the
+   series' work folder. **Check each video's channel, not the playlist's:**
+   most of the user's playlists collect other creators' videos. Convert only
+   playlists that are entirely the user's own videos; leave the rest as
+   playlists, and ask about mixed ones.
 3. **The series page:** in its work folder, `page.json` with the series' name
    as title (sentence case, without course prefixes like "3D Studio:"), a
    description, `fields`, `"video": false` and `"transcript": false`;

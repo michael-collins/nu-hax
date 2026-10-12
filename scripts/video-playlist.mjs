@@ -26,7 +26,11 @@ if (!list) {
 const SITE_DIR = process.env.SITE_DIR || new URL("../learning-materials/", import.meta.url).pathname;
 const url = `https://www.youtube.com/playlist?list=${list}`;
 const j = JSON.parse(execFileSync("yt-dlp", ["--flat-playlist", "-J", url], { encoding: "utf8", maxBuffer: 1 << 26, stdio: ["ignore", "pipe", "pipe"] }));
-const videos = (j.entries || []).map((e, n) => ({ part: n + 1, id: e.id, title: e.title, duration: e.duration || 0, url: `https://www.youtube.com/watch?v=${e.id}` }));
+const videos = (j.entries || []).map((e, n) => ({ part: n + 1, id: e.id, title: e.title, duration: e.duration || 0, channel: e.channel || e.uploader || "", url: `https://www.youtube.com/watch?v=${e.id}` }));
+// a playlist can collect other people's videos: who made each one matters
+// (write-ups and screenshots only of the owner's own, unless they agree)
+const owner = j.channel || j.uploader || "";
+const others = videos.filter((v) => v.channel !== owner);
 
 const OUT = path.resolve(opt("--out", path.join(os.tmpdir(), "nu-hax-video", `playlist-${list}`)));
 mkdirSync(OUT, { recursive: true });
@@ -46,5 +50,6 @@ const embeds = items.filter((i) => {
 
 console.log(`${meta.title} — ${meta.channel} (${videos.length} videos, ${clock(meta.duration)})`);
 console.log(`work folder: ${OUT}`);
-for (const v of videos) console.log(`  ${v.part}. ${v.title} (${clock(v.duration)}) ${v.url}`);
+for (const v of videos) console.log(`  ${v.part}. ${v.title} (${clock(v.duration)})${v.channel !== owner ? ` — by ${v.channel || "unknown (private or removed)"}` : ""} ${v.url}`);
+if (others.length) console.log(`! ${others.length} of ${videos.length} videos aren't ${owner}'s own: don't write them up or take screenshots without permission`);
 console.log(embeds.length ? `embedded in: ${embeds.map((i) => `${i.title} (${i.metadata?.pageType}, ${i.slug})`).join("; ")}` : "embedded in: no pages");
