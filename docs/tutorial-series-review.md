@@ -42,3 +42,16 @@ Exercise: [Modeling the Airline Chair](http://localhost:3000/exercises/modeling-
 - Part 7: "right-click to add to Quick Favorites" is the write-up's addition; the reference shows solid pink because the file can't find it.
 - Transcript fixes: Kem Weber, supporting edge, subdiv, n-gon.
 - The exercise's step now says "Follow the Modeling the Airline Chair tutorials above" (it said "six-part video demonstration"; the series has seven parts with the fix-up video).
+
+## Texturing the Airline Chair
+
+Exercise: [Texturing the Airline Chair](http://localhost:3000/exercises/texturing-the-airline-chair). Series: [Texturing the Airline Chair](http://localhost:3000/tutorials/texturing-the-airline-chair) (drafts): Choosing a mesh resolution; Applying scale; Marking seams and unwrapping; Making and applying an image texture; Texturing the side from a photo.
+
+- **Part 5 builds the texture from photos of the real chair** (files 244141_743985d156708c43_b.jpg, 244191_…_b.jpg; they look like museum collection images, possibly Cooper Hewitt, not confirmed). Seven screenshots show them, t0058.8 nearly whole. Check their license before publishing.
+- The edge-banding wood is a Textures.com file (TexturesCom_Wood_MapleVeneer_512_albedo, visible in t0510.4).
+- On screen: your teaching folder path (Part 4's export dialog), your home folders (the Shading workspace's file browser), and a "secret stuff" collection (Parts 1–4).
+- The exercise wants a UV map per part (uv-arm.jpg…); the videos export PNGs named UV2 and color.png and only unwrap and texture the side. Part 1 recommends applying Subdivision before texturing, while the side in Parts 2–5 keeps its Mirror modifier.
+- Part 2: how the checker texture was set up isn't shown. Part 3: where the strip's seams go is described generally. Part 5: "this seam may need to be higher" is read as lining up the photo's wood joint with the UVs' inside corner; the edge banding is done off camera.
+- Ctrl+L (Select Linked) is written for the video's ⌘L; Photoshop shortcuts shown are Mac ones. Spoken promises of links to texture sites and supplied textures are left out. A "Thank you." that speech to text invented over silence was removed from Part 5's transcript.
+- Blender 2.83 in the videos. On 4.x: Apply is in the modifier's dropdown; "Viewport" is "Levels Viewport"; the video's UV menu has add-on entries (Peel Edge, UV Smoothing, Copy/Paste UV); Unwrap is a submenu; Stretching is in the UV Editor's Overlays popover; the Principled BSDF looks different; Image → Reload (Alt+R).
+- The exercise's step now says "Follow the Texturing the Airline Chair tutorials above to create UV maps…".
