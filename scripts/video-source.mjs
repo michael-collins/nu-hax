@@ -171,6 +171,32 @@ function youtubeCaptions(auto) {
   return pick ? readFileSync(path.join(OUT, pick), "utf8") : null;
 }
 
+// one transcription at a time across runs: two whisper runs side by side
+// compete for the GPU's memory, and one can fail
+function withSpeechLock(fn) {
+  const lock = path.join(os.homedir(), ".cache/nu-hax/speech.lock");
+  mkdirSync(path.dirname(lock), { recursive: true });
+  const nap = new Int32Array(new SharedArrayBuffer(4));
+  for (let waited = 0; ; waited += 2) {
+    try {
+      mkdirSync(lock);
+      break;
+    } catch {
+      // a lock older than an hour was left by a run that died
+      try {
+        if (Date.now() - statSync(lock).mtimeMs > 3600e3) rmSync(lock, { recursive: true, force: true });
+      } catch {}
+      if (waited % 60 === 0) say("Waiting for another transcription to finish");
+      Atomics.wait(nap, 0, 0, 2000);
+    }
+  }
+  try {
+    return fn();
+  } finally {
+    rmSync(lock, { recursive: true, force: true });
+  }
+}
+
 function speechToText(tool) {
   // a local file has its sound; a YouTube download for screenshots is
   // picture only, so get the audio on its own
@@ -186,6 +212,10 @@ function speechToText(tool) {
   }
   const wav = path.join(OUT, "speech.wav");
   run("ffmpeg", ["-y", "-v", "error", "-i", audio, "-vn", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", wav]);
+  return withSpeechLock(() => transcribe(tool, wav));
+}
+
+function transcribe(tool, wav) {
   say(`Transcribing with ${tool.kind} (this takes a while for long videos)`);
   const vocab = opt("--vocab");
   if (tool.kind === "whisper-cli") {

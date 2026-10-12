@@ -63,6 +63,10 @@ for (const item of items) {
   }
   if (!html.includes(`list=${list}`)) continue;
   const found = html.match(EMBED) || [];
+  if (!found.length && html.includes(`<oer-tutorial-series series="${series.id}"`)) {
+    console.log(`${item.title}: already shows the series`);
+    continue;
+  }
   if (!found.length) {
     console.log(`! ${item.title}: mentions the playlist but not in an embed this can swap; left as it is`);
     continue;

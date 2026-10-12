@@ -154,6 +154,12 @@ a playlist, each part's written tutorial beside it, and full screen).
    site shows "Part 2 of 5 · Part of …"). A part can start as video only
    (page.html just `<!-- video -->`); the playlist says "Video only" until
    it's written.
+   Steps 3–5 in one go, once the files are written (it skips what's
+   already made, so it can be run again):
+   `node --env-file=.env.local scripts/video-series-save.mjs <playlist work folder>`
+   (`--dry-run` first). Exercise text that points students to "Learning
+   Resources" or the playlist can then be reworded with
+   `node --env-file=.env.local scripts/page-text.mjs <address> "<old>" "<new>"`.
 5. **Swap the playlist for the series:**
    `node --env-file=.env.local scripts/link-series.mjs <playlist> <series address>`
    shows what changes; `--apply` changes it. The block keeps the playlist
