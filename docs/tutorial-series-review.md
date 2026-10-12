@@ -67,3 +67,14 @@ Exercise: [Lighting and Rendering the Airline Chair](http://localhost:3000/exerc
 - "cc0textures.com" is now probably ambientCG (not checked); the page says CC0 Textures.
 - Blender 2.83 and Photoshop 2020 in the videos. On 4.x: adaptive sampling and denoising are on by default ("Max Samples"); the Principled BSDF is reorganized (Clearcoat is Coat); Shadow Catcher is under Visibility › Mask; "Color Ramp". Cmd+Delete is Ctrl+Backspace on Windows.
 - The exercise's step now says "Follow the Lighting and rendering the Airline Chair tutorials above…".
+
+## Introduction to animation
+
+Exercise: [Introduction to animation](http://localhost:3000/exercises/introduction-to-animation). Series: [Introduction to animation](http://localhost:3000/tutorials/introduction-to-animation) (drafts): Keyframes, parenting and the Graph Editor; Saving a playblast.
+
+- **The videos and the exercise differ:** the video parents sphere → empty → cube and uses the empty as the sphere's pivot, where the exercise parents the sphere to the cube and uses the empty as the camera's target; the video's camera tracks the cube; it only makes a viewport playblast (no Render Animation); it saves to the desktop, without naming the .blend; it keys frames 1, 60 and 120.
+- Speech and screen disagree: "760 degrees" at 1:29 (the screen shows 720°; the page says 720°); "rotate the cube" at ~12:14 while the sphere is selected (the page says the sphere).
+- Part 2's screenshots (5 of 6) show the output path /Users/msc227/Desktop/.
+- Exercise step 1 still says "Watch linked tutorials in Learning Resources from Blender Foundation and others", but the exercise has no Learning resources set. Left as it is.
+- Blender 2.90 in the videos. On 4.1+: I keys straight away in the viewport (K opens the Insert Keyframe menu). Around 4.5 the output settings may add a Media Type choice before File Format (not checked).
+- The exercise's step now says "Follow the Introduction to animation tutorials above to animate a camera, cube, and sphere."
