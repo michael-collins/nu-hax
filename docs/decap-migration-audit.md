@@ -26,5 +26,5 @@ For every DART 303 and DART 203 exercise and project: the text (no page lost mor
 ## Fixes
 
 - **Done 2026-10-13** (`scripts/restore-seed-exercises.mjs`): *Animated textures* and *Animating a bouncing ball* have their Decap header images back (with alt text written for them), difficulty, author, licence, AI licences, Allow embedding, *Animated textures*' Image Sequence Download link, and their links to their Decap sources. A byte-for-byte check found every other exercise and project image identical to Decap's.
-- **Proposed:** restore the 32 course links from Decap's `course:` field (including *Animated textures*' DART 303).
+- **Done 2026-10-13** (`scripts/restore-course-links.mjs`): the 32 course links from Decap's `course:` field, plus *Animated textures*' DART 303 (33 pages; versions left as saved). The DART 303 course page now lists its exercises and lectures.
 - **Optional:** thumbnails for the 17 exercises that never had one.
