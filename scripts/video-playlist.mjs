@@ -26,7 +26,7 @@ if (!list) {
 const SITE_DIR = process.env.SITE_DIR || new URL("../learning-materials/", import.meta.url).pathname;
 const url = `https://www.youtube.com/playlist?list=${list}`;
 const j = JSON.parse(execFileSync("yt-dlp", ["--flat-playlist", "-J", url], { encoding: "utf8", maxBuffer: 1 << 26, stdio: ["ignore", "pipe", "pipe"] }));
-const videos = (j.entries || []).map((e, n) => ({ part: n + 1, id: e.id, title: e.title, duration: e.duration || 0, channel: e.channel || e.uploader || "", url: `https://www.youtube.com/watch?v=${e.id}` }));
+const videos = (j.entries || []).map((e, n) => ({ part: n + 1, id: e.id, title: e.title, duration: e.duration || 0, channel: e.channel || e.uploader || "", channelUrl: e.uploader_url || e.channel_url || "", url: `https://www.youtube.com/watch?v=${e.id}` }));
 // a playlist can collect other people's videos: who made each one matters
 // (write-ups and screenshots only of the owner's own, unless they agree)
 const owner = j.channel || j.uploader || "";

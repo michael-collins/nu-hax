@@ -5,10 +5,12 @@
 //   node --env-file=.env.local scripts/video-series-save.mjs <playlist work folder> [--dry-run]
 // The playlist's folder is video-playlist.mjs's; each part's is
 // video-source.mjs's default ($TMPDIR/nu-hax-video/<video id>), with its
-// page.json and page.html written. HAX_BASE, SITE_DIR and HAX_TOKENLESS
+// page.json and page.html written. Other people's videos in the playlist
+// become video-only parts, made here: the video, credited to its creator,
+// with no write-up, transcript or screenshots. HAX_BASE, SITE_DIR and HAX_TOKENLESS
 // point it at another copy of the site, as for the scripts it runs.
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -37,6 +39,15 @@ const fail = (msg) => {
 const meta = JSON.parse(readFileSync(path.join(work, "meta.json"), "utf8"));
 if (meta.source?.kind !== "playlist") fail(`${work} isn't a playlist's work folder (video-playlist.mjs makes one)`);
 const parts = meta.videos.map((v) => ({ ...v, dir: path.join(os.tmpdir(), "nu-hax-video", v.id) }));
+// someone else's video: a part that only embeds it, credited
+for (const p of parts) {
+  if (!p.channel || p.channel === meta.channel || existsSync(path.join(p.dir, "page.json"))) continue;
+  mkdirSync(p.dir, { recursive: true });
+  writeFileSync(path.join(p.dir, "meta.json"), JSON.stringify({ id: p.id, source: { kind: "youtube", url: p.url }, title: p.title, channel: p.channel, channelUrl: p.channelUrl || "", duration: p.duration, captions: "none", chapters: [] }, null, 2));
+  writeFileSync(path.join(p.dir, "page.json"), JSON.stringify({ type: "oer:tutorial", title: p.title, description: `A video by ${p.channel}, shown here from YouTube.`, videoOnly: true, transcript: false }, null, 1));
+  writeFileSync(path.join(p.dir, "page.html"), "<!-- video -->\n");
+  console.log(`part ${p.part}: ${p.title} (a video by ${p.channel}: video only)`);
+}
 for (const p of parts) if (!existsSync(path.join(p.dir, "page.json")) || !existsSync(path.join(p.dir, "page.html"))) fail(`Part ${p.part} (${p.title}) has no page.json and page.html in ${p.dir}`);
 
 // the series page

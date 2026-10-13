@@ -12,7 +12,9 @@
 //   video?: false to leave the video out (a series page: its work folder is
 //           video-playlist.mjs's), or a link for a local recording that's
 //           online somewhere,
-//   transcript?: false to leave the transcript out }
+//   transcript?: false to leave the transcript out,
+//   videoOnly?: true for someone else's video in a series: embedded and
+//               credited, nothing written (video-series-save.mjs makes these) }
 // page.html: the page's content. Conventions:
 //   [1:30]                 → a timestamp that plays the video from there
 //                            (plain text when there's no video)
@@ -57,8 +59,11 @@ if (!page.type) fail("page.json needs a type (oer:tutorial, oer:lecture, …)");
 
 const videoUrl = page.video === false ? "" : typeof page.video === "string" ? page.video : meta.source.kind === "youtube" ? meta.source.url : "";
 const videoId = videoUrl ? `video-${meta.id.replace(/[^\w-]/g, "")}` : "";
+// someone else's video, embedded but not written up: its own licence
+// (YouTube's standard one) is listed in the page footer's credits
+const videoOnly = !!page.videoOnly;
 const videoBlock = videoUrl
-  ? `<oer-video id="${videoId}" src="${escAttr(videoUrl)}" title="${escAttr(meta.title)}"${meta.channel ? ` credit="${escAttr(meta.channel)}"` : ""}${meta.channelUrl ? ` credit-url="${escAttr(meta.channelUrl)}"` : ""}></oer-video>`
+  ? `<oer-video id="${videoId}" src="${escAttr(videoUrl)}" title="${escAttr(meta.title)}"${meta.channel ? ` credit="${escAttr(meta.channel)}"` : ""}${meta.channelUrl ? ` credit-url="${escAttr(meta.channelUrl)}"` : ""}${videoOnly ? ' license="All Rights Reserved"' : ""}></oer-video>`
   : "";
 
 // [1:30] in text (never inside a tag) → a timestamp
@@ -168,7 +173,7 @@ const item = {
     oerFields: fields,
     // for the tutorial series block: the video's length, and whether there's
     // anything written beside it ("Video only" when there isn't)
-    oerVideoSource: { source, batch, captions: meta.captions || "none", ...(meta.source.kind === "playlist" ? { kind: "playlist" } : { duration: Math.round(meta.duration || 0), written }) },
+    oerVideoSource: { source, batch, captions: meta.captions || "none", ...(meta.source.kind === "playlist" ? { kind: "playlist" } : { duration: Math.round(meta.duration || 0), written }), ...(videoOnly ? { by: meta.channel || "", byUrl: meta.channelUrl || "" } : {}) },
   },
   contents,
   new: true,
