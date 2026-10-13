@@ -23,8 +23,8 @@ Checked 2026-10-13 against learning-materials-decapcms (`content/`), for every D
 
 For every DART 303 and DART 203 exercise and project: the text (no page lost more than a quarter of its words), images in the text, links, embeds (`iframe-component` → `oer-iframe`, now partly the Tutorial series block) and rubrics (`rubric-component` → `oer-rubric`). All six DART 303 projects have their course. No Decap exercise or project is missing a page here.
 
-## Fixes (proposed)
+## Fixes
 
-- Restore the 32 course links from Decap's `course:` field.
-- Restore *Animated textures*' fields, thumbnail, attachment and Decap source link, and *Animating a bouncing ball*'s thumbnail, difficulty, author and AI licence, uploading the two thumbnails from Decap's `public/uploads`.
-- Optional: thumbnails for the 17 exercises that never had one.
+- **Done 2026-10-13** (`scripts/restore-seed-exercises.mjs`): *Animated textures* and *Animating a bouncing ball* have their Decap header images back (with alt text written for them), difficulty, author, licence, AI licences, Allow embedding, *Animated textures*' Image Sequence Download link, and their links to their Decap sources. A byte-for-byte check found every other exercise and project image identical to Decap's.
+- **Proposed:** restore the 32 course links from Decap's `course:` field (including *Animated textures*' DART 303).
+- **Optional:** thumbnails for the 17 exercises that never had one.
