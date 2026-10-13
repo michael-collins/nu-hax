@@ -103,3 +103,16 @@ Exercise: [Sculpture Garden](http://localhost:3000/exercises/sculpture-garden). 
 - Part 2, unclear: the wall trimming at 15:36; rebuilding the n-gon as quads (partly shown); the seams and Solidify fix at 53:00–55:00 are on the skylight ring; the redesign between 1:28:58 and 1:30:17 happens off camera.
 - Blender 4.2.1 in the videos, so most carries over. Adaptive Subdivision needs the Experimental feature set; the sun elevations assume the Nishita sky; lights' Use Nodes is Cycles only. Mac shortcuts are given as Ctrl/Alt.
 - Series difficulty is Intermediate (the exercise is listed as Beginner). The exercise's step now says "Work through the Sculpture garden with PBR materials tutorials above."
+
+## Getting started with PlayCanvas
+
+Project: [Realtime Game Environment](http://localhost:3000/projects/realtime-game-environment) (its Grant Abbitt playlist stays). Series: [Getting started with PlayCanvas](http://localhost:3000/tutorials/getting-started-with-playcanvas) (drafts): Bringing a Blender scene into PlayCanvas; Hosting your scene on GitHub Pages.
+
+- **Part 2's video hosts someone else's project**: a PlayCanvas project titled with a person's name, with sexual-health signs in the scene ("Sex, Gender, Sexuality", "Living with Herpes") and upload files named sti-screening-kit and communityhealthcenter. It may be a student's or a client's. The page's 8 screenshots are cropped and chosen so none of that shows (checked), and the text and transcript don't mention it, but the embedded video (public on your channel) shows it all. Decide before publishing.
+- Part 1's movement script (firstPersonMovement.js) "will be provided" but isn't attached anywhere; attach it to the part or the project.
+- On screen: your GitHub account (michael-collins), michaelcollins.xyz in three Part 2 frames (the page explains a student's address will be github.io), and /Users/msc227/… paths in two Part 1 frames (one shows "dart303 2024" and recent folders).
+- At 32:42 the speech says "add some friction" but the screen sets Linear Damping to 0.99; the page follows the screen.
+- The video says private repositories need a paid account (out of date); the page just says leave it Public.
+- The videos and the project differ: no environmental storytelling, texturing, lighting, sound, walkthrough recording, or collisions on every imported model.
+- Recorded February–March 2024 (PlayCanvas engine 1.69.2, Blender 4.0). Likely changed: PlayCanvas's dashboard, Import Ammo, script attributes (newer projects use a different script system), Builds & Publish; GitHub's new-repository and Pages settings. Browser uploads to GitHub are limited (about 100 files and 25 MB per file).
+- The project's step now says "Please follow the Getting started with PlayCanvas tutorials above to host your game on…".
