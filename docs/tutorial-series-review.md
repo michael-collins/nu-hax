@@ -128,3 +128,13 @@ Project: [Ideas In Motion](http://localhost:3000/projects/ideas-in-motion). Seri
 - Added by the write-up: Time Stretching callouts (Parts 2, 4), Blender 4.1's I key (Part 4), a metadata tip (Part 5), Edit → Split Layer (Part 7).
 - Blender 2.91 and After Effects 2020. On 4.x: Time Remapping is Time Stretching; I keys straight away (K opens the menu); Emission Strength defaults to 0 since 4.0 (Part 3's moon won't glow until raised; not on the page); EEVEE changed in 4.2 and AgX makes renders look different. Media Encoder's "Vimeo 1080p Full HD" preset name is unchecked.
 - The project's "Tutorial" section now holds the series (the heading is unchanged).
+
+## Procedural texture animations (mixed)
+
+Exercise: [Animated procedural textures](http://localhost:3000/exercises/animated-procedural-textures). Series: [Procedural texture animations](http://localhost:3000/tutorials/procedural-texture-animations) (drafts): Master Stylized Animated Water in 3D (tutorial), a video by Zha Art (video only: embedded and credited, marked All Rights Reserved, nothing written or copied); Turning an image sequence into a video (yours, written up).
+
+- On screen in yours: your home folders in Blender's file browser and an output path /Users/msc227/Do…; the encoding screenshot shows /Users/msc227/Documents/teaching-2024/dart303 2024/default-scenes/waterfall-video/.
+- "Drag and drop into the comp area" is written as dragging the footage into the empty timeline (After Effects then makes a composition named Comp).
+- Not said in the video, so not on the page: the render engine (EEVEE); renaming Comp.mp4; that 3000 × 1500 frames in a 1080p preset probably get black bars.
+- Blender 4.2.3 and After Effects 2025 in the video. "HEVC (H.265)" follows Media Encoder's menu.
+- The exercise's step now says "Work through the Procedural texture animations tutorials above."
