@@ -138,3 +138,14 @@ Exercise: [Animated procedural textures](http://localhost:3000/exercises/animate
 - Not said in the video, so not on the page: the render engine (EEVEE); renaming Comp.mp4; that 3000 × 1500 frames in a 1080p preset probably get black bars.
 - Blender 4.2.3 and After Effects 2025 in the video. "HEVC (H.265)" follows Media Encoder's menu.
 - The exercise's step now says "Work through the Procedural texture animations tutorials above."
+
+## Reference, modeling and lighting for everyday objects (mixed)
+
+Projects: [You don't see that everyday objects](http://localhost:3000/projects/you-don-t-see-that-everyday-objects) and [… posters](http://localhost:3000/projects/you-don-t-see-that-everyday-object-posters) (both show the series). Series: [Reference, modeling and lighting for everyday objects](http://localhost:3000/tutorials/reference-modeling-and-lighting-for-everyday-objects) (drafts): Collecting reference images with PureRef (yours, written up); then video-only parts by Grant Abbitt, CG Boost (two) and Ducky 3D, embedded and credited, marked All Rights Reserved.
+
+- **The PureRef board is other people's images**: castle photos and illustrations, including a Harlech Castle plan marked "©2001 Shawn J. Brown", a GettyImages file and an Alamy-watermarked photo. Of the 4 screenshots, two show none, the zoomed-out board shows them small, and the export dialog shows them large but partly covered.
+- Your Desktop path, sidebar items and a Spotlight list appear in the video (not in the screenshots).
+- Pinning: "Always on top of…" asks for Accessibility access and fails in the video, so it uses "Always on top"; a callout explains. Where the exported PNG lands isn't said (it lands on the Desktop while the .pur is in the references folder).
+- A few words speech to text dropped were restored from YouTube's captions.
+- PureRef 2.0.1 in the video; pureref.com now offers 2.1.3, and whether $0 is still offered on the download page isn't confirmed.
+- "Blender Hard-Surface Modeling Fundamentals" had the creator's hashtags (#b3d #tutorial) in its title; removed.

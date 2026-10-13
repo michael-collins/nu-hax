@@ -44,7 +44,7 @@ for (const p of parts) {
   if (!p.channel || p.channel === meta.channel || existsSync(path.join(p.dir, "page.json"))) continue;
   mkdirSync(p.dir, { recursive: true });
   writeFileSync(path.join(p.dir, "meta.json"), JSON.stringify({ id: p.id, source: { kind: "youtube", url: p.url }, title: p.title, channel: p.channel, channelUrl: p.channelUrl || "", duration: p.duration, captions: "none", chapters: [] }, null, 2));
-  writeFileSync(path.join(p.dir, "page.json"), JSON.stringify({ type: "oer:tutorial", title: p.title, description: `A video by ${p.channel}, shown here from YouTube.`, videoOnly: true, transcript: false }, null, 1));
+  writeFileSync(path.join(p.dir, "page.json"), JSON.stringify({ type: "oer:tutorial", title: p.title.replace(/\s*#\w+/g, "").trim(), description: `A video by ${p.channel}, shown here from YouTube.`, videoOnly: true, transcript: false }, null, 1));
   writeFileSync(path.join(p.dir, "page.html"), "<!-- video -->\n");
   console.log(`part ${p.part}: ${p.title} (a video by ${p.channel}: video only)`);
 }
