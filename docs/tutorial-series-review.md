@@ -91,3 +91,15 @@ Exercise: [Introduction to rigging](http://localhost:3000/exercises/introduction
 - Part 4's transcript keeps a few lone "Okay." lines after long pauses (unchecked); an invented "Thank you." at 21:07 was removed.
 - Blender 2.90 in the videos. On 4.x: bone collections replaced bone layers and groups (Part 5 and the series intro say so); where the armature X-axis mirror toggle lives in 4.x is unchecked (Part 7 depends on turning it off in Pose Mode); Apply is in the modifier's dropdown.
 - The exercise's steps now say "Work through the Rigging a character tutorials above." and "Follow the edge flow part of the tutorials (Creating edge flow for deformation)…". Its "watch the weight paint tutorials" step is left as it is (the series doesn't show weight painting).
+
+## Sculpture garden with PBR materials
+
+Exercise: [Sculpture Garden](http://localhost:3000/exercises/sculpture-garden). Series: [Sculpture garden with PBR materials](http://localhost:3000/tutorials/sculpture-garden-with-pbr-materials) (drafts): Introduction to PBR materials; Making the sculpture garden. The playlist had the introduction second; the series puts it first.
+
+- Most screenshots in both parts show your home folders in the Shading workspace's file browser (BigFix, Creative Cloud, HoudiniProjects, redshift, UnrealEngine…). The final evening screenshot has a video player's controls over it.
+- Textures and HDRIs on screen are ambientCG's (CC0): Wood Floor 044, Day Sky HDRI 045 A, DayEnvironmentHDRI055, Ground 037, Concrete 042A, Metal 057B, Concrete 031; only Ground 037 is credited aloud. Photoshop's own lookup presets (Kodak 5218, TealOrangePlusContrast). Add-on tabs students won't have: BlenderKit, Substance 3D, MACHIN3, Screencast Keys.
+- The videos and the exercise differ: Part 2 lights the garden with the Sky Texture only (the HDRI is in Part 1); the evening walls are lit by small ground lights, not wall lights; files are named "sculpture garden", not LASTNAME-pbr; the Photoshop finish goes further (Color Lookup, vignette, grain). The textures-folder tip comes from the exercise.
+- Guesses: "Brutal" read as "Brutalist" (the sign says Brutalist); "seismic placement" (1:52) and "two shades" (46:31) left as heard. Part 1 adds that water's IOR is about 1.33 (the video says about 1.35).
+- Part 2, unclear: the wall trimming at 15:36; rebuilding the n-gon as quads (partly shown); the seams and Solidify fix at 53:00–55:00 are on the skylight ring; the redesign between 1:28:58 and 1:30:17 happens off camera.
+- Blender 4.2.1 in the videos, so most carries over. Adaptive Subdivision needs the Experimental feature set; the sun elevations assume the Nishita sky; lights' Use Nodes is Cycles only. Mac shortcuts are given as Ctrl/Alt.
+- Series difficulty is Intermediate (the exercise is listed as Beginner). The exercise's step now says "Work through the Sculpture garden with PBR materials tutorials above."
