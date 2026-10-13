@@ -116,3 +116,15 @@ Project: [Realtime Game Environment](http://localhost:3000/projects/realtime-gam
 - The videos and the project differ: no environmental storytelling, texturing, lighting, sound, walkthrough recording, or collisions on every imported model.
 - Recorded February–March 2024 (PlayCanvas engine 1.69.2, Blender 4.0). Likely changed: PlayCanvas's dashboard, Import Ammo, script attributes (newer projects use a different script system), Builds & Publish; GitHub's new-repository and Pages settings. Browser uploads to GitHub are limited (about 100 files and 25 MB per file).
 - The project's step now says "Please follow the Getting started with PlayCanvas tutorials above to host your game on…".
+
+## Creating 3D scene layouts in Blender
+
+Project: [Ideas In Motion](http://localhost:3000/projects/ideas-in-motion). Series: [Creating 3D scene layouts in Blender](http://localhost:3000/tutorials/creating-3d-scene-layouts-in-blender) (drafts): The finished animatic; Organizing your project folder; A tour of the layout scene; Blocking the animation and setting up scenes; Rendering the viewport to image sequences; Switching cameras with markers; Editing the animatic with sound in After Effects; Exporting the animatic and swapping in final renders.
+
+- **Sounds in the example animatic aren't credited in it:** "Space Residue" by Igor Amokian (FMA, CC BY-NC-SA 3.0), felix.blume's dog bark and river ambience (CC0), newagesoup's whoosh (CC BY 3.0), gerainsan's spaceship fly-by (license not seen). Heard in Parts 1, 7 and 8; Part 7's page tells students to note who to credit. Who made the dog, house and tree models isn't said.
+- /Users/msc227/Documents/teaching/dart303-fa20/animatic/... is burned into every viewport render and shows in screenshots in Parts 1, 2, 5, 7 and 8. Frames with your freesound login (mscoll85) and a "student work" folder weren't used.
+- The videos and the project differ: the project asks for "1080x1920" (vertical, or a typo?); the videos make a 20-second 1920×1080 animatic. The project says the demos show After Effects color grading; they don't. Not covered: test renders, EXR, the compositor, storyboarding.
+- Unclear: "IE" in Part 1's credits; Part 4's Cmd+P (from speech) and the Affect Only → Origins path (the write-up's wording); the slowed scene keeps the name CAM-3_250-350_x400 for frames 166–200; where the footage is dropped in Part 7; Part 8 starts mid-sentence and uses an earlier After Effects project.
+- Added by the write-up: Time Stretching callouts (Parts 2, 4), Blender 4.1's I key (Part 4), a metadata tip (Part 5), Edit → Split Layer (Part 7).
+- Blender 2.91 and After Effects 2020. On 4.x: Time Remapping is Time Stretching; I keys straight away (K opens the menu); Emission Strength defaults to 0 since 4.0 (Part 3's moon won't glow until raised; not on the page); EEVEE changed in 4.2 and AgX makes renders look different. Media Encoder's "Vimeo 1080p Full HD" preset name is unchecked.
+- The project's "Tutorial" section now holds the series (the heading is unchanged).
