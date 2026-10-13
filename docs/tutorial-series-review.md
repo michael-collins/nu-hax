@@ -78,3 +78,16 @@ Exercise: [Introduction to animation](http://localhost:3000/exercises/introducti
 - Exercise step 1 still says "Watch linked tutorials in Learning Resources from Blender Foundation and others", but the exercise has no Learning resources set. Left as it is.
 - Blender 2.90 in the videos. On 4.1+: I keys straight away in the viewport (K opens the Insert Keyframe menu). Around 4.5 the output settings may add a Media Type choice before File Format (not checked).
 - The exercise's step now says "Follow the Introduction to animation tutorials above to animate a camera, cube, and sphere."
+
+## Rigging a character
+
+Exercise: [Introduction to rigging](http://localhost:3000/exercises/introduction-to-rigging). Series: [Rigging a character](http://localhost:3000/tutorials/rigging-a-character) (drafts): Importing the base mesh; Setting up a Mirror modifier; Adding knees and elbows; Creating edge flow for deformation; Setting up an armature; Parenting the mesh to the armature; Posing with IK constraints.
+
+- Part 1's t0026.0 shows /Users/msc227/Documents/teac…3-fa20/assignments/ex-6-rigging/, your home folder and a Recent list (product-concepts, ex5-animation, modeling-b1, p3d.in-test…). Parts 5–7 show ex6-rigging.blend in the title bar.
+- **The video's height is wrong:** it reads Dimensions Z (1.68 m) as the height, but the model is rotated 90° on X, so the height is Y (11.5 m, about 12 m tall). Part 1 has a callout explaining it.
+- The videos and the exercise differ: no Ctrl+A apply transforms (scale typed as 1; the 90° X rotation stays); no neck bone, no separate shoulder and arm bones, no numbering; weight painting only mentioned (Part 7, 24:15), not shown; the head's IK constraint has no target (the page calls it optional).
+- Part 7 settings to check: axes inverted Z then Y (yours may differ); pole angle 90° legs, −90° arms; the right leg's pole target is only set at 20:36; "rotate this" at 23:13 is written as fine-tuning; left/right isn't named in the sitting-pose alt text.
+- Bone names follow the screen: footIK.L/R, kneePoleTarget.L/R, elbowPoleTarget.L/R, handIK.L/R.
+- Part 4's transcript keeps a few lone "Okay." lines after long pauses (unchecked); an invented "Thank you." at 21:07 was removed.
+- Blender 2.90 in the videos. On 4.x: bone collections replaced bone layers and groups (Part 5 and the series intro say so); where the armature X-axis mirror toggle lives in 4.x is unchecked (Part 7 depends on turning it off in Pose Mode); Apply is in the modifier's dropdown.
+- The exercise's steps now say "Work through the Rigging a character tutorials above." and "Follow the edge flow part of the tutorials (Creating edge flow for deformation)…". Its "watch the weight paint tutorials" step is left as it is (the series doesn't show weight painting).
