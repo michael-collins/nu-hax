@@ -42,7 +42,7 @@ Still to do in this phase, or later:
 - An outcome on a rubric criterion.
 - ~~Design questions~~ decided 2026-10-14:
   - **Versions** (owner: "version the outcomes"), built like rubric versions: live links follow the latest wording; releasing work or a sequence pins its outcomes (`outcomePlan` in `versions/versioning.js`; a released sequence's items record `outcomes: [{ page, version }]`); a changed outcome is released first (minor bump); saving an in-use outcome asks first and offers Save as new outcome. DMD 400's five have v1.0.0 (`scripts/release-outcome-versions.mjs`).
-  - **Picker**: the scoped dialog (`ui/oer-outcome-picker.js`), chosen over an inline combobox and an outcomes × work grid. The grid could still come later in the sequence builder for aligning a whole course at once.
+  - **Picker**: the scoped dialog (`ui/oer-outcome-picker.js`), chosen over an inline combobox and an outcomes × work grid. **Alignment grid** added the same day (owner: "let's work on the alignment grid"): the sequence builder's Outcomes sheet, outcomes × graded pages, ticks saved to the pages with the sequence.
 - Existing free-text "Learning objectives" lists on lessons, pathways, units and specializations, and course sites' outcome items, could be moved into the bank. That needs a decision; nothing is migrated yet.
 
 ## Phase 2: Curriculum check (the analyzer)
