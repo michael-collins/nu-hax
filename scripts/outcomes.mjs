@@ -44,6 +44,12 @@ if (!types.types.some((t) => t.id === OUTCOME_TYPE)) {
   types.types.splice(at >= 0 ? at + 1 : types.types.length, 0, OUTCOME_DEF);
   console.log("content types: Learning outcome");
 }
+// new outcome pages start from the current template (Assessed by's types)
+const outcomeType = types.types.find((t) => t.id === OUTCOME_TYPE);
+if (outcomeType.template !== OUTCOME_DEF.template) {
+  outcomeType.template = OUTCOME_DEF.template;
+  console.log("Learning outcome: template");
+}
 for (const id of ASSESSED_TYPES) {
   const type = types.types.find((t) => t.id === id);
   if (!type || type.fields?.some((f) => f.name === OUTCOMES_FIELD.name)) continue;
